@@ -10,13 +10,16 @@ COPY requirements.txt pyproject.toml ./
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir ".[dev]" 2>/dev/null || true
 
-COPY app/ /app/app/
+COPY entrypoint.sh app/ /app/
+
+RUN chmod +x /app/entrypoint.sh
 
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 
