@@ -23,11 +23,19 @@ dependencies = [
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.0.0",
+    "pytest-httpx>=0.35.0",
+    "aiosqlite>=0.20.0",
     "ruff>=0.8.0",
     "bandit>=1.8.0",
     "pip-audit>=2.7.0",
     "pre-commit>=4.1.0",
 ]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/templates/*", "app/static/*"]
+
 
 [tool.ruff]
 target-version = "py312"
