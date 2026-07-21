@@ -7,16 +7,15 @@ import pytest
 import pytest_asyncio
 from sbom_pb2 import UploadRequest
 from sbom_pb2_grpc import SBOMServiceStub, add_SBOMServiceServicer_to_server
-from services.grpc_server import SBOMServiceServicer
 from sqlalchemy.ext.asyncio import async_sessionmaker
+
+from services.grpc_server import SBOMServiceServicer
 
 
 class TestUploadSBOM:
     @pytest_asyncio.fixture
     async def grpc_client(self, db_session):
-        session_factory = async_sessionmaker(
-            db_session.bind, expire_on_commit=False
-        )
+        session_factory = async_sessionmaker(db_session.bind, expire_on_commit=False)
         servicer = SBOMServiceServicer(session_factory=session_factory)
 
         server = grpc.aio.server()
@@ -38,13 +37,14 @@ class TestUploadSBOM:
         project = Project(name="grpc-test")
         db_session.add(project)
         await db_session.commit()
-        project_id = str(project.id)
 
-        sbom_json = json.dumps({
-            "bomFormat": "CycloneDX",
-            "specVersion": "1.5",
-            "components": [{"type": "library", "name": "flask", "version": "2.0.0"}],
-        })
+        sbom_json = json.dumps(
+            {
+                "bomFormat": "CycloneDX",
+                "specVersion": "1.5",
+                "components": [{"type": "library", "name": "flask", "version": "2.0.0"}],
+            }
+        )
 
         response = await grpc_client.UploadSBOM(
             UploadRequest(
@@ -89,7 +89,5 @@ class TestUploadSBOM:
     @pytest.mark.asyncio
     async def test_upload_sbom_invalid_uuid(self, db_session, grpc_client):
         with pytest.raises(grpc.aio.AioRpcError) as exc:
-            await grpc_client.UploadSBOM(
-                UploadRequest(project_id="not-a-uuid", sbom_json=b"{}")
-            )
+            await grpc_client.UploadSBOM(UploadRequest(project_id="not-a-uuid", sbom_json=b"{}"))
         assert exc.value.code() == grpc.StatusCode.INVALID_ARGUMENT

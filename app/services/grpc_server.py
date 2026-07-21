@@ -3,14 +3,15 @@ import logging
 import uuid
 
 import grpc
+from sbom_pb2 import UploadRequest, UploadResponse
+from sbom_pb2_grpc import SBOMServiceServicer as BaseServicer
+from sbom_pb2_grpc import add_SBOMServiceServicer_to_server
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from config import settings
 from models.project import Project
-from sbom_pb2 import UploadRequest, UploadResponse
-from sbom_pb2_grpc import SBOMServiceServicer as BaseServicer, add_SBOMServiceServicer_to_server
 from services.sbom_parser import store_sbom
 from services.tasks import scan_sbom
 
@@ -23,9 +24,13 @@ class SBOMServiceServicer(BaseServicer):
             self._session_factory = session_factory
         else:
             engine = create_async_engine(settings.database_url, echo=False, poolclass=NullPool)
-            self._session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+            self._session_factory = async_sessionmaker(
+                engine, class_=AsyncSession, expire_on_commit=False
+            )
 
-    async def UploadSBOM(self, request: UploadRequest, context: grpc.aio.ServicerContext) -> UploadResponse:
+    async def UploadSBOM(  # noqa: N802
+        self, request: UploadRequest, context: grpc.aio.ServicerContext
+    ) -> UploadResponse:
         try:
             project_uuid = uuid.UUID(request.project_id)
         except ValueError:

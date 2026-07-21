@@ -31,6 +31,7 @@ def _dep_name(name: str | None, version: str | None, purl: str | None) -> str:
         return last
     return "-"
 
+
 router = APIRouter(tags=["dashboard"])
 templates = Jinja2Templates(directory="templates")
 
@@ -118,7 +119,9 @@ async def projects_page(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/projects/{project_id}", response_class=HTMLResponse)
 async def project_detail_page(
-    request: Request, project_id: str, db: AsyncSession = Depends(get_db),
+    request: Request,
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
     service_id: str = Query(None),
 ):
     result = await db.execute(select(Project).where(Project.id == project_id))
@@ -185,9 +188,9 @@ async def project_detail_page(
                     "severity": row.severity,
                     "cvss_score": row.cvss_score,
                     "summary": row.summary,
-                "service_name": svc_name,
-                "dependency_purl": row.dependency_purl,
-                "dependency_name": _dep_name(row.name, row.version, row.dependency_purl),
+                    "service_name": svc_name,
+                    "dependency_purl": row.dependency_purl,
+                    "dependency_name": _dep_name(row.name, row.version, row.dependency_purl),
                 }
             )
             if row.cve_id not in seen:
@@ -200,9 +203,11 @@ async def project_detail_page(
                         "summary": row.summary,
                         "service_name": svc_name,
                         "dependency_purl": row.dependency_purl,
-                "dependency_name": _dep_name(row.name, row.version, row.dependency_purl),
+                        "dependency_name": _dep_name(row.name, row.version, row.dependency_purl),
                         "cvss_vector": cvss_vec,
-                        "published": row.published_at.strftime("%Y-%m-%d") if row.published_at else "",
+                        "published": row.published_at.strftime("%Y-%m-%d")
+                        if row.published_at
+                        else "",
                         "urls": urls,
                         "fix_versions": fix_versions,
                     }
@@ -306,11 +311,17 @@ async def vulnerabilities_page(
             project_map.setdefault(v_id, set()).add(proj_name)
 
     projects = (await db.execute(select(Project).order_by(Project.name))).scalars().all()
-    services = (await db.execute(
-        select(Service).where(Service.project_id == project_id).order_by(Service.name)
-        if project_id and project_id != ""
-        else select(Service).order_by(Service.name)
-    )).scalars().all()
+    services = (
+        (
+            await db.execute(
+                select(Service).where(Service.project_id == project_id).order_by(Service.name)
+                if project_id and project_id != ""
+                else select(Service).order_by(Service.name)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     return templates.TemplateResponse(
         request,
@@ -401,11 +412,17 @@ async def sboms_page(
             vuln_counts[s_id] = cnt
 
     projects = (await db.execute(select(Project).order_by(Project.name))).scalars().all()
-    services = (await db.execute(
-        select(Service).where(Service.project_id == project_id).order_by(Service.name)
-        if project_id and project_id != ""
-        else select(Service).order_by(Service.name)
-    )).scalars().all()
+    services = (
+        (
+            await db.execute(
+                select(Service).where(Service.project_id == project_id).order_by(Service.name)
+                if project_id and project_id != ""
+                else select(Service).order_by(Service.name)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     return templates.TemplateResponse(
         request,
