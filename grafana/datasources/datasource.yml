@@ -1,0 +1,15 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    database: argus
+    user: argus
+    secureJsonData:
+      password: argus
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false

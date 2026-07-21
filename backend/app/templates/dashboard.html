@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Argus SBOM Guard{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold">Dashboard</h1>
+        <a href="/projects" class="btn btn-primary btn-sm">Add Project</a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="stat bg-base-100 rounded-box shadow-sm">
+            <div class="stat-title">Projects</div>
+            <div class="stat-value text-primary">{{ project_count }}</div>
+        </div>
+        <div class="stat bg-base-100 rounded-box shadow-sm">
+            <div class="stat-title">SBOMs</div>
+            <div class="stat-value text-secondary">{{ sbom_count }}</div>
+        </div>
+        <div class="stat bg-base-100 rounded-box shadow-sm">
+            <div class="stat-title">Critical Vulns</div>
+            <div class="stat-value text-error">{{ critical }}</div>
+        </div>
+        <div class="stat bg-base-100 rounded-box shadow-sm">
+            <div class="stat-title">High Vulns</div>
+            <div class="stat-value text-warning">{{ high }}</div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card bg-base-100 shadow-sm">
+            <div class="card-body">
+                <h2 class="card-title">Vulnerability Overview</h2>
+                <div class="flex gap-4 mt-4">
+                    <div class="flex flex-col items-center">
+                        <div class="radial-progress text-error" style="--value:{{ critical }};--size:6rem;">{{ critical }}</div>
+                        <span class="text-sm mt-1">Critical</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="radial-progress text-warning" style="--value:{{ high }};--size:6rem;">{{ high }}</div>
+                        <span class="text-sm mt-1">High</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="radial-progress text-info" style="--value:{{ medium }};--size:6rem;">{{ medium }}</div>
+                        <span class="text-sm mt-1">Medium</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="radial-progress text-success" style="--value:{{ low }};--size:6rem;">{{ low }}</div>
+                        <span class="text-sm mt-1">Low</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card bg-base-100 shadow-sm">
+            <div class="card-body">
+                <h2 class="card-title">Recent SBOMs</h2>
+                <div class="overflow-x-auto">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Project</th>
+                                <th>Version</th>
+                                <th>Deps</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sbom in recent_sboms %}
+                            <tr>
+                                <td>{{ sbom.project_id|truncate(8) }}</td>
+                                <td>{{ sbom.version or "-" }}</td>
+                                <td>{{ sbom.dependency_count or 0 }}</td>
+                                <td>{{ sbom.created_at.strftime('%Y-%m-%d') if sbom.created_at else "-" }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center opacity-60 py-4">No SBOMs uploaded yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Vulnerabilities - Argus SBOM Guard{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold">Active Vulnerabilities</h1>
+        <div class="flex gap-2">
+            <select class="select select-bordered select-sm" x-data x-on:change="window.location.href='/vulnerabilities?severity=' + $event.target.value">
+                <option value="">All Severities</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="card bg-base-100 shadow-sm">
+        <div class="card-body p-0">
+            <div class="overflow-x-auto">
+                <table class="table table-zebra">
+                    <thead>
+                        <tr>
+                            <th>CVE</th>
+                            <th>Severity</th>
+                            <th>CVSS</th>
+                            <th>Summary</th>
+                            <th>Source</th>
+                            <th>Published</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vuln in vulnerabilities %}
+                        <tr>
+                            <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
+                            <td>
+                                {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}
+                                {% if sev == "critical" %}
+                                <span class="badge badge-error">{{ vuln.severity }}</span>
+                                {% elif sev == "high" %}
+                                <span class="badge badge-warning">{{ vuln.severity }}</span>
+                                {% elif sev == "medium" %}
+                                <span class="badge badge-info">{{ vuln.severity }}</span>
+                                {% else %}
+                                <span class="badge badge-ghost">{{ vuln.severity }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ vuln.cvss_score or "-" }}</td>
+                            <td class="max-w-md truncate text-sm">{{ vuln.summary or "-" }}</td>
+                            <td><span class="badge badge-outline badge-sm">{{ vuln.source or "unknown" }}</span></td>
+                            <td class="text-sm">{{ vuln.published_at.strftime('%Y-%m-%d') if vuln.published_at else "-" }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center opacity-60 py-12">
+                                <p class="text-lg">No vulnerabilities detected</p>
+                                <p class="text-sm">Upload an SBOM to start scanning</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

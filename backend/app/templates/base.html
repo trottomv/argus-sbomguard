@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Argus SBOM Guard{% endblock %}</title>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="bg-base-300 min-h-screen">
+    <div class="drawer lg:drawer-open">
+        <input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+        <div class="drawer-content flex flex-col">
+            <nav class="navbar bg-base-100 shadow-sm sticky top-0 z-10">
+                <div class="flex-none lg:hidden">
+                    <label for="drawer-toggle" class="btn btn-square btn-ghost">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-6 h-6 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </label>
+                </div>
+                <div class="flex-1">
+                    <a href="/" class="text-xl font-bold tracking-tight">Argus SBOM Guard</a>
+                </div>
+                <div class="flex-none">
+                    <span class="badge badge-outline badge-sm">v0.1.0</span>
+                </div>
+            </nav>
+            <main class="p-6">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+        <div class="drawer-side">
+            <label for="drawer-toggle" class="drawer-overlay"></label>
+            <aside class="menu bg-base-200 text-base-content min-h-full w-64 p-4">
+                <div class="mb-6 mt-2">
+                    <h2 class="text-lg font-bold tracking-tight">Argus</h2>
+                    <p class="text-xs opacity-60">SBOM Management Platform</p>
+                </div>
+                <ul class="menu menu-sm">
+                    <li><a href="/" class="flex items-center gap-2">Dashboard</a></li>
+                    <li><a href="/projects" class="flex items-center gap-2">Projects</a></li>
+                    <li><a href="/vulnerabilities" class="flex items-center gap-2">Vulnerabilities</a></li>
+                    <li><a href="/settings" class="flex items-center gap-2">Settings</a></li>
+                </ul>
+                <div class="divider my-4"></div>
+                <div class="text-xs opacity-40 px-2">
+                    <p>AGPL v3 License</p>
+                </div>
+            </aside>
+        </div>
+    </div>
+</body>
+</html>

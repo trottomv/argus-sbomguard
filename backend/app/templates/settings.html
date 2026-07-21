@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Settings - Argus SBOM Guard{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <h1 class="text-2xl font-bold">Settings</h1>
+
+    <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+            <h2 class="card-title">Alert Configurations</h2>
+            <button class="btn btn-primary btn-sm mt-2" onclick="alert_modal.showModal()">New Alert Rule</button>
+
+            <dialog id="alert_modal" class="modal">
+                <div class="modal-box">
+                    <h3 class="font-bold text-lg">New Alert Rule</h3>
+                    <div x-data="{ project_id: '', severity_threshold: 'high', notification_type: 'slack', enabled: true }">
+                        <form @submit.prevent="
+                            fetch('/api/v1/alerts', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ project_id, severity_threshold, notification_type, enabled })
+                            }).then(r => { if(r.ok) location.reload(); });
+                        " class="space-y-4 mt-4">
+                            <fieldset class="fieldset">
+                                <legend class="fieldset-legend">Project</legend>
+                                <select x-model="project_id" class="select w-full" required>
+                                    <option value="">Select project...</option>
+                                    {% for p in projects %}
+                                    <option value="{{ p.id }}">{{ p.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </fieldset>
+                            <fieldset class="fieldset">
+                                <legend class="fieldset-legend">Severity Threshold</legend>
+                                <select x-model="severity_threshold" class="select w-full">
+                                    <option value="critical">Critical only</option>
+                                    <option value="high" selected>High and above</option>
+                                    <option value="medium">Medium and above</option>
+                                    <option value="low">All</option>
+                                </select>
+                            </fieldset>
+                            <fieldset class="fieldset">
+                                <legend class="fieldset-legend">Notification Type</legend>
+                                <select x-model="notification_type" class="select w-full">
+                                    <option value="slack">Slack</option>
+                                    <option value="email">Email</option>
+                                </select>
+                            </fieldset>
+                            <fieldset class="fieldset">
+                                <legend class="fieldset-legend">Enabled</legend>
+                                <input type="checkbox" x-model="enabled" class="toggle" checked>
+                            </fieldset>
+                            <div class="modal-action">
+                                <button type="submit" class="btn btn-primary">Create</button>
+                                <button type="button" class="btn" onclick="alert_modal.close()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </dialog>
+
+            <div id="alert-list" class="overflow-x-auto mt-4">
+                <table class="table table-zebra">
+                    <thead>
+                        <tr>
+                            <th>Project</th>
+                            <th>Threshold</th>
+                            <th>Channel</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alert in alerts %}
+                        <tr>
+                            <td>{{ alert.project_id }}</td>
+                            <td><span class="badge badge-outline">{{ alert.severity_threshold }}</span></td>
+                            <td>{{ alert.notification_type }}</td>
+                            <td>
+                                {% if alert.enabled %}
+                                <span class="badge badge-success">Enabled</span>
+                                {% else %}
+                                <span class="badge badge-ghost">Disabled</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center opacity-60 py-4">No alert rules configured</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

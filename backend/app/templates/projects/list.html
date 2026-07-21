@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Projects - Argus SBOM Guard{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold">Projects</h1>
+        <button class="btn btn-primary btn-sm" onclick="my_modal_1.showModal()">Add Project</button>
+    </div>
+
+    <dialog id="my_modal_1" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">New Project</h3>
+            <div x-data="{ name: '', description: '', repo_url: '', platform: '' }">
+                <form @submit.prevent="
+                    fetch('/api/v1/projects', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, description, repo_url, platform })
+                    }).then(r => { if(r.ok) location.reload(); });
+                " class="space-y-4 mt-4">
+                    <fieldset class="fieldset">
+                        <legend class="fieldset-legend">Name</legend>
+                        <input type="text" x-model="name" class="input w-full" placeholder="my-service" required>
+                    </fieldset>
+                    <fieldset class="fieldset">
+                        <legend class="fieldset-legend">Description</legend>
+                        <textarea x-model="description" class="textarea w-full" placeholder="Optional description"></textarea>
+                    </fieldset>
+                    <fieldset class="fieldset">
+                        <legend class="fieldset-legend">Repository URL</legend>
+                        <input type="url" x-model="repo_url" class="input w-full" placeholder="https://github.com/org/repo">
+                    </fieldset>
+                    <fieldset class="fieldset">
+                        <legend class="fieldset-legend">Platform</legend>
+                        <select x-model="platform" class="select w-full">
+                            <option value="">-</option>
+                            <option value="github">GitHub</option>
+                            <option value="gitlab">GitLab</option>
+                            <option value="bitbucket">Bitbucket</option>
+                        </select>
+                    </fieldset>
+                    <div class="modal-action">
+                        <button type="submit" class="btn btn-primary">Create</button>
+                        <button type="button" class="btn" onclick="my_modal_1.close()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </dialog>
+
+    <div id="project-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for project in projects %}
+        <a href="/projects/{{ project.id }}" class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow">
+            <div class="card-body">
+                <h2 class="card-title text-lg">{{ project.name }}</h2>
+                {% if project.description %}
+                <p class="text-sm opacity-70">{{ project.description }}</p>
+                {% endif %}
+                <div class="flex items-center gap-2 mt-2 text-xs opacity-50">
+                    {% if project.repo_url %}
+                    <span>{{ project.repo_url }}</span>
+                    {% endif %}
+                    <span>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else "" }}</span>
+                </div>
+            </div>
+        </a>
+        {% else %}
+        <div class="col-span-full text-center opacity-60 py-12">
+            <p class="text-lg">No projects yet</p>
+            <p class="text-sm">Add your first project to start tracking SBOMs</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

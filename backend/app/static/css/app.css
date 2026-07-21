@@ -1,0 +1,19 @@
+@import url("https://cdn.jsdelivr.net/npm/daisyui@4.12.23/dist/full.min.css");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+body {
+    font-family: "Inter", system-ui, sans-serif;
+}
+
+.stat-value {
+    font-family: "Inter", system-ui, sans-serif;
+    font-weight: 700;
+}
+
+.card {
+    transition: box-shadow 0.2s ease;
+}
+
+.modal-box {
+    max-width: 28rem;
+}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} - Argus SBOM Guard{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <a href="/projects" class="text-sm opacity-60 hover:opacity-100">&larr; Projects</a>
+            <h1 class="text-2xl font-bold mt-1">{{ project.name }}</h1>
+            {% if project.description %}
+            <p class="text-sm opacity-70">{{ project.description }}</p>
+            {% endif %}
+        </div>
+        <div class="flex gap-2">
+            <button class="btn btn-primary btn-sm" onclick="upload_modal.showModal()">Upload SBOM</button>
+        </div>
+    </div>
+
+    <dialog id="upload_modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Upload SBOM</h3>
+            <form hx-post="/api/v1/sboms/upload" hx-target="#sbom-table" hx-swap="afterbegin"
+                  enctype="multipart/form-data" class="space-y-4 mt-4">
+                <input type="hidden" name="project_id" value="{{ project.id }}">
+                <fieldset class="fieldset">
+                    <legend class="fieldset-legend">Version (optional)</legend>
+                    <input type="text" name="version" class="input w-full" placeholder="v1.2.3">
+                </fieldset>
+                <fieldset class="fieldset">
+                    <legend class="fieldset-legend">SBOM File (CycloneDX/SPDX JSON)</legend>
+                    <input type="file" name="file" accept=".json" class="file-input w-full" required>
+                </fieldset>
+                <div class="modal-action">
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                    <button type="button" class="btn" onclick="upload_modal.close()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div class="stat bg-base-100 rounded-box shadow-sm">
+            <div class="stat-title">SBOMs</div>
+            <div class="stat-value text-primary">{{ sboms|length }}</div>
+        </div>
+        <div class="stat bg-base-100 rounded-box shadow-sm">
+            <div class="stat-title">Total Dependencies</div>
+            <div class="stat-value text-secondary">{{ sboms|map(attribute='dependency_count')|sum }}</div>
+        </div>
+    </div>
+
+    <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+            <h2 class="card-title">SBOM History</h2>
+            <div class="overflow-x-auto">
+                <table id="sbom-table" class="table table-zebra">
+                    <thead>
+                        <tr>
+                            <th>Version</th>
+                            <th>Format</th>
+                            <th>Dependencies</th>
+                            <th>SHA256</th>
+                            <th>Uploaded</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sbom in sboms %}
+                        <tr>
+                            <td>{{ sbom.version or "-" }}</td>
+                            <td><span class="badge badge-outline">{{ sbom.format }}</span></td>
+                            <td>{{ sbom.dependency_count or 0 }}</td>
+                            <td><code class="text-xs">{{ sbom.sha256[:16] }}...</code></td>
+                            <td>{{ sbom.created_at.strftime('%Y-%m-%d %H:%M') if sbom.created_at else "-" }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center opacity-60 py-4">No SBOMs uploaded yet</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

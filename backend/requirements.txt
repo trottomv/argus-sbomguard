@@ -1,0 +1,33 @@
+# Web framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+jinja2>=3.1.0
+aiofiles>=24.1.0
+python-multipart>=0.0.12
+
+# Database
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30.0
+alembic>=1.14.0
+
+# Celery + RabbitMQ
+celery[rabbitmq]>=5.4.0
+
+# Validation
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+
+# HTTP client (for OSV, GitHub API)
+httpx>=0.28.0
+
+# SBOM parsing
+cyclonedx-python-lib>=6.0.0
+packageurl-python>=0.16.0
+
+# Notifications
+aiofiles>=24.1.0
+
+# Testing
+pytest>=8.3.0
+pytest-asyncio>=0.25.0
+httpx>=0.28.0
