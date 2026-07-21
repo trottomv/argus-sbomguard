@@ -36,6 +36,6 @@ class Dependency(BaseModel):
     dep_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     license: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_direct: Mapped[bool] = mapped_column(default=False)
-    metadata: Mapped[dict | None] = mapped_column(JSONB, default=dict)
+    extra_data: Mapped[dict | None] = mapped_column(JSONB, default=dict)
 
     sbom = relationship("SBOM", back_populates="dependencies")

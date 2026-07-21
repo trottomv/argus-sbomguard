@@ -24,7 +24,7 @@ async def parse_cyclonedx(raw: dict) -> list[dict]:
             "dep_type": comp.get("type", "library"),
             "license": _extract_license(comp),
             "is_direct": True,
-            "metadata": comp,
+            "extra_data": comp,
         })
     return deps
 
@@ -40,7 +40,7 @@ async def parse_spdx(raw: dict) -> list[dict]:
             "dep_type": "library",
             "license": pkg.get("licenseDeclared", ""),
             "is_direct": True,
-            "metadata": pkg,
+            "extra_data": pkg,
         })
     return deps
 

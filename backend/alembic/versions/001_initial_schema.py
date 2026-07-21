@@ -52,7 +52,7 @@ def upgrade() -> None:
         sa.Column("dep_type", sa.String(50), nullable=True),
         sa.Column("license", sa.String(255), nullable=True),
         sa.Column("is_direct", sa.Boolean(), default=False),
-        sa.Column("metadata", postgresql.JSONB(), default=dict),
+        sa.Column("extra_data", postgresql.JSONB(), default=dict),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
@@ -68,7 +68,7 @@ def upgrade() -> None:
         sa.Column("affected_packages", postgresql.JSONB(), default=dict),
         sa.Column("fixed_versions", postgresql.JSONB(), default=dict),
         sa.Column("published_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("metadata", postgresql.JSONB(), default=dict),
+        sa.Column("extra_data", postgresql.JSONB(), default=dict),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
