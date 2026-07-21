@@ -14,7 +14,15 @@
 </a>
 {% endmacro %}
 
-<div class="space-y-6" x-data="{ severity: '{{ active_severity }}', project: '{{ active_project_id }}' }">
+<div class="space-y-6" x-data="{
+    severity: '{{ active_severity }}',
+    project: '{{ active_project_id }}',
+    detail: { cve_id: '', severity: '', cvss: '', cvss_vector: '', summary: '', published: '', urls: [], affected: [], fixed: [] },
+    openDetail(v) {
+        this.detail = v;
+        document.getElementById('detail_modal').showModal();
+    }
+}">
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold">Active Vulnerabilities</h1>
         <div class="flex gap-2">
@@ -34,6 +42,69 @@
         </div>
     </div>
 
+    <dialog id="detail_modal" class="modal" @click="if($event.target === $el) $el.close()">
+        <div class="modal-box max-w-lg">
+            <h3 class="font-bold text-lg flex items-center gap-2">
+                <code class="text-sm" x-text="detail.cve_id"></code>
+                <span class="badge" :class="{
+                    'badge-error': detail.severity === 'CRITICAL',
+                    'badge-warning': detail.severity === 'HIGH',
+                    'badge-info': detail.severity === 'MEDIUM',
+                    'badge-neutral': detail.severity === 'LOW'
+                }" x-text="detail.severity"></span>
+            </h3>
+            <div class="mt-4 space-y-3 text-sm max-h-80 overflow-y-auto">
+                <div>
+                    <span class="text-xs opacity-60">CVSS Score</span>
+                    <p class="font-mono" x-text="detail.cvss || '-'"></p>
+                </div>
+                <div x-show="detail.cvss_vector">
+                    <span class="text-xs opacity-60">CVSS Vector</span>
+                    <p class="font-mono text-xs break-all opacity-70" x-text="detail.cvss_vector"></p>
+                </div>
+                <div x-show="detail.published">
+                    <span class="text-xs opacity-60">Published</span>
+                    <p x-text="detail.published"></p>
+                </div>
+                <div x-show="detail.summary">
+                    <span class="text-xs opacity-60">Description</span>
+                    <p class="opacity-80" x-text="detail.summary"></p>
+                </div>
+                <div x-show="detail.urls.length">
+                    <span class="text-xs opacity-60">References</span>
+                    <ul class="list-disc list-inside space-y-1">
+                        <template x-for="url in detail.urls">
+                            <li><a :href="url" target="_blank" class="link link-primary text-xs" x-text="url"></a></li>
+                        </template>
+                    </ul>
+                </div>
+                <div x-show="detail.affected.length">
+                    <span class="text-xs opacity-60">Affected Packages</span>
+                    <div class="flex flex-wrap gap-1 mt-1">
+                        <template x-for="pkg in detail.affected">
+                            <span class="badge badge-outline badge-xs" x-text="pkg"></span>
+                        </template>
+                    </div>
+                </div>
+                <div x-show="detail.fixed.length">
+                    <span class="text-xs opacity-60">Fixed In</span>
+                    <div class="flex flex-wrap gap-1 mt-1">
+                        <template x-for="ver in detail.fixed">
+                            <span class="badge badge-success badge-xs" x-text="ver"></span>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-action">
+                <a class="btn btn-sm btn-outline" target="_blank"
+                   :href="detail.cve_id.startsWith('CVE') ? 'https://nvd.nist.gov/vuln/detail/' + detail.cve_id : 'https://github.com/advisories/' + detail.cve_id">
+                    View Advisory ↗
+                </a>
+                <button class="btn btn-sm" onclick="document.getElementById('detail_modal').close()">Close</button>
+            </div>
+        </div>
+    </dialog>
+
     <div class="card bg-base-100 shadow-sm">
         <div class="card-body p-0">
             <div class="overflow-x-auto">
@@ -51,7 +122,25 @@
                     </thead>
                     <tbody>
                         {% for vuln in vulnerabilities %}
-                        <tr>
+                        {% set ed = vuln.extra_data or {} %}
+                        {% set fix_avail = (ed.get('fix') or {}).get('available') or [] %}
+                        {% set fix_versions = (ed.get('fix') or {}).get('versions') or [] %}
+                        {% set urls = ed.get('urls') or [] %}
+                        {% set cvss_list = ed.get('cvss') or [] %}
+                        {% set cvss_vec = cvss_list[0].get('vector') if cvss_list else '' %}
+                        {% set detail_json = {
+                            'cve_id': vuln.cve_id,
+                            'severity': vuln.severity,
+                            'cvss': (vuln.cvss_score or ''),
+                            'cvss_vector': cvss_vec,
+                            'summary': (vuln.summary or ''),
+                            'published': (vuln.published_at.strftime('%Y-%m-%d') if vuln.published_at else ''),
+                            'urls': urls,
+                            'affected': (vuln.affected_packages or []),
+                            'fixed': fix_versions
+                        } | tojson %}
+                        <tr class="hover:bg-base-200 cursor-pointer"
+                            x-on:click='openDetail({{ detail_json }})'>
                             <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
                             <td>
                                 {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}
