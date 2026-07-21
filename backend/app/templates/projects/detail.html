@@ -12,6 +12,11 @@
         </div>
         <div class="flex gap-2">
             <button class="btn btn-primary btn-sm" onclick="upload_modal.showModal()">Upload SBOM</button>
+            <button class="btn btn-error btn-sm btn-outline"
+                    x-data
+                    @click="if(confirm('Delete project {{ project.name }} and all its SBOMs?')) fetch('/api/v1/projects/{{ project.id }}', {method:'DELETE'}).then(r => { if(r.ok) window.location='/projects' })">
+                Delete
+            </button>
         </div>
     </div>
 
@@ -19,6 +24,7 @@
         <div class="modal-box">
             <h3 class="font-bold text-lg">Upload SBOM</h3>
             <form hx-post="/api/v1/sboms/upload" hx-target="#sbom-table" hx-swap="afterbegin"
+                  hx-on::after-request="if(event.detail.successful) { upload_modal.close(); location.reload() }"
                   enctype="multipart/form-data" class="space-y-4 mt-4">
                 <input type="hidden" name="project_id" value="{{ project.id }}">
                 <fieldset class="fieldset">
@@ -46,7 +52,54 @@
             <div class="stat-title">Total Dependencies</div>
             <div class="stat-value text-secondary">{{ sboms|map(attribute='dependency_count')|sum }}</div>
         </div>
+        <div class="stat bg-base-100 rounded-box shadow-sm">
+            <div class="stat-title">Active Vulns</div>
+            <div class="stat-value text-error">{{ project_vulns|length }}</div>
+        </div>
     </div>
+
+    {% if project_vulns %}
+    <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+            <h2 class="card-title">Vulnerabilities</h2>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra">
+                    <thead>
+                        <tr>
+                            <th>CVE</th>
+                            <th>Severity</th>
+                            <th>CVSS</th>
+                            <th>Summary</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vuln in project_vulns %}
+                        <tr>
+                            <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
+                            <td>
+                                {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}
+                                {% if sev == "critical" %}
+                                <span class="badge badge-error">{{ vuln.severity }}</span>
+                                {% elif sev == "high" %}
+                                <span class="badge badge-warning">{{ vuln.severity }}</span>
+{% elif sev == "medium" %}
+<span class="badge badge-info">{{ vuln.severity }}</span>
+{% elif sev == "low" %}
+<span class="badge" style="background:#585b70; color:#cdd6f4; border-color:#585b70">{{ vuln.severity }}</span>
+{% else %}
+<span class="badge badge-ghost">{{ vuln.severity }}</span>
+{% endif %}
+                            </td>
+                            <td>{{ vuln.cvss_score or "-" }}</td>
+                            <td class="max-w-md truncate text-sm">{{ vuln.summary or "-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="card bg-base-100 shadow-sm">
         <div class="card-body">
@@ -58,8 +111,10 @@
                             <th>Version</th>
                             <th>Format</th>
                             <th>Dependencies</th>
+                            <th>Vulns</th>
                             <th>SHA256</th>
                             <th>Uploaded</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -68,12 +123,20 @@
                             <td>{{ sbom.version or "-" }}</td>
                             <td><span class="badge badge-outline">{{ sbom.format }}</span></td>
                             <td>{{ sbom.dependency_count or 0 }}</td>
+                            <td>{{ vulns_by_sbom.get(sbom.id, [])|length }}</td>
                             <td><code class="text-xs">{{ sbom.sha256[:16] }}...</code></td>
                             <td>{{ sbom.created_at.strftime('%Y-%m-%d %H:%M') if sbom.created_at else "-" }}</td>
+                            <td>
+                                <button class="btn btn-ghost btn-xs text-error"
+                                        x-data
+                                        @click="if(confirm('Delete this SBOM?')) { fetch('/api/v1/sboms/{{ sbom.id }}', {method:'DELETE'}).then(r => { if(r.ok) location.reload() }) }">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="5" class="text-center opacity-60 py-4">No SBOMs uploaded yet</td>
+                            <td colspan="7" class="text-center opacity-60 py-4">No SBOMs uploaded yet</td>
                         </tr>
                         {% endfor %}
                     </tbody>

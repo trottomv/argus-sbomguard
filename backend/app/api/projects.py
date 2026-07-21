@@ -85,6 +85,16 @@ async def project_history(project_id: uuid.UUID, db: AsyncSession = Depends(get_
     }
 
 
+@router.delete("/{project_id}", status_code=204)
+async def delete_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    await db.delete(project)
+    await db.commit()
+
+
 def _project_to_dict(p: Project) -> dict:
     return {
         "id": str(p.id),

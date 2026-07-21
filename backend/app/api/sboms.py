@@ -119,3 +119,13 @@ async def diff_sboms(
             )
 
     return {"added": added, "removed": removed, "changed": changed}
+
+
+@router.delete("/{sbom_id}", status_code=204)
+async def delete_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(SBOM).where(SBOM.id == sbom_id))
+    sbom = result.scalar_one_or_none()
+    if not sbom:
+        raise HTTPException(status_code=404, detail="SBOM not found")
+    await db.delete(sbom)
+    await db.commit()
