@@ -45,7 +45,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
         select(Vulnerability.id, Vulnerability.severity)
         .join(SBOMVulnerability)
         .where(SBOMVulnerability.status == "open")
-        .distinct(Vulnerability.id)
+        .distinct()
     ).subquery()
 
     vuln_counts = await db.execute(

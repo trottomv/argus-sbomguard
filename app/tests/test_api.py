@@ -256,7 +256,6 @@ async def test_sbom_diff_added_removed(client):
     assert added_names == {"a", "b"}
     assert len(data["changed"]) == 1
     assert data["changed"][0]["name"] == "a"
-    assert data["changed"][0]["name"] == "a"
     assert data["changed"][0]["from_version"] == "1.0"
     assert data["changed"][0]["to_version"] == "2.0"
 

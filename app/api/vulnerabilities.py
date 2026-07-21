@@ -15,7 +15,7 @@ async def active_vulnerabilities(db: AsyncSession = Depends(get_db)):
         select(Vulnerability)
         .join(SBOMVulnerability)
         .where(SBOMVulnerability.status == "open")
-        .distinct(Vulnerability.id)
+        .distinct()
         .order_by(Vulnerability.id, Vulnerability.cvss_score.desc().nullslast())
     )
     vulns = result.scalars().all()
@@ -43,7 +43,7 @@ async def vulnerability_summary(db: AsyncSession = Depends(get_db)):
         select(Vulnerability)
         .join(SBOMVulnerability)
         .where(SBOMVulnerability.status == "open")
-        .distinct(Vulnerability.id)
+        .distinct()
     )
     vulns = result.scalars().all()
 

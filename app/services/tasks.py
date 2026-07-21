@@ -47,7 +47,7 @@ def check_alerts():
                 select(Vulnerability)
                 .join(SBOMVulnerability)
                 .filter(SBOMVulnerability.status == "open")
-                .distinct(Vulnerability.id)
+                .distinct()
             )
             vulns = result.scalars().all()
 
@@ -115,7 +115,7 @@ def snapshot_metrics():
                     .join(SBOMVulnerability)
                     .join(SBOM)
                     .where(SBOM.project_id == pid, SBOMVulnerability.status == "open")
-                    .distinct(Vulnerability.id)
+                    .distinct()
                 )
                 severities = [s.lower() for s in distinct_vulns.scalars().all()]
 
