@@ -14,7 +14,7 @@
         </a>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <a href="/projects" class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover hover:border-indigo-500/30 transition-colors block">
             <div class="flex items-start justify-between">
                 <div>
@@ -78,7 +78,8 @@
                 { label: 'Critical', data: {{ chart_critical | tojson }}, borderColor: '#f38ba8', backgroundColor: '#f38ba820', pointBackgroundColor: '#f38ba8', tension: 0.3, fill: true },
                 { label: 'High', data: {{ chart_high | tojson }}, borderColor: '#fab387', backgroundColor: '#fab38720', pointBackgroundColor: '#fab387', tension: 0.3, fill: true },
                 { label: 'Medium', data: {{ chart_medium | tojson }}, borderColor: '#f9e2af', backgroundColor: '#f9e2af20', pointBackgroundColor: '#f9e2af', tension: 0.3, fill: true },
-                { label: 'Low', data: {{ chart_low | tojson }}, borderColor: '#a6e3a1', backgroundColor: '#a6e3a120', pointBackgroundColor: '#a6e3a1', tension: 0.3, fill: true }
+                { label: 'Low', data: {{ chart_low | tojson }}, borderColor: '#a6e3a1', backgroundColor: '#a6e3a120', pointBackgroundColor: '#a6e3a1', tension: 0.3, fill: true },
+                { label: 'Fixed', data: {{ chart_fixed | tojson }}, borderColor: '#89b4fa', backgroundColor: '#89b4fa30', pointBackgroundColor: '#89b4fa', tension: 0.3, fill: true, borderDash: [5,5] }
             ]
         },
         options: {
@@ -146,8 +147,19 @@
                     <div class="h-2 bg-ctp-surface0 rounded-full overflow-hidden">
                         <div class="h-full bg-gradient-to-r from-ctp-green to-ctp-teal rounded-full transition-all duration-500" style="width:{% if critical + high + medium + low > 0 %}{{ (low / (critical + high + medium + low) * 100)|round }}{% else %}0{% endif %}%"></div>
                     </div>
-                </a>
+        </a>
+        <div class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Fixed</p>
+                    <p class="text-3xl font-bold text-ctp-blue mt-1">{{ fixed_count }}</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-ctp-green/10 border border-ctp-green/20 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-ctp-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/></svg>
+                </div>
             </div>
+        </div>
+    </div>
         </div>
 
         <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6 card-hover">
@@ -157,15 +169,21 @@
                     <thead>
                         <tr class="border-b border-ctp-surface0">
                             <th class="text-left py-2.5 px-2 text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Project</th>
+                            <th class="text-left py-2.5 px-2 text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Service</th>
                             <th class="text-left py-2.5 px-2 text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Version</th>
                             <th class="text-right py-2.5 px-2 text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Deps</th>
                             <th class="text-right py-2.5 px-2 text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Date</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-ctp-surface0/50">
-                        {% for sbom, proj_name in recent_sboms %}
+                        {% for sbom, proj_name, svc_name in recent_sboms %}
                         <tr class="hover:bg-ctp-surface0/30 transition-colors">
                             <td class="py-2.5 px-2 text-ctp-subtext1 font-medium">{{ proj_name }}</td>
+                            <td class="py-2.5 px-2 text-ctp-subtext0">
+                                {% if svc_name %}
+                                <span class="badge badge-outline badge-xs">{{ svc_name }}</span>
+                                {% else %}<span class="text-xs opacity-40">-</span>{% endif %}
+                            </td>
                             <td class="py-2.5 px-2 text-ctp-subtext0">{{ sbom.version or "-" }}</td>
                             <td class="py-2.5 px-2 text-right text-ctp-subtext0">{{ sbom.dependency_count or 0 }}</td>
                             <td class="py-2.5 px-2 text-right text-ctp-subtext0">{{ sbom.created_at.strftime('%Y-%m-%d') if sbom.created_at else "-" }}</td>

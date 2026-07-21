@@ -1,5 +1,6 @@
 import hashlib
 import json
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,6 +77,16 @@ def _extract_license(component: dict) -> str:
     return ""
 
 
+def _extract_timestamp(raw: dict) -> datetime | None:
+    ts = (raw.get("metadata") or {}).get("timestamp")
+    if not ts:
+        return None
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+
+
 async def store_sbom(
     db: AsyncSession,
     project_id: str,
@@ -105,6 +116,8 @@ async def store_sbom(
         service = await _get_or_create_service(db, project_id, service_name)
         service_id = service.id
 
+    created_at = _extract_timestamp(raw)
+
     sbom = SBOM(
         project_id=project_id,
         version=version,
@@ -113,7 +126,9 @@ async def store_sbom(
         sha256=sha,
         dependency_count=len(deps_data),
         service_id=service_id,
+        created_at=created_at,
     )
+    # uploaded_at set via server_default at DB level
     db.add(sbom)
     await db.flush()
 

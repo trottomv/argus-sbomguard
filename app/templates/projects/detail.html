@@ -183,8 +183,9 @@
                             <th>Format</th>
                             <th>Dependencies</th>
                             <th>Vulns</th>
+                            <th>Fixed</th>
                             <th>SHA256</th>
-                            <th>Uploaded</th>
+                            <th>Created</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -201,7 +202,8 @@
                             </td>
                             <td><span class="badge badge-outline">{{ sbom.format }}</span></td>
                             <td>{{ sbom.dependency_count or 0 }}</td>
-                            <td>{{ vulns_by_sbom.get(sbom.id, [])|length }}</td>
+                            <td>{{ vulns_by_sbom.get(sbom.id, [])|length + fixed_by_sbom.get(sbom.id, 0) }}</td>
+                            <td>{{ fixed_by_sbom.get(sbom.id, 0) }}</td>
                             <td><code class="text-xs">{{ sbom.sha256[:16] }}...</code></td>
                             <td>{{ sbom.created_at.strftime('%Y-%m-%d %H:%M') if sbom.created_at else "-" }}</td>
                             <td>
@@ -213,7 +215,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="8" class="text-center opacity-60 py-4">No SBOMs uploaded yet</td>
+                            <td colspan="9" class="text-center opacity-60 py-4">No SBOMs uploaded yet</td>
                         </tr>
                         {% endfor %}
                     </tbody>

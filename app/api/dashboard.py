@@ -58,10 +58,18 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     )
     row = vuln_counts.one()
 
+    fixed_count = (
+        await db.execute(
+            select(func.count(SBOMVulnerability.vulnerability_id))
+            .where(SBOMVulnerability.status == "fixed")
+        )
+    ).scalar() or 0
+
     recent_result = await db.execute(
-        select(SBOM, Project.name)
+        select(SBOM, Project.name, Service.name)
+        .outerjoin(Service, SBOM.service_id == Service.id)
         .join(Project, SBOM.project_id == Project.id)
-        .order_by(SBOM.created_at.desc())
+        .order_by(SBOM.uploaded_at.desc())
         .limit(5)
     )
     recent_sboms = recent_result.all()
@@ -73,6 +81,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
             func.sum(VulnerabilitySnapshot.high_count).label("high"),
             func.sum(VulnerabilitySnapshot.medium_count).label("medium"),
             func.sum(VulnerabilitySnapshot.low_count).label("low"),
+            func.sum(VulnerabilitySnapshot.fixed_count).label("fixed"),
         )
         .group_by(VulnerabilitySnapshot.snapshot_date)
         .order_by(VulnerabilitySnapshot.snapshot_date.asc())
@@ -85,6 +94,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     chart_high = [r.high or 0 for r in snap_rows]
     chart_medium = [r.medium or 0 for r in snap_rows]
     chart_low = [r.low or 0 for r in snap_rows]
+    chart_fixed = [r.fixed or 0 for r in snap_rows]
 
     return templates.TemplateResponse(
         request,
@@ -96,12 +106,14 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
             "high": row.high or 0,
             "medium": row.medium or 0,
             "low": row.low or 0,
+            "fixed_count": fixed_count,
             "recent_sboms": recent_sboms,
             "chart_labels": chart_labels,
             "chart_critical": chart_critical,
             "chart_high": chart_high,
             "chart_medium": chart_medium,
             "chart_low": chart_low,
+            "chart_fixed": chart_fixed,
         },
     )
 
@@ -139,22 +151,23 @@ async def project_detail_page(
     sboms_query = sboms_query.order_by(SBOM.created_at.desc())
 
     rows = (await db.execute(sboms_query)).all()
-    sboms_all = [r[0] for r in rows]
+    sboms = [r[0] for r in rows]
     svc_names = {r[0].id: r[1] for r in rows if r[1] is not None}
 
-    # Keep only the latest SBOM per service (or per project if no service)
+    # For vulnerability stats, keep only the latest SBOM per service
     latest_map: dict[str, SBOM] = {}
-    for s in sboms_all:
+    for s in sboms:
         key = str(s.service_id) if s.service_id else "__no_service__"
         if key not in latest_map or s.created_at > latest_map[key].created_at:
             latest_map[key] = s
-    sboms = sorted(latest_map.values(), key=lambda s: s.created_at, reverse=True)
+    latest_sbom_ids = {s.id for s in latest_map.values()}
 
-    sbom_ids = [s.id for s in sboms]
     sbom_to_svc = {s.id: svc_names.get(s.id) for s in sboms}
     vulns_by_sbom = {}
+    fixed_by_sbom = {}
     project_vulns = []
-    if sbom_ids:
+    if sboms:
+        all_sbom_ids = [s.id for s in sboms]
         vuln_rows = await db.execute(
             select(
                 SBOMVulnerability.sbom_id,
@@ -175,13 +188,14 @@ async def project_detail_page(
                 & (SBOMVulnerability.dependency_purl == Dependency.purl),
             )
             .where(
-                SBOMVulnerability.sbom_id.in_(sbom_ids),
+                SBOMVulnerability.sbom_id.in_(all_sbom_ids),
                 SBOMVulnerability.status == "open",
             )
             .order_by(Vulnerability.cvss_score.desc().nullslast())
         )
         seen = set()
         for row in vuln_rows:
+            svc_name = sbom_to_svc.get(row.sbom_id)
             svc_name = sbom_to_svc.get(row.sbom_id)
             ed = row.extra_data or {}
             cvss_list = ed.get("cvss") or []
@@ -201,7 +215,7 @@ async def project_detail_page(
                     "dependency_name": _dep_name(row.name, row.version, row.dependency_purl),
                 }
             )
-            if row.cve_id not in seen:
+            if row.cve_id not in seen and row.sbom_id in latest_sbom_ids:
                 seen.add(row.cve_id)
                 project_vulns.append(
                     {
@@ -221,6 +235,23 @@ async def project_detail_page(
                     }
                 )
 
+    # Count fixed vulnerabilities per SBOM (all SBOMs, not just latest)
+    all_sbom_ids = [s.id for s in sboms]
+    if all_sbom_ids:
+        fixed_rows = await db.execute(
+            select(
+                SBOMVulnerability.sbom_id,
+                func.count(SBOMVulnerability.vulnerability_id),
+            )
+            .where(
+                SBOMVulnerability.sbom_id.in_(all_sbom_ids),
+                SBOMVulnerability.status == "fixed",
+            )
+            .group_by(SBOMVulnerability.sbom_id)
+        )
+        for s_id, cnt in fixed_rows:
+            fixed_by_sbom[s_id] = cnt
+
     services_result = await db.execute(
         select(Service).where(Service.project_id == project_id).order_by(Service.name)
     )
@@ -236,6 +267,7 @@ async def project_detail_page(
             "services": services,
             "active_service_id": service_id or "",
             "vulns_by_sbom": vulns_by_sbom,
+            "fixed_by_sbom": fixed_by_sbom,
             "project_vulns": project_vulns,
         },
     )

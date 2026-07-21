@@ -105,42 +105,84 @@ def check_alerts():
 
 
 @celery_app.task(name="tasks.snapshot_metrics")
-def snapshot_metrics():
+def snapshot_metrics(snapshot_date: str | None = None):
+    target_date = date.fromisoformat(snapshot_date) if snapshot_date else date.today()
+
     async def _run():
         async with _make_session()() as db:
             result = await db.execute(select(Project.id))
             project_ids = result.scalars().all()
 
             for pid in project_ids:
-                distinct_vulns = await db.execute(
-                    select(Vulnerability.severity)
-                    .join(SBOMVulnerability)
-                    .join(SBOM)
-                    .where(SBOM.project_id == pid, SBOMVulnerability.status == "open")
-                    .distinct()
-                )
-                severities = [s.lower() for s in distinct_vulns.scalars().all()]
+                if target_date == date.today():
+                    open_vulns = await db.execute(
+                        select(Vulnerability.severity)
+                        .join(SBOMVulnerability)
+                        .join(SBOM)
+                        .where(SBOM.project_id == pid, SBOMVulnerability.status == "open")
+                        .distinct(Vulnerability.id)
+                    )
+                    severities = [s.lower() for s in open_vulns.scalars().all()]
+                else:
+                    # For historical days, compute: all vulns created <= date - fixed before date
+                    total_result = await db.execute(
+                        select(Vulnerability.id, Vulnerability.severity)
+                        .join(SBOMVulnerability)
+                        .join(SBOM)
+                        .where(SBOM.project_id == pid, func.date(SBOM.created_at) <= target_date)
+                        .distinct(Vulnerability.id)
+                    )
+                    total_dict = {}
+                    for v_id, sev in total_result:
+                        total_dict[v_id] = sev.lower()
+
+                    fixed_before = await db.execute(
+                        select(SBOMVulnerability.vulnerability_id)
+                        .join(SBOM)
+                        .where(
+                            SBOM.project_id == pid,
+                            SBOMVulnerability.status == "fixed",
+                            SBOMVulnerability.fixed_at != None,
+                            func.date(SBOMVulnerability.fixed_at) <= target_date,
+                        )
+                        .distinct()
+                    )
+                    fixed_ids = set(r[0] for r in fixed_before)
+                    severities = [sev for vid, sev in total_dict.items() if vid not in fixed_ids]
 
                 critical_count = sum(1 for s in severities if s == "critical")
                 high_count = sum(1 for s in severities if s == "high")
                 medium_count = sum(1 for s in severities if s == "medium")
                 low_count = sum(1 for s in severities if s == "low")
 
+                fixed_result = await db.execute(
+                    select(func.count(SBOMVulnerability.vulnerability_id))
+                    .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
+                    .where(
+                        SBOM.project_id == pid,
+                        SBOMVulnerability.status == "fixed",
+                        SBOMVulnerability.fixed_at != None,
+                        func.date(SBOMVulnerability.fixed_at) <= target_date,
+                    )
+                )
+                fixed_val = fixed_result.scalar() or 0
+
                 dep_count = await db.execute(
                     select(func.count(Dependency.id))
                     .select_from(SBOM)
                     .join(Dependency, Dependency.sbom_id == SBOM.id)
-                    .where(SBOM.project_id == pid)
+                    .where(SBOM.project_id == pid, SBOM.created_at <= target_date)
                 )
                 dep_count_val = dep_count.scalar() or 0
 
                 snapshot = VulnerabilitySnapshot(
                     project_id=pid,
-                    snapshot_date=date.today(),
+                    snapshot_date=target_date,
                     critical_count=critical_count,
                     high_count=high_count,
                     medium_count=medium_count,
                     low_count=low_count,
+                    fixed_count=fixed_val,
                     total_dependencies=dep_count_val,
                     created_at=datetime.now(UTC),
                 )

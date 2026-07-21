@@ -2,7 +2,7 @@ import json
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -130,5 +130,37 @@ async def delete_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     sbom = result.scalar_one_or_none()
     if not sbom:
         raise HTTPException(status_code=404, detail="SBOM not found")
+
+    # Find the latest remaining SBOM for this service, re-run reconcile
+    latest_query = select(SBOM).where(
+        SBOM.id != sbom_id,
+        SBOM.service_id == sbom.service_id if sbom.service_id else SBOM.service_id.is_(None),
+        SBOM.project_id == sbom.project_id,
+    ).order_by(SBOM.uploaded_at.desc()).limit(1)
+    latest_result = await db.execute(latest_query)
+    latest_sbom = latest_result.scalar_one_or_none()
+
     await db.delete(sbom)
+    await db.flush()
+
+    # Revert fixed vulns on older SBOMs back to open, then re-reconcile
+    from services.vulnerability_scanner import reconcile_vulnerabilities
+
+    older_ids = await db.execute(
+        select(SBOM.id).where(
+            SBOM.id != sbom_id,
+            SBOM.service_id == sbom.service_id if sbom.service_id else SBOM.service_id.is_(None),
+            SBOM.project_id == sbom.project_id,
+        )
+    )
+    for (oid,) in older_ids:
+        await db.execute(
+            update(SBOMVulnerability)
+            .where(SBOMVulnerability.sbom_id == oid, SBOMVulnerability.status == "fixed")
+            .values(status="open", fixed_at=None)
+        )
+
+    if latest_sbom:
+        await reconcile_vulnerabilities(db, latest_sbom)
+
     await db.commit()
