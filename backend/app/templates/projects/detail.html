@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ project.name }} - Argus SBOM Guard{% endblock %}
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6" x-data="{ sbomDelId: null, sbomDelVer: '' }">
     <div class="flex items-center justify-between">
         <div>
             <a href="/projects" class="text-sm opacity-60 hover:opacity-100">&larr; Projects</a>
@@ -12,13 +12,39 @@
         </div>
         <div class="flex gap-2">
             <button class="btn btn-primary btn-sm" onclick="upload_modal.showModal()">Upload SBOM</button>
-            <button class="btn btn-error btn-sm btn-outline"
-                    x-data
-                    @click="if(confirm('Delete project {{ project.name }} and all its SBOMs?')) fetch('/api/v1/projects/{{ project.id }}', {method:'DELETE'}).then(r => { if(r.ok) window.location='/projects' })">
+            <button class="btn btn-error btn-sm btn-outline" onclick="delete_project_modal.showModal()">
                 Delete
             </button>
         </div>
     </div>
+
+    <dialog id="delete_project_modal" class="modal" @click="if($event.target === $el) $el.close()">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Delete Project</h3>
+            <p class="py-4">Delete <strong>{{ project.name }}</strong> and all its SBOMs?</p>
+            <div class="modal-action">
+                <button class="btn btn-error" onclick="
+                    fetch('/api/v1/projects/{{ project.id }}', {method:'DELETE'}).then(r => { if(r.ok) window.location='/projects' });
+                    document.getElementById('delete_project_modal').close();
+                ">Delete</button>
+                <button class="btn" onclick="document.getElementById('delete_project_modal').close()">Cancel</button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="delete_sbom_modal" class="modal" @click="if($event.target === $el) $el.close()">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Delete SBOM</h3>
+            <p class="py-4">Delete SBOM version <strong x-text="sbomDelVer || 'N/A'"></strong>?</p>
+            <div class="modal-action">
+                <button class="btn btn-error" @click="
+                    fetch('/api/v1/sboms/' + sbomDelId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
+                    document.getElementById('delete_sbom_modal').close();
+                ">Delete</button>
+                <button class="btn" onclick="document.getElementById('delete_sbom_modal').close()">Cancel</button>
+            </div>
+        </div>
+    </dialog>
 
     <dialog id="upload_modal" class="modal">
         <div class="modal-box">
@@ -44,10 +70,10 @@
     </dialog>
 
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <div class="stat bg-base-100 rounded-box shadow-sm">
+        <a href="/sboms?project_id={{ project.id }}" class="stat bg-base-100 rounded-box shadow-sm hover:shadow-md transition-shadow">
             <div class="stat-title">SBOMs</div>
             <div class="stat-value text-primary">{{ sboms|length }}</div>
-        </div>
+        </a>
         <div class="stat bg-base-100 rounded-box shadow-sm">
             <div class="stat-title">Total Dependencies</div>
             <div class="stat-value text-secondary">{{ sboms|map(attribute='dependency_count')|sum }}</div>
@@ -128,8 +154,7 @@
                             <td>{{ sbom.created_at.strftime('%Y-%m-%d %H:%M') if sbom.created_at else "-" }}</td>
                             <td>
                                 <button class="btn btn-ghost btn-xs text-error"
-                                        x-data
-                                        @click="if(confirm('Delete this SBOM?')) { fetch('/api/v1/sboms/{{ sbom.id }}', {method:'DELETE'}).then(r => { if(r.ok) location.reload() }) }">
+                                        @click="sbomDelId='{{ sbom.id }}'; sbomDelVer='{{ sbom.version or 'N/A' }}'; delete_sbom_modal.showModal()">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
                             </td>

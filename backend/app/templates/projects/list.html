@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Projects - Argus SBOM Guard{% endblock %}
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6" x-data="{ delId: null, delName: '' }">
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold">Projects</h1>
         <button class="btn btn-primary btn-sm" onclick="my_modal_1.showModal()">Add Project</button>
@@ -48,6 +48,19 @@
         </div>
     </dialog>
 
+    <dialog id="delete_modal" class="modal" @click="if($event.target === $el) $el.close()">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Delete Project</h3>
+            <p class="py-4">Are you sure you want to delete <strong x-text="delName"></strong> and all its SBOMs?</p>
+            <div class="modal-action">
+                <button class="btn btn-error" @click="
+                    fetch('/api/v1/projects/' + delId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
+                ">Delete</button>
+                <button class="btn" onclick="delete_modal.close()">Cancel</button>
+            </div>
+        </div>
+    </dialog>
+
     <div id="project-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for project in projects %}
         <div class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow relative group">
@@ -64,8 +77,7 @@
                 </div>
             </a>
             <button class="btn btn-ghost btn-xs text-error absolute top-2 right-2 opacity-0 group-hover:opacity-100"
-                    x-data
-                    @click.stop="if(confirm('Delete project {{ project.name }}?')) { fetch('/api/v1/projects/{{ project.id }}', {method:'DELETE'}).then(r => { if(r.ok) location.reload() }) }">
+                    @click.stop="delId='{{ project.id }}'; delName='{{ project.name }}'; delete_modal.showModal()">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>
         </div>
