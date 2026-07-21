@@ -139,8 +139,16 @@ async def project_detail_page(
     sboms_query = sboms_query.order_by(SBOM.created_at.desc())
 
     rows = (await db.execute(sboms_query)).all()
-    sboms = [r[0] for r in rows]
+    sboms_all = [r[0] for r in rows]
     svc_names = {r[0].id: r[1] for r in rows if r[1] is not None}
+
+    # Keep only the latest SBOM per service (or per project if no service)
+    latest_map: dict[str, SBOM] = {}
+    for s in sboms_all:
+        key = str(s.service_id) if s.service_id else "__no_service__"
+        if key not in latest_map or s.created_at > latest_map[key].created_at:
+            latest_map[key] = s
+    sboms = sorted(latest_map.values(), key=lambda s: s.created_at, reverse=True)
 
     sbom_ids = [s.id for s in sboms]
     sbom_to_svc = {s.id: svc_names.get(s.id) for s in sboms}

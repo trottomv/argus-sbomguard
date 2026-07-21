@@ -13,7 +13,7 @@ from models.project import Project
 from models.sbom import SBOM, Dependency
 from models.vulnerability import SBOMVulnerability, Vulnerability, VulnerabilitySnapshot
 from services.notifications import send_email, send_slack
-from services.vulnerability_scanner import scan_with_grype
+from services.vulnerability_scanner import reconcile_vulnerabilities, scan_with_grype
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,8 @@ def scan_sbom(sbom_id: str):
                 return
 
             await scan_with_grype(db, sbom)
+            await db.flush()
+            await reconcile_vulnerabilities(db, sbom)
             await db.commit()
 
     asyncio.run(_run())
