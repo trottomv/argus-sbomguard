@@ -12,6 +12,7 @@ from app.models.vulnerability import SBOMVulnerability, Vulnerability
 
 router = APIRouter(tags=["dashboard"])
 templates = Jinja2Templates(directory="app/templates")
+templates.env.cache_size = 0  # workaround for Jinja2 cache bug
 
 
 @router.get("/", response_class=HTMLResponse)
