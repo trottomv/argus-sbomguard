@@ -17,8 +17,8 @@ argus-sbomguard/
 ├── backend/
 │   ├── Dockerfile
 │   ├── requirements.txt
-│   ├── alembic.ini
-│   ├── alembic/                  # DB migrations
+│   ├── alembic.ini                   # points to migrations/
+│   ├── migrations/               # DB migrations
 │   └── app/
 │       ├── main.py               # FastAPI entrypoint + lifespan
 │       ├── config.py             # pydantic-settings (reads .env)
