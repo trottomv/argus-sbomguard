@@ -12,6 +12,28 @@ docker compose exec app alembic upgrade head
 
 Open http://localhost:8000
 
+## Development
+
+```bash
+# Install pre-commit hooks
+pip install pre-commit && pre-commit install
+
+# Lint
+docker compose exec app ruff check app/
+
+# Format
+docker compose exec app ruff format app/
+
+# SAST (security scan)
+docker compose exec app bandit -c pyproject.toml -r app/
+
+# SCA (dependency audit)
+docker compose exec app pip-audit --strict -r requirements.txt
+
+# Tests
+docker compose exec app pytest -v
+```
+
 ## Services
 
 | Service | Port | URL |

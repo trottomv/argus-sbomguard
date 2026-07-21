@@ -56,6 +56,30 @@ docker compose logs -f worker
 
 # Enter app container
 docker compose exec app bash
+
+# Lint check (ruff)
+docker compose exec app ruff check app/
+
+# Lint fix
+docker compose exec app ruff check app/ --fix
+
+# Format check
+docker compose exec app ruff format app/ --check
+
+# Format
+docker compose exec app ruff format app/
+
+# SAST (bandit)
+docker compose exec app bandit -c pyproject.toml -r app/
+
+# SCA (pip-audit)
+docker compose exec app pip-audit --strict -r requirements.txt
+
+# Pre-commit (install once)
+pip install pre-commit && pre-commit install
+
+# Run all pre-commit hooks
+pre-commit run --all-files
 ```
 
 ## Key conventions
