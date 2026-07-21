@@ -65,4 +65,3 @@ python_files = ["test_*.py"]
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", ".ruff_cache"]
-skips = ["B101"]
