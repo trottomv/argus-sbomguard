@@ -6,10 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt pyproject.toml alembic.ini ./
+COPY requirements.txt alembic.ini ./
 COPY alembic/ alembic/
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir ".[dev]" 2>/dev/null || true
 
 COPY entrypoint.sh app/ /app/
 
@@ -27,4 +26,10 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 FROM base AS test
 
 COPY tests/ /app/tests/
+RUN pip install --no-cache-dir \
+    pytest>=8.3.0 \
+    pytest-asyncio>=0.25.0 \
+    pytest-cov>=6.0.0 \
+    pytest-httpx>=0.35.0 \
+    aiosqlite>=0.20.0
 CMD ["pytest", "-v", "--cov=app", "--cov-report=term-missing"]
