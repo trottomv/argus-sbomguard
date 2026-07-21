@@ -104,21 +104,19 @@ def snapshot_metrics():
             project_ids = result.scalars().all()
 
             for pid in project_ids:
-                counts = await db.execute(
-                    select(
-                        func.count()
-                        .filter(Vulnerability.severity.ilike("critical"))
-                        .label("critical"),
-                        func.count().filter(Vulnerability.severity.ilike("high")).label("high"),
-                        func.count().filter(Vulnerability.severity.ilike("medium")).label("medium"),
-                        func.count().filter(Vulnerability.severity.ilike("low")).label("low"),
-                    )
-                    .select_from(Vulnerability)
+                distinct_vulns = await db.execute(
+                    select(Vulnerability.severity)
                     .join(SBOMVulnerability)
                     .join(SBOM)
                     .where(SBOM.project_id == pid, SBOMVulnerability.status == "open")
+                    .distinct(Vulnerability.id)
                 )
-                row = counts.one()
+                severities = [s.lower() for s in distinct_vulns.scalars().all()]
+
+                critical_count = sum(1 for s in severities if s == "critical")
+                high_count = sum(1 for s in severities if s == "high")
+                medium_count = sum(1 for s in severities if s == "medium")
+                low_count = sum(1 for s in severities if s == "low")
 
                 dep_count = await db.execute(
                     select(func.count(Dependency.id))
@@ -131,10 +129,10 @@ def snapshot_metrics():
                 snapshot = VulnerabilitySnapshot(
                     project_id=pid,
                     snapshot_date=date.today(),
-                    critical_count=row.critical or 0,
-                    high_count=row.high or 0,
-                    medium_count=row.medium or 0,
-                    low_count=row.low or 0,
+                    critical_count=critical_count,
+                    high_count=high_count,
+                    medium_count=medium_count,
+                    low_count=low_count,
                     total_dependencies=dep_count_val,
                     created_at=datetime.now(UTC),
                 )

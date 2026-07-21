@@ -15,7 +15,7 @@
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover">
+        <a href="/projects" class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover hover:border-indigo-500/30 transition-colors block">
             <div class="flex items-start justify-between">
                 <div>
                     <p class="text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Projects</p>
@@ -25,8 +25,8 @@
                     <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                 </div>
             </div>
-        </div>
-        <div class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover">
+        </a>
+        <a href="/sboms" class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover hover:border-violet-500/30 transition-colors block">
             <div class="flex items-start justify-between">
                 <div>
                     <p class="text-xs font-medium uppercase tracking-wider text-ctp-overlay0">SBOMs</p>
@@ -36,8 +36,8 @@
                     <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 </div>
             </div>
-        </div>
-        <div class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover">
+        </a>
+        <a href="/vulnerabilities?severity=critical" class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover hover:border-ctp-red/30 transition-colors block">
             <div class="flex items-start justify-between">
                 <div>
                     <p class="text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Critical</p>
@@ -47,8 +47,8 @@
                     <svg class="w-5 h-5 text-ctp-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
                 </div>
             </div>
-        </div>
-        <div class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover">
+        </a>
+        <a href="/vulnerabilities?severity=high" class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover hover:border-ctp-peach/30 transition-colors block">
             <div class="flex items-start justify-between">
                 <div>
                     <p class="text-xs font-medium uppercase tracking-wider text-ctp-overlay0">High</p>
@@ -58,14 +58,60 @@
                     <svg class="w-5 h-5 text-ctp-peach" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01"/></svg>
                 </div>
             </div>
+        </a>
+    </div>
+
+    {% if chart_labels|length > 0 %}
+    <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6 card-hover">
+        <h2 class="text-sm font-semibold text-ctp-text mb-4">Vulnerability Trends (30 days)</h2>
+        <div class="w-full" style="height:260px">
+            <canvas id="trendChart"></canvas>
         </div>
     </div>
+    <script>
+    const ctx = document.getElementById('trendChart');
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_labels | tojson }},
+            datasets: [
+                { label: 'Critical', data: {{ chart_critical | tojson }}, borderColor: '#f38ba8', backgroundColor: '#f38ba820', pointBackgroundColor: '#f38ba8', tension: 0.3, fill: true },
+                { label: 'High', data: {{ chart_high | tojson }}, borderColor: '#fab387', backgroundColor: '#fab38720', pointBackgroundColor: '#fab387', tension: 0.3, fill: true },
+                { label: 'Medium', data: {{ chart_medium | tojson }}, borderColor: '#f9e2af', backgroundColor: '#f9e2af20', pointBackgroundColor: '#f9e2af', tension: 0.3, fill: true },
+                { label: 'Low', data: {{ chart_low | tojson }}, borderColor: '#a6e3a1', backgroundColor: '#a6e3a120', pointBackgroundColor: '#a6e3a1', tension: 0.3, fill: true }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    align: 'start',
+                    labels: { color: '#a6adc8', usePointStyle: true, padding: 20 },
+                    onClick: function(e, item, legend) {
+                        const idx = item.datasetIndex;
+                        const meta = chart.getDatasetMeta(idx);
+                        meta.hidden = !meta.hidden;
+                        chart.update();
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { color: '#6c7086', maxTicksLimit: 10 }, grid: { color: '#313244' } },
+                y: { ticks: { color: '#6c7086', precision: 0 }, grid: { color: '#313244' }, beginAtZero: true }
+            }
+        }
+    });
+    </script>
+    {% endif %}
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6 card-hover">
             <h2 class="text-sm font-semibold text-ctp-text mb-4">Vulnerability Overview</h2>
             <div class="space-y-4">
-                <div>
+                <a href="/vulnerabilities?severity=critical" class="block hover:opacity-80 transition-opacity">
                     <div class="flex items-center justify-between text-sm mb-1.5">
                         <span class="text-ctp-red font-medium">Critical</span>
                         <span class="text-ctp-subtext0">{{ critical }}</span>
@@ -73,8 +119,8 @@
                     <div class="h-2 bg-ctp-surface0 rounded-full overflow-hidden">
                         <div class="h-full bg-gradient-to-r from-ctp-red to-ctp-maroon rounded-full transition-all duration-500" style="width:{% if critical + high + medium + low > 0 %}{{ (critical / (critical + high + medium + low) * 100)|round }}{% else %}0{% endif %}%"></div>
                     </div>
-                </div>
-                <div>
+                </a>
+                <a href="/vulnerabilities?severity=high" class="block hover:opacity-80 transition-opacity">
                     <div class="flex items-center justify-between text-sm mb-1.5">
                         <span class="text-ctp-peach font-medium">High</span>
                         <span class="text-ctp-subtext0">{{ high }}</span>
@@ -82,8 +128,8 @@
                     <div class="h-2 bg-ctp-surface0 rounded-full overflow-hidden">
                         <div class="h-full bg-gradient-to-r from-ctp-peach to-ctp-yellow rounded-full transition-all duration-500" style="width:{% if critical + high + medium + low > 0 %}{{ (high / (critical + high + medium + low) * 100)|round }}{% else %}0{% endif %}%"></div>
                     </div>
-                </div>
-                <div>
+                </a>
+                <a href="/vulnerabilities?severity=medium" class="block hover:opacity-80 transition-opacity">
                     <div class="flex items-center justify-between text-sm mb-1.5">
                         <span class="text-ctp-yellow font-medium">Medium</span>
                         <span class="text-ctp-subtext0">{{ medium }}</span>
@@ -91,8 +137,8 @@
                     <div class="h-2 bg-ctp-surface0 rounded-full overflow-hidden">
                         <div class="h-full bg-gradient-to-r from-ctp-yellow to-ctp-green rounded-full transition-all duration-500" style="width:{% if critical + high + medium + low > 0 %}{{ (medium / (critical + high + medium + low) * 100)|round }}{% else %}0{% endif %}%"></div>
                     </div>
-                </div>
-                <div>
+                </a>
+                <a href="/vulnerabilities?severity=low" class="block hover:opacity-80 transition-opacity">
                     <div class="flex items-center justify-between text-sm mb-1.5">
                         <span class="text-ctp-green font-medium">Low</span>
                         <span class="text-ctp-subtext0">{{ low }}</span>
@@ -100,7 +146,7 @@
                     <div class="h-2 bg-ctp-surface0 rounded-full overflow-hidden">
                         <div class="h-full bg-gradient-to-r from-ctp-green to-ctp-teal rounded-full transition-all duration-500" style="width:{% if critical + high + medium + low > 0 %}{{ (low / (critical + high + medium + low) * 100)|round }}{% else %}0{% endif %}%"></div>
                     </div>
-                </div>
+                </a>
             </div>
         </div>
 
@@ -117,9 +163,9 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-ctp-surface0/50">
-                        {% for sbom in recent_sboms %}
+                        {% for sbom, proj_name in recent_sboms %}
                         <tr class="hover:bg-ctp-surface0/30 transition-colors">
-                            <td class="py-2.5 px-2 text-ctp-subtext1 font-medium">{{ sbom.project_id|string|truncate(8) }}</td>
+                            <td class="py-2.5 px-2 text-ctp-subtext1 font-medium">{{ proj_name }}</td>
                             <td class="py-2.5 px-2 text-ctp-subtext0">{{ sbom.version or "-" }}</td>
                             <td class="py-2.5 px-2 text-right text-ctp-subtext0">{{ sbom.dependency_count or 0 }}</td>
                             <td class="py-2.5 px-2 text-right text-ctp-subtext0">{{ sbom.created_at.strftime('%Y-%m-%d') if sbom.created_at else "-" }}</td>

@@ -77,6 +77,19 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.celery_app beat --loglevel=info
+    volumes:
+      - ./backend/app/celery_app.py:/app/app/celery_app.py
+      - ./backend/app/config.py:/app/app/config.py
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+
   grafana:
     image: grafana/grafana:latest
     ports:

@@ -17,6 +17,12 @@ celery_app.conf.update(
     task_track_started=True,
     task_acks_late=True,
     worker_prefetch_multiplier=1,
+    beat_schedule={
+        "snapshot-metrics-daily": {
+            "task": "tasks.snapshot_metrics",
+            "schedule": 86400.0,
+        },
+    },
 )
 
 celery_app.autodiscover_tasks(["app.services"])

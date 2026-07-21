@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.alert import AlertConfig
 from app.models.project import Project
 from app.models.sbom import SBOM
-from app.models.vulnerability import SBOMVulnerability, Vulnerability
+from app.models.vulnerability import SBOMVulnerability, Vulnerability, VulnerabilitySnapshot
 
 SEVERITY_ORDER = {
     "critical": 0,
@@ -26,21 +26,50 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     project_count = (await db.execute(select(func.count(Project.id)))).scalar() or 0
     sbom_count = (await db.execute(select(func.count(SBOM.id)))).scalar() or 0
 
-    vuln_counts = await db.execute(
-        select(
-            func.count().filter(Vulnerability.severity.ilike("critical")).label("critical"),
-            func.count().filter(Vulnerability.severity.ilike("high")).label("high"),
-            func.count().filter(Vulnerability.severity.ilike("medium")).label("medium"),
-            func.count().filter(Vulnerability.severity.ilike("low")).label("low"),
-        )
-        .select_from(Vulnerability)
+    vuln_subq = (
+        select(Vulnerability.id, Vulnerability.severity)
         .join(SBOMVulnerability)
         .where(SBOMVulnerability.status == "open")
+        .distinct(Vulnerability.id)
+    ).subquery()
+
+    vuln_counts = await db.execute(
+        select(
+            func.count().filter(vuln_subq.c.severity.ilike("critical")).label("critical"),
+            func.count().filter(vuln_subq.c.severity.ilike("high")).label("high"),
+            func.count().filter(vuln_subq.c.severity.ilike("medium")).label("medium"),
+            func.count().filter(vuln_subq.c.severity.ilike("low")).label("low"),
+        ).select_from(vuln_subq)
     )
     row = vuln_counts.one()
 
-    recent_result = await db.execute(select(SBOM).order_by(SBOM.created_at.desc()).limit(5))
-    recent_sboms = recent_result.scalars().all()
+    recent_result = await db.execute(
+        select(SBOM, Project.name)
+        .join(Project, SBOM.project_id == Project.id)
+        .order_by(SBOM.created_at.desc())
+        .limit(5)
+    )
+    recent_sboms = recent_result.all()
+
+    snapshots = await db.execute(
+        select(
+            VulnerabilitySnapshot.snapshot_date,
+            func.sum(VulnerabilitySnapshot.critical_count).label("critical"),
+            func.sum(VulnerabilitySnapshot.high_count).label("high"),
+            func.sum(VulnerabilitySnapshot.medium_count).label("medium"),
+            func.sum(VulnerabilitySnapshot.low_count).label("low"),
+        )
+        .group_by(VulnerabilitySnapshot.snapshot_date)
+        .order_by(VulnerabilitySnapshot.snapshot_date.asc())
+        .limit(30)
+    )
+    snap_rows = snapshots.all()
+
+    chart_labels = [r.snapshot_date.strftime("%b %d") for r in snap_rows]
+    chart_critical = [r.critical or 0 for r in snap_rows]
+    chart_high = [r.high or 0 for r in snap_rows]
+    chart_medium = [r.medium or 0 for r in snap_rows]
+    chart_low = [r.low or 0 for r in snap_rows]
 
     return templates.TemplateResponse(
         request,
@@ -53,6 +82,11 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
             "medium": row.medium or 0,
             "low": row.low or 0,
             "recent_sboms": recent_sboms,
+            "chart_labels": chart_labels,
+            "chart_critical": chart_critical,
+            "chart_high": chart_high,
+            "chart_medium": chart_medium,
+            "chart_low": chart_low,
         },
     )
 
@@ -237,4 +271,69 @@ async def settings_page(request: Request, db: AsyncSession = Depends(get_db)):
         request,
         "settings.html",
         {"projects": projects, "alerts": alerts},
+    )
+
+
+@router.get("/sboms", response_class=HTMLResponse)
+async def sboms_page(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    sort: str = Query("created_at"),
+    order: str = Query("desc"),
+    project_id: str = Query(None),
+):
+    query = select(SBOM, Project.name).join(Project, SBOM.project_id == Project.id)
+    if project_id and project_id != "":
+        query = query.where(SBOM.project_id == project_id)
+
+    sort_map = {
+        "created_at": SBOM.created_at,
+        "deps": SBOM.dependency_count,
+        "version": SBOM.version,
+        "format": SBOM.format,
+    }
+    sort_col = sort_map.get(sort, SBOM.created_at)
+    if order == "asc":
+        query = query.order_by(sort_col.asc().nullslast())
+    else:
+        query = query.order_by(sort_col.desc().nullslast())
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    sboms = []
+    sbom_ids = []
+    for sbom, proj_name in rows:
+        sboms.append((sbom, proj_name))
+        sbom_ids.append(sbom.id)
+
+    vuln_counts = {}
+    if sbom_ids:
+        vc_rows = await db.execute(
+            select(
+                SBOMVulnerability.sbom_id,
+                func.count(SBOMVulnerability.vulnerability_id),
+            )
+            .where(
+                SBOMVulnerability.sbom_id.in_(sbom_ids),
+                SBOMVulnerability.status == "open",
+            )
+            .group_by(SBOMVulnerability.sbom_id)
+        )
+        for s_id, cnt in vc_rows:
+            vuln_counts[s_id] = cnt
+
+    projects = (await db.execute(select(Project).order_by(Project.name))).scalars().all()
+
+    return templates.TemplateResponse(
+        request,
+        "sboms/list.html",
+        {
+            "sboms": sboms,
+            "vuln_counts": vuln_counts,
+            "projects": projects,
+            "active_sort": sort,
+            "active_order": order,
+            "active_project_id": project_id or "",
+        },
     )
