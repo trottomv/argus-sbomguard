@@ -6,7 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt pyproject.toml ./
+COPY requirements.txt pyproject.toml alembic.ini ./
+COPY alembic/ alembic/
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir ".[dev]" 2>/dev/null || true
 
