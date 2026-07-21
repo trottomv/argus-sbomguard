@@ -1,19 +1,18 @@
 import asyncio
 import logging
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.celery_app import celery_app
 from app.config import settings
 from app.database import async_session_factory
 from app.models.alert import AlertConfig, Notification
 from app.models.project import Project
-from app.models.sbom import Dependency, SBOM
+from app.models.sbom import SBOM, Dependency
 from app.models.vulnerability import SBOMVulnerability, Vulnerability, VulnerabilitySnapshot
 from app.services.notifications import send_email, send_slack
-from app.services.vulnerability_scanner import scan_with_osv
+from app.services.vulnerability_scanner import scan_with_grype
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ def scan_sbom(sbom_id: str):
                 logger.warning("SBOM %s not found", sbom_id)
                 return
 
-            await scan_with_osv(db, sbom)
+            await scan_with_grype(db, sbom)
             await db.commit()
 
     asyncio.run(_run())
@@ -42,19 +41,19 @@ def check_alerts():
                 select(Vulnerability)
                 .join(SBOMVulnerability)
                 .filter(SBOMVulnerability.status == "open")
-                .distinct()
+                .distinct(Vulnerability.id)
             )
             vulns = result.scalars().all()
 
-            alert_result = await db.execute(
-                select(AlertConfig).where(AlertConfig.enabled == True)
-            )
+            alert_result = await db.execute(select(AlertConfig).where(AlertConfig.enabled))
             alerts = alert_result.scalars().all()
 
             severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
             for vuln in vulns:
-                vuln_severity = severity_order.get(vuln.severity.lower() if vuln.severity else "unknown", 99)
+                vuln_severity = severity_order.get(
+                    vuln.severity.lower() if vuln.severity else "unknown", 99
+                )
 
                 for alert in alerts:
                     threshold = severity_order.get(alert.severity_threshold.lower(), 1)
@@ -107,7 +106,9 @@ def snapshot_metrics():
             for pid in project_ids:
                 counts = await db.execute(
                     select(
-                        func.count().filter(Vulnerability.severity.ilike("critical")).label("critical"),
+                        func.count()
+                        .filter(Vulnerability.severity.ilike("critical"))
+                        .label("critical"),
                         func.count().filter(Vulnerability.severity.ilike("high")).label("high"),
                         func.count().filter(Vulnerability.severity.ilike("medium")).label("medium"),
                         func.count().filter(Vulnerability.severity.ilike("low")).label("low"),
@@ -135,7 +136,7 @@ def snapshot_metrics():
                     medium_count=row.medium or 0,
                     low_count=row.low or 0,
                     total_dependencies=dep_count_val,
-                    created_at=datetime.now(timezone.utc),
+                    created_at=datetime.now(UTC),
                 )
                 db.add(snapshot)
 

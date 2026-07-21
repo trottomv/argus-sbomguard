@@ -1,7 +1,7 @@
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import JSON, Boolean, ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
@@ -15,11 +15,13 @@ class AlertConfig(BaseModel):
     )
     severity_threshold: Mapped[str] = mapped_column(String(20), default="high")
     notification_type: Mapped[str] = mapped_column(String(50), default="slack")
-    config: Mapped[dict | None] = mapped_column(JSONB, default=dict)
+    config: Mapped[dict | None] = mapped_column(JSON, default=dict)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
     project = relationship("Project", back_populates="alert_configs")
-    notifications = relationship("Notification", back_populates="alert_config", cascade="all, delete-orphan")
+    notifications = relationship(
+        "Notification", back_populates="alert_config", cascade="all, delete-orphan"
+    )
 
 
 class Notification(BaseModel):

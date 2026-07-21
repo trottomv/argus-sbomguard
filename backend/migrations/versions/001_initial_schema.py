@@ -5,16 +5,16 @@ Revises:
 Create Date: 2026-07-21
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "001"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -32,7 +32,13 @@ def upgrade() -> None:
     op.create_table(
         "sboms",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), nullable=False, index=True),
+        sa.Column(
+            "project_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("projects.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("version", sa.String(255), nullable=True),
         sa.Column("format", sa.String(50), nullable=True),
         sa.Column("raw_sbom", postgresql.JSONB(), nullable=False),
@@ -45,7 +51,13 @@ def upgrade() -> None:
     op.create_table(
         "dependencies",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("sbom_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("sboms.id"), nullable=False, index=True),
+        sa.Column(
+            "sbom_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("sboms.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("name", sa.String(512), nullable=False),
         sa.Column("version", sa.String(255), nullable=False),
         sa.Column("purl", sa.String(1024), nullable=True),
@@ -75,9 +87,16 @@ def upgrade() -> None:
 
     op.create_table(
         "sbom_vulnerabilities",
-        sa.Column("sbom_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("sboms.id"), primary_key=True),
+        sa.Column(
+            "sbom_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("sboms.id"), primary_key=True
+        ),
         sa.Column("dependency_purl", sa.String(1024), primary_key=True),
-        sa.Column("vulnerability_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("vulnerabilities.id"), primary_key=True),
+        sa.Column(
+            "vulnerability_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("vulnerabilities.id"),
+            primary_key=True,
+        ),
         sa.Column("status", sa.String(50), default="open"),
         sa.Column("detected_at", sa.DateTime(timezone=True), nullable=False),
     )
@@ -85,7 +104,13 @@ def upgrade() -> None:
     op.create_table(
         "alert_configs",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), nullable=False, index=True),
+        sa.Column(
+            "project_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("projects.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("severity_threshold", sa.String(20), default="high"),
         sa.Column("notification_type", sa.String(50), default="slack"),
         sa.Column("config", postgresql.JSONB(), default=dict),
@@ -97,8 +122,18 @@ def upgrade() -> None:
     op.create_table(
         "notifications",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("alert_config_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("alert_configs.id"), nullable=False),
-        sa.Column("vulnerability_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("vulnerabilities.id"), nullable=False),
+        sa.Column(
+            "alert_config_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("alert_configs.id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "vulnerability_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("vulnerabilities.id"),
+            nullable=False,
+        ),
         sa.Column("channel", sa.String(50), nullable=True),
         sa.Column("status", sa.String(50), default="sent"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
@@ -108,7 +143,13 @@ def upgrade() -> None:
     op.create_table(
         "pull_requests",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), nullable=False, index=True),
+        sa.Column(
+            "project_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("projects.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("dependency_name", sa.String(512), nullable=False),
         sa.Column("from_version", sa.String(255), nullable=False),
         sa.Column("to_version", sa.String(255), nullable=False),
@@ -121,7 +162,12 @@ def upgrade() -> None:
     op.create_table(
         "vulnerability_snapshots",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), nullable=False),
+        sa.Column(
+            "project_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("projects.id"),
+            nullable=False,
+        ),
         sa.Column("snapshot_date", sa.Date(), nullable=False),
         sa.Column("critical_count", sa.Integer(), default=0),
         sa.Column("high_count", sa.Integer(), default=0),

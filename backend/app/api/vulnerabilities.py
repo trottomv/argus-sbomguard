@@ -1,9 +1,6 @@
-import uuid
-
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from app.database import get_db
 from app.models.sbom import SBOM
@@ -18,8 +15,8 @@ async def active_vulnerabilities(db: AsyncSession = Depends(get_db)):
         select(Vulnerability)
         .join(SBOMVulnerability)
         .where(SBOMVulnerability.status == "open")
-        .distinct()
-        .order_by(Vulnerability.cvss_score.desc().nullslast())
+        .distinct(Vulnerability.id)
+        .order_by(Vulnerability.id, Vulnerability.cvss_score.desc().nullslast())
     )
     vulns = result.scalars().all()
 
@@ -46,7 +43,7 @@ async def vulnerability_summary(db: AsyncSession = Depends(get_db)):
         select(Vulnerability)
         .join(SBOMVulnerability)
         .where(SBOMVulnerability.status == "open")
-        .distinct()
+        .distinct(Vulnerability.id)
     )
     vulns = result.scalars().all()
 
@@ -56,7 +53,8 @@ async def vulnerability_summary(db: AsyncSession = Depends(get_db)):
         counts[sev] = counts.get(sev, 0) + 1
 
     affected = await db.execute(
-        select(SBOM.project_id).distinct()
+        select(SBOM.project_id)
+        .distinct()
         .join(SBOMVulnerability)
         .where(SBOMVulnerability.status == "open")
     )

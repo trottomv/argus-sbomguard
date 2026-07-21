@@ -3,7 +3,6 @@ import json
 
 import pytest
 
-from app.models.sbom import SBOM
 from app.services.sbom_parser import (
     _extract_license,
     compute_sha256,

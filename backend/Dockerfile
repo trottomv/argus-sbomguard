@@ -1,3 +1,20 @@
+FROM node:22-alpine AS css-builder
+
+WORKDIR /build
+COPY package.json package-lock.json* ./
+RUN npm ci
+COPY app/static/css/app.css app/static/css/
+COPY app/templates app/templates/
+RUN npm run build:css
+
+
+FROM alpine:3.21 AS grype-downloader
+ARG GRYPE_VERSION=v0.116.0
+RUN apk add --no-cache curl tar
+RUN curl -fsSL "https://github.com/anchore/grype/releases/download/${GRYPE_VERSION}/grype_${GRYPE_VERSION#v}_linux_amd64.tar.gz" \
+    | tar xz -C /usr/local/bin grype
+
+
 FROM python:3.12-slim AS base
 
 WORKDIR /app
@@ -11,6 +28,8 @@ COPY migrations/ migrations/
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY entrypoint.sh app/ /app/
+COPY --from=css-builder /build/app/static/css/dist.css app/static/css/dist.css
+COPY --from=grype-downloader /usr/local/bin/grype /usr/local/bin/grype
 
 RUN chmod +x /app/entrypoint.sh
 

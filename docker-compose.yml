@@ -39,7 +39,17 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/app:/app/app
+      - ./backend/app/__init__.py:/app/app/__init__.py
+      - ./backend/app/main.py:/app/app/main.py
+      - ./backend/app/config.py:/app/app/config.py
+      - ./backend/app/celery_app.py:/app/app/celery_app.py
+      - ./backend/app/database.py:/app/app/database.py
+      - ./backend/app/api:/app/app/api
+      - ./backend/app/services:/app/app/services
+      - ./backend/app/models:/app/app/models
+      - ./backend/app/templates:/app/app/templates
+      - ./backend/app/static/css/app.css:/app/app/static/css/app.css
+      - ./backend/migrations:/app/migrations
     env_file:
       - .env
     depends_on:
@@ -54,7 +64,11 @@ services:
       dockerfile: Dockerfile
     command: celery -A app.celery_app worker --loglevel=info --concurrency=4
     volumes:
-      - ./backend/app:/app/app
+      - ./backend/app/celery_app.py:/app/app/celery_app.py
+      - ./backend/app/config.py:/app/app/config.py
+      - ./backend/app/database.py:/app/app/database.py
+      - ./backend/app/services:/app/app/services
+      - ./backend/app/models:/app/app/models
     env_file:
       - .env
     depends_on:

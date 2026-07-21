@@ -32,9 +32,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     )
     row = vuln_counts.one()
 
-    recent_result = await db.execute(
-        select(SBOM).order_by(SBOM.created_at.desc()).limit(5)
-    )
+    recent_result = await db.execute(select(SBOM).order_by(SBOM.created_at.desc()).limit(5))
     recent_sboms = recent_result.scalars().all()
 
     return templates.TemplateResponse(
@@ -73,9 +71,7 @@ async def project_detail_page(
         return RedirectResponse(url="/projects")
 
     sboms_result = await db.execute(
-        select(SBOM)
-        .where(SBOM.project_id == project_id)
-        .order_by(SBOM.created_at.desc())
+        select(SBOM).where(SBOM.project_id == project_id).order_by(SBOM.created_at.desc())
     )
     sboms = sboms_result.scalars().all()
 
@@ -92,8 +88,8 @@ async def vulnerabilities_page(request: Request, db: AsyncSession = Depends(get_
         select(Vulnerability)
         .join(SBOMVulnerability)
         .where(SBOMVulnerability.status == "open")
-        .distinct()
-        .order_by(Vulnerability.cvss_score.desc().nullslast())
+        .distinct(Vulnerability.id)
+        .order_by(Vulnerability.id, Vulnerability.cvss_score.desc().nullslast())
     )
     vulns = result.scalars().all()
     return templates.TemplateResponse(
@@ -106,7 +102,11 @@ async def vulnerabilities_page(request: Request, db: AsyncSession = Depends(get_
 @router.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request, db: AsyncSession = Depends(get_db)):
     projects = (await db.execute(select(Project).order_by(Project.name))).scalars().all()
-    alerts = (await db.execute(select(AlertConfig).order_by(AlertConfig.created_at.desc()))).scalars().all()
+    alerts = (
+        (await db.execute(select(AlertConfig).order_by(AlertConfig.created_at.desc())))
+        .scalars()
+        .all()
+    )
     return templates.TemplateResponse(
         request,
         "settings.html",

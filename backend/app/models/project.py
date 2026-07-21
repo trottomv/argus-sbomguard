@@ -13,5 +13,9 @@ class Project(BaseModel):
     platform: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     sboms = relationship("SBOM", back_populates="project", cascade="all, delete-orphan")
-    alert_configs = relationship("AlertConfig", back_populates="project", cascade="all, delete-orphan")
-    pull_requests = relationship("PullRequest", back_populates="project", cascade="all, delete-orphan")
+    alert_configs = relationship(
+        "AlertConfig", back_populates="project", cascade="all, delete-orphan"
+    )
+    pull_requests = relationship(
+        "PullRequest", back_populates="project", cascade="all, delete-orphan"
+    )
