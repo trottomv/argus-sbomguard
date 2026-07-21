@@ -1,6 +1,6 @@
 """add services table and sboms.service_id
 
-Revision ID: 9642be0035e3
+Revision ID: 003
 Revises: 002
 Create Date: 2026-07-21 13:15:13.134610
 
@@ -13,7 +13,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "9642be0035e3"
+revision: str = "003"
 down_revision: str | None = "002"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -133,7 +133,7 @@ def upgrade() -> None:
         existing_server_default=sa.text("now()"),
     )
     op.create_index(op.f("ix_sboms_service_id"), "sboms", ["service_id"], unique=False)
-    op.create_foreign_key(None, "sboms", "services", ["service_id"], ["id"])
+    op.create_foreign_key("sboms_service_id_fkey", "sboms", "services", ["service_id"], ["id"])
     op.alter_column(
         "vulnerabilities",
         "created_at",
@@ -208,7 +208,7 @@ def downgrade() -> None:
         nullable=True,
         existing_server_default=sa.text("now()"),
     )
-    op.drop_constraint(None, "sboms", type_="foreignkey")
+    op.drop_constraint("sboms_service_id_fkey", "sboms", type_="foreignkey")
     op.drop_index(op.f("ix_sboms_service_id"), table_name="sboms")
     op.alter_column(
         "sboms",
