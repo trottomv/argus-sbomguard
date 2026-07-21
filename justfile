@@ -68,6 +68,10 @@ shell:
 shell-db:
     docker compose exec postgres psql -U argus
 
+# scan all images in docker-compose.yml with syft
+scan-all:
+    @bash scripts/scan-all.sh
+
 # clean
 clean:
     rm -rf app/__pycache__ app/**/__pycache__ app/.pytest_cache .ruff_cache

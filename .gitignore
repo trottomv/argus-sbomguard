@@ -223,6 +223,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+sboms/
 .tokensave
 
 # Devcontainer
