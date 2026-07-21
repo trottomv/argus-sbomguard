@@ -40,12 +40,8 @@ async def list_alerts(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("", status_code=201)
-async def create_alert(
-    data: AlertConfigCreate, db: AsyncSession = Depends(get_db)
-):
-    result = await db.execute(
-        select(Project).where(Project.id == uuid.UUID(data.project_id))
-    )
+async def create_alert(data: AlertConfigCreate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Project).where(Project.id == uuid.UUID(data.project_id)))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Project not found")
 

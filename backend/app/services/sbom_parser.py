@@ -1,11 +1,10 @@
 import hashlib
 import json
-from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.sbom import Dependency, SBOM
+from app.models.sbom import SBOM, Dependency
 
 
 def compute_sha256(data: dict) -> str:
@@ -17,15 +16,17 @@ async def parse_cyclonedx(raw: dict) -> list[dict]:
     components = raw.get("components", [])
     for comp in components:
         purl = comp.get("purl", "")
-        deps.append({
-            "name": comp.get("name", ""),
-            "version": comp.get("version", ""),
-            "purl": purl,
-            "dep_type": comp.get("type", "library"),
-            "license": _extract_license(comp),
-            "is_direct": True,
-            "extra_data": comp,
-        })
+        deps.append(
+            {
+                "name": comp.get("name", ""),
+                "version": comp.get("version", ""),
+                "purl": purl,
+                "dep_type": comp.get("type", "library"),
+                "license": _extract_license(comp),
+                "is_direct": True,
+                "extra_data": comp,
+            }
+        )
     return deps
 
 
@@ -33,15 +34,17 @@ async def parse_spdx(raw: dict) -> list[dict]:
     deps = []
     packages = raw.get("packages", [])
     for pkg in packages:
-        deps.append({
-            "name": pkg.get("name", ""),
-            "version": pkg.get("versionInfo", ""),
-            "purl": "",
-            "dep_type": "library",
-            "license": pkg.get("licenseDeclared", ""),
-            "is_direct": True,
-            "extra_data": pkg,
-        })
+        deps.append(
+            {
+                "name": pkg.get("name", ""),
+                "version": pkg.get("versionInfo", ""),
+                "purl": "",
+                "dep_type": "library",
+                "license": pkg.get("licenseDeclared", ""),
+                "is_direct": True,
+                "extra_data": pkg,
+            }
+        )
     return deps
 
 

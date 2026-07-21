@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.project import Project
-from app.models.sbom import Dependency, SBOM
+from app.models.sbom import SBOM, Dependency
 from app.models.vulnerability import SBOMVulnerability, Vulnerability
 from app.services.sbom_parser import store_sbom
 from app.services.tasks import scan_sbom
@@ -45,23 +45,16 @@ async def upload_sbom(
 
 @router.get("/{sbom_id}")
 async def get_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(SBOM)
-        .where(SBOM.id == sbom_id)
-    )
+    result = await db.execute(select(SBOM).where(SBOM.id == sbom_id))
     sbom = result.scalar_one_or_none()
     if not sbom:
         raise HTTPException(status_code=404, detail="SBOM not found")
 
-    deps_result = await db.execute(
-        select(Dependency).where(Dependency.sbom_id == sbom_id)
-    )
+    deps_result = await db.execute(select(Dependency).where(Dependency.sbom_id == sbom_id))
     deps = deps_result.scalars().all()
 
     vuln_result = await db.execute(
-        select(Vulnerability)
-        .join(SBOMVulnerability)
-        .where(SBOMVulnerability.sbom_id == sbom_id)
+        select(Vulnerability).join(SBOMVulnerability).where(SBOMVulnerability.sbom_id == sbom_id)
     )
     vulns = vuln_result.scalars().all()
 
@@ -102,14 +95,10 @@ async def diff_sboms(
     other_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Dependency).where(Dependency.sbom_id == sbom_id)
-    )
+    result = await db.execute(select(Dependency).where(Dependency.sbom_id == sbom_id))
     deps_a = {(d.name, d.version) for d in result.scalars().all()}
 
-    result = await db.execute(
-        select(Dependency).where(Dependency.sbom_id == other_id)
-    )
+    result = await db.execute(select(Dependency).where(Dependency.sbom_id == other_id))
     deps_b = {(d.name, d.version) for d in result.scalars().all()}
 
     added = [{"name": n, "version": v} for n, v in deps_b - deps_a]
@@ -121,10 +110,12 @@ async def diff_sboms(
     common = set(names_a.keys()) & set(names_b.keys())
     for name in common:
         if names_a[name] != names_b[name]:
-            changed.append({
-                "name": name,
-                "from_version": names_a[name],
-                "to_version": names_b[name],
-            })
+            changed.append(
+                {
+                    "name": name,
+                    "from_version": names_a[name],
+                    "to_version": names_b[name],
+                }
+            )
 
     return {"added": added, "removed": removed, "changed": changed}

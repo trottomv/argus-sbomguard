@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app.api import alerts, dashboard, projects, sboms, vulnerabilities
 from app.config import settings
 
 
@@ -23,8 +24,6 @@ app = FastAPI(
 )
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-from app.api import alerts, dashboard, projects, sboms, vulnerabilities
 
 app.include_router(projects.router)
 app.include_router(sboms.router)

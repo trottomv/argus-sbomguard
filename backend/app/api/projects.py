@@ -39,9 +39,7 @@ async def list_projects(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("", status_code=201)
-async def create_project(
-    data: ProjectCreate, db: AsyncSession = Depends(get_db)
-):
+async def create_project(data: ProjectCreate, db: AsyncSession = Depends(get_db)):
     existing = await db.execute(select(Project).where(Project.name == data.name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Project already exists")
@@ -70,9 +68,7 @@ async def get_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_db))
 @router.get("/{project_id}/history")
 async def project_history(project_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(SBOM)
-        .where(SBOM.project_id == project_id)
-        .order_by(SBOM.created_at.desc())
+        select(SBOM).where(SBOM.project_id == project_id).order_by(SBOM.created_at.desc())
     )
     sboms = result.scalars().all()
     return {
