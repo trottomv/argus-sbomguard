@@ -38,6 +38,8 @@ def scan_sbom(sbom_id: str):
             await reconcile_vulnerabilities(db, sbom)
             await db.commit()
 
+            logger.info("Scanned SBOM %s: %d deps", sbom_id, sbom.dependency_count or 0)
+
     asyncio.run(_run())
 
 
@@ -142,7 +144,7 @@ def snapshot_metrics(snapshot_date: str | None = None):
                         .where(
                             SBOM.project_id == pid,
                             SBOMVulnerability.status == "fixed",
-                            SBOMVulnerability.fixed_at != None,
+                            SBOMVulnerability.fixed_at.isnot(None),
                             func.date(SBOMVulnerability.fixed_at) <= target_date,
                         )
                         .distinct()
@@ -161,7 +163,7 @@ def snapshot_metrics(snapshot_date: str | None = None):
                     .where(
                         SBOM.project_id == pid,
                         SBOMVulnerability.status == "fixed",
-                        SBOMVulnerability.fixed_at != None,
+                        SBOMVulnerability.fixed_at.isnot(None),
                         func.date(SBOMVulnerability.fixed_at) <= target_date,
                     )
                 )
@@ -175,18 +177,36 @@ def snapshot_metrics(snapshot_date: str | None = None):
                 )
                 dep_count_val = dep_count.scalar() or 0
 
-                snapshot = VulnerabilitySnapshot(
-                    project_id=pid,
-                    snapshot_date=target_date,
-                    critical_count=critical_count,
-                    high_count=high_count,
-                    medium_count=medium_count,
-                    low_count=low_count,
-                    fixed_count=fixed_val,
-                    total_dependencies=dep_count_val,
-                    created_at=datetime.now(UTC),
+                from sqlalchemy.dialects.postgresql import insert
+
+                stmt = (
+                    insert(VulnerabilitySnapshot)
+                    .values(
+                        project_id=pid,
+                        snapshot_date=target_date,
+                        critical_count=critical_count,
+                        high_count=high_count,
+                        medium_count=medium_count,
+                        low_count=low_count,
+                        fixed_count=fixed_val,
+                        total_dependencies=dep_count_val,
+                        created_at=datetime.now(UTC),
+                    )
+                    .on_conflict_do_update(
+                        constraint="vulnerability_snapshots_project_id_snapshot_date_key",
+                        set_={
+                            "critical_count": critical_count,
+                            "high_count": high_count,
+                            "medium_count": medium_count,
+                            "low_count": low_count,
+                            "fixed_count": fixed_val,
+                            "total_dependencies": dep_count_val,
+                            "metrics": {},
+                            "created_at": datetime.now(UTC),
+                        },
+                    )
                 )
-                db.add(snapshot)
+                await db.execute(stmt)
 
             await db.commit()
 

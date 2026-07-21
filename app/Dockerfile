@@ -1,4 +1,4 @@
-FROM node:22-alpine AS css-builder
+FROM dhi.io/node:24-alpine3.23-dev AS css-builder
 
 WORKDIR /build
 COPY package.json package-lock.json* ./
@@ -15,13 +15,11 @@ RUN curl -fsSL "https://github.com/anchore/grype/releases/download/${GRYPE_VERSI
     | tar xz -C /usr/local/bin grype
 
 
-FROM python:3.12-slim AS base
+FROM dhi.io/python:3.13-alpine-dev AS base
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache build-base linux-headers
 
 COPY requirements.txt alembic.ini ./
 COPY migrations/ migrations/

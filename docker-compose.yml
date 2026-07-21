@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: dhi.io/postgres:16-alpine3.23
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-argus}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-argus}
@@ -16,15 +16,18 @@ services:
       retries: 5
 
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: dhi.io/rabbitmq:4
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-argus}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-argus}
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbitmq_management agent [disable_metrics_collector:true]"
+      RABBITMQ_CONFIG_FILE: /etc/rabbitmq/rabbitmq.conf
     ports:
       - "5672:5672"
       - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
       interval: 10s

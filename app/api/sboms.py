@@ -132,11 +132,16 @@ async def delete_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="SBOM not found")
 
     # Find the latest remaining SBOM for this service, re-run reconcile
-    latest_query = select(SBOM).where(
-        SBOM.id != sbom_id,
-        SBOM.service_id == sbom.service_id if sbom.service_id else SBOM.service_id.is_(None),
-        SBOM.project_id == sbom.project_id,
-    ).order_by(SBOM.uploaded_at.desc()).limit(1)
+    latest_query = (
+        select(SBOM)
+        .where(
+            SBOM.id != sbom_id,
+            SBOM.service_id == sbom.service_id if sbom.service_id else SBOM.service_id.is_(None),
+            SBOM.project_id == sbom.project_id,
+        )
+        .order_by(SBOM.uploaded_at.desc())
+        .limit(1)
+    )
     latest_result = await db.execute(latest_query)
     latest_sbom = latest_result.scalar_one_or_none()
 

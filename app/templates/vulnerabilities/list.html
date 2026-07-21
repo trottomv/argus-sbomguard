@@ -61,6 +61,7 @@
                             <th>{{ sort_link('Severity', 'severity') }}</th>
                             <th>{{ sort_link('CVSS', 'cvss_score') }}</th>
                             <th>Projects</th>
+                            <th>Service</th>
                             <th>Summary</th>
                             <th>Source</th>
                             <th>{{ sort_link('Published', 'published_at') }}</th>
@@ -109,6 +110,13 @@
                                     <span class="badge badge-outline badge-xs">{{ pname }}</span>
                                     {% endfor %}
                                 </div>
+                            </td>
+                            <td>
+                                <div class="flex flex-wrap gap-1">
+                                    {% for sn in service_map.get(vuln.id, []) %}
+                                    <span class="badge badge-ghost badge-xs">{{ sn }}</span>
+                                    {% endfor %}
+                                    </div>
                             </td>
                             <td class="max-w-md truncate text-sm">{{ vuln.summary or "-" }}</td>
                             <td><span class="badge badge-outline badge-sm">{{ vuln.source or "unknown" }}</span></td>

@@ -20,7 +20,8 @@ celery_app.conf.update(
     beat_schedule={
         "snapshot-metrics-daily": {
             "task": "tasks.snapshot_metrics",
-            "schedule": 86400.0,
+            # "schedule": 60 * 60 * 24,  # every 24 hours
+            "schedule": 60,
         },
     },
 )

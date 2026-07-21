@@ -60,8 +60,9 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
 
     fixed_count = (
         await db.execute(
-            select(func.count(SBOMVulnerability.vulnerability_id))
-            .where(SBOMVulnerability.status == "fixed")
+            select(func.count(SBOMVulnerability.vulnerability_id)).where(
+                SBOMVulnerability.status == "fixed"
+            )
         )
     ).scalar() or 0
 
@@ -339,6 +340,7 @@ async def vulnerabilities_page(
     vulns = result.scalars().all()
 
     project_map = {}
+    service_map = {}
     if vulns:
         vuln_ids = [v.id for v in vulns]
         proj_rows = await db.execute(
@@ -349,6 +351,17 @@ async def vulnerabilities_page(
         )
         for v_id, proj_name in proj_rows:
             project_map.setdefault(v_id, set()).add(proj_name)
+
+        svc_rows = await db.execute(
+            select(SBOMVulnerability.vulnerability_id, Service.name)
+            .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
+            .outerjoin(Service, SBOM.service_id == Service.id)
+            .where(SBOMVulnerability.vulnerability_id.in_(vuln_ids))
+        )
+        service_map = {}
+        for v_id, svc_name in svc_rows:
+            if svc_name:
+                service_map.setdefault(v_id, set()).add(svc_name)
 
     projects = (await db.execute(select(Project).order_by(Project.name))).scalars().all()
     services = (
@@ -369,6 +382,7 @@ async def vulnerabilities_page(
         {
             "vulnerabilities": vulns,
             "project_map": project_map,
+            "service_map": service_map,
             "projects": projects,
             "services": services,
             "active_severity": severity or "",
