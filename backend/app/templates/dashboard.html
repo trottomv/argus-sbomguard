@@ -1,85 +1,139 @@
 {% extends "base.html" %}
 {% block title %}Dashboard - Argus SBOM Guard{% endblock %}
+{% block breadcrumb %}<span class="text-ctp-text font-medium">Dashboard</span>{% endblock %}
 {% block content %}
 <div class="space-y-6">
     <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold">Dashboard</h1>
-        <a href="/projects" class="btn btn-primary btn-sm">Add Project</a>
+        <div>
+            <h1 class="text-xl font-bold text-ctp-text">Dashboard</h1>
+            <p class="text-sm text-ctp-overlay0 mt-0.5">Overview of your SBOM landscape</p>
+        </div>
+        <a href="/projects" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 shadow-lg shadow-indigo-500/20 transition-all duration-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            New Project
+        </a>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="stat bg-base-100 rounded-box shadow-sm">
-            <div class="stat-title">Projects</div>
-            <div class="stat-value text-primary">{{ project_count }}</div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Projects</p>
+                    <p class="text-3xl font-bold text-ctp-text mt-1">{{ project_count }}</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                </div>
+            </div>
         </div>
-        <div class="stat bg-base-100 rounded-box shadow-sm">
-            <div class="stat-title">SBOMs</div>
-            <div class="stat-value text-secondary">{{ sbom_count }}</div>
+        <div class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wider text-ctp-overlay0">SBOMs</p>
+                    <p class="text-3xl font-bold text-ctp-text mt-1">{{ sbom_count }}</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+            </div>
         </div>
-        <div class="stat bg-base-100 rounded-box shadow-sm">
-            <div class="stat-title">Critical Vulns</div>
-            <div class="stat-value text-error">{{ critical }}</div>
+        <div class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Critical</p>
+                    <p class="text-3xl font-bold text-ctp-red mt-1">{{ critical }}</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-ctp-red/10 border border-ctp-red/20 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-ctp-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                </div>
+            </div>
         </div>
-        <div class="stat bg-base-100 rounded-box shadow-sm">
-            <div class="stat-title">High Vulns</div>
-            <div class="stat-value text-warning">{{ high }}</div>
+        <div class="stat-card rounded-xl bg-gradient-to-br from-ctp-mantle to-ctp-base border border-ctp-surface0 p-5 card-hover">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wider text-ctp-overlay0">High</p>
+                    <p class="text-3xl font-bold text-ctp-peach mt-1">{{ high }}</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-ctp-peach/10 border border-ctp-peach/20 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-ctp-peach" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01"/></svg>
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="card bg-base-100 shadow-sm">
-            <div class="card-body">
-                <h2 class="card-title">Vulnerability Overview</h2>
-                <div class="flex gap-4 mt-4">
-                    <div class="flex flex-col items-center">
-                        <div class="radial-progress text-error" style="--value:{{ critical }};--size:6rem;">{{ critical }}</div>
-                        <span class="text-sm mt-1">Critical</span>
+        <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6 card-hover">
+            <h2 class="text-sm font-semibold text-ctp-text mb-4">Vulnerability Overview</h2>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex items-center justify-between text-sm mb-1.5">
+                        <span class="text-ctp-red font-medium">Critical</span>
+                        <span class="text-ctp-subtext0">{{ critical }}</span>
                     </div>
-                    <div class="flex flex-col items-center">
-                        <div class="radial-progress text-warning" style="--value:{{ high }};--size:6rem;">{{ high }}</div>
-                        <span class="text-sm mt-1">High</span>
+                    <div class="h-2 bg-ctp-surface0 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-ctp-red to-ctp-maroon rounded-full transition-all duration-500" style="width:{% if critical + high + medium + low > 0 %}{{ (critical / (critical + high + medium + low) * 100)|round }}{% else %}0{% endif %}%"></div>
                     </div>
-                    <div class="flex flex-col items-center">
-                        <div class="radial-progress text-info" style="--value:{{ medium }};--size:6rem;">{{ medium }}</div>
-                        <span class="text-sm mt-1">Medium</span>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between text-sm mb-1.5">
+                        <span class="text-ctp-peach font-medium">High</span>
+                        <span class="text-ctp-subtext0">{{ high }}</span>
                     </div>
-                    <div class="flex flex-col items-center">
-                        <div class="radial-progress text-success" style="--value:{{ low }};--size:6rem;">{{ low }}</div>
-                        <span class="text-sm mt-1">Low</span>
+                    <div class="h-2 bg-ctp-surface0 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-ctp-peach to-ctp-yellow rounded-full transition-all duration-500" style="width:{% if critical + high + medium + low > 0 %}{{ (high / (critical + high + medium + low) * 100)|round }}{% else %}0{% endif %}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between text-sm mb-1.5">
+                        <span class="text-ctp-yellow font-medium">Medium</span>
+                        <span class="text-ctp-subtext0">{{ medium }}</span>
+                    </div>
+                    <div class="h-2 bg-ctp-surface0 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-ctp-yellow to-ctp-green rounded-full transition-all duration-500" style="width:{% if critical + high + medium + low > 0 %}{{ (medium / (critical + high + medium + low) * 100)|round }}{% else %}0{% endif %}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between text-sm mb-1.5">
+                        <span class="text-ctp-green font-medium">Low</span>
+                        <span class="text-ctp-subtext0">{{ low }}</span>
+                    </div>
+                    <div class="h-2 bg-ctp-surface0 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-ctp-green to-ctp-teal rounded-full transition-all duration-500" style="width:{% if critical + high + medium + low > 0 %}{{ (low / (critical + high + medium + low) * 100)|round }}{% else %}0{% endif %}%"></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="card bg-base-100 shadow-sm">
-            <div class="card-body">
-                <h2 class="card-title">Recent SBOMs</h2>
-                <div class="overflow-x-auto">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Project</th>
-                                <th>Version</th>
-                                <th>Deps</th>
-                                <th>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for sbom in recent_sboms %}
-                            <tr>
-                                <td>{{ sbom.project_id|truncate(8) }}</td>
-                                <td>{{ sbom.version or "-" }}</td>
-                                <td>{{ sbom.dependency_count or 0 }}</td>
-                                <td>{{ sbom.created_at.strftime('%Y-%m-%d') if sbom.created_at else "-" }}</td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="4" class="text-center opacity-60 py-4">No SBOMs uploaded yet</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+        <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6 card-hover">
+            <h2 class="text-sm font-semibold text-ctp-text mb-4">Recent SBOMs</h2>
+            <div class="overflow-hidden">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-ctp-surface0">
+                            <th class="text-left py-2.5 px-2 text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Project</th>
+                            <th class="text-left py-2.5 px-2 text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Version</th>
+                            <th class="text-right py-2.5 px-2 text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Deps</th>
+                            <th class="text-right py-2.5 px-2 text-xs font-medium uppercase tracking-wider text-ctp-overlay0">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-ctp-surface0/50">
+                        {% for sbom in recent_sboms %}
+                        <tr class="hover:bg-ctp-surface0/30 transition-colors">
+                            <td class="py-2.5 px-2 text-ctp-subtext1 font-medium">{{ sbom.project_id|string|truncate(8) }}</td>
+                            <td class="py-2.5 px-2 text-ctp-subtext0">{{ sbom.version or "-" }}</td>
+                            <td class="py-2.5 px-2 text-right text-ctp-subtext0">{{ sbom.dependency_count or 0 }}</td>
+                            <td class="py-2.5 px-2 text-right text-ctp-subtext0">{{ sbom.created_at.strftime('%Y-%m-%d') if sbom.created_at else "-" }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="py-8 text-center text-ctp-overlay0">
+                                <svg class="w-10 h-10 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                <p class="text-sm">No SBOMs uploaded yet</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

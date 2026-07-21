@@ -1,0 +1,13 @@
+{
+  "name": "argus-sbomguard-frontend",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i app/static/css/app.css -o app/static/css/dist.css",
+    "watch:css": "tailwindcss -i app/static/css/app.css -o app/static/css/dist.css --watch"
+  },
+  "devDependencies": {
+    "daisyui": "^5.0.0",
+    "tailwindcss": "^4.1.0",
+    "@tailwindcss/cli": "^4.1.0"
+  }
+}
