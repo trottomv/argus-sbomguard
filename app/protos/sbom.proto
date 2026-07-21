@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package sbom;
+
+service SBOMService {
+  rpc UploadSBOM(UploadRequest) returns (UploadResponse);
+}
+
+message UploadRequest {
+  string project_id = 1;
+  optional string version = 2;
+  bytes sbom_json = 3;
+  optional string service_name = 4;
+}
+
+message UploadResponse {
+  string sbom_id = 1;
+  string format = 2;
+  int32 dependency_count = 3;
+  string sha256 = 4;
+}

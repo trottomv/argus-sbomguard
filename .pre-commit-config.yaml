@@ -5,6 +5,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        files: ^(docker-compose\.yml|\.github/)
       - id: check-added-large-files
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -12,17 +13,19 @@ repos:
     hooks:
       - id: ruff
         args: [--fix]
+        files: ^(app|backend)/.*\.py$
       - id: ruff-format
+        files: ^(app|backend)/.*\.py$
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.8.3
     hooks:
       - id: bandit
-        args: ["-c", "backend/pyproject.toml"]
-        files: ^backend/app/
+        args: ["-c", "app/pyproject.toml", "-r", "app/"]
+        always_run: true
 
   - repo: https://github.com/pypa/pip-audit
     rev: v2.7.3
     hooks:
       - id: pip-audit
-        args: [--strict, --requirement, backend/requirements.txt]
+        args: [--strict, --requirement, app/requirements.txt]

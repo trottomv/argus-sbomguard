@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+.git
+.pytest_cache
+.ruff_cache
+node_modules
+dist.css
+.env
+protos/*_pb2.py
+protos/*_pb2_grpc.py

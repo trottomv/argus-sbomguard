@@ -11,24 +11,26 @@
 ## Project structure
 ```
 argus-sbomguard/
-├── docker-compose.yml            # postgres + rabbitmq + app + worker + grafana
+├── docker-compose.yml            # postgres + rabbitmq + app + worker + scheduler
 ├── .env.example                  # copy to .env before running
 ├── AGENTS.md
-├── backend/
+├── justfile                      # shortcut commands
+├── app/
 │   ├── Dockerfile
 │   ├── requirements.txt
-│   ├── alembic.ini                   # points to migrations/
-│   ├── migrations/               # DB migrations
-│   └── app/
-│       ├── main.py               # FastAPI entrypoint + lifespan
-│       ├── config.py             # pydantic-settings (reads .env)
-│       ├── database.py           # async engine + session factory
-│       ├── celery_app.py         # Celery app config
-│       ├── models/               # SQLAlchemy ORM (9 tables)
-│       ├── api/                  # FastAPI route handlers
-│       ├── services/             # Business logic + Celery tasks
-│       ├── templates/            # Jinja2 (HTMX pages + partials)
-│       └── static/               # CSS
+│   ├── alembic.ini              # points to migrations/
+│   ├── migrations/              # DB migrations
+│   ├── pyproject.toml
+│   ├── main.py                  # FastAPI entrypoint + lifespan
+│   ├── config.py                # pydantic-settings (reads .env)
+│   ├── database.py              # async engine + session factory
+│   ├── celery_app.py            # Celery app config
+│   ├── models/                  # SQLAlchemy ORM (9 tables)
+│   ├── api/                     # FastAPI route handlers
+│   ├── services/                # Business logic + Celery tasks
+│   ├── templates/               # Jinja2 (HTMX pages + partials)
+│   ├── static/                  # CSS
+│   └── tests/                   # pytest + httpx
 ```
 
 ## Commands

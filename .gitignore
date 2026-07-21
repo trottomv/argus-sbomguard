@@ -198,8 +198,8 @@ cython_debug/
 .abstra/
 
 # Tailwind / DaisyUI build output
-backend/app/static/css/dist.css
-backend/node_modules/
+app/static/css/dist.css
+app/node_modules/
 
 # Visual Studio Code
 #   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
@@ -224,3 +224,6 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 .tokensave
+
+# Devcontainer
+.devcontainer/

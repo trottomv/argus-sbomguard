@@ -1,0 +1,68 @@
+import json
+import logging
+import uuid
+
+import grpc
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
+
+from config import settings
+from models.project import Project
+from sbom_pb2 import UploadRequest, UploadResponse
+from sbom_pb2_grpc import SBOMServiceServicer as BaseServicer, add_SBOMServiceServicer_to_server
+from services.sbom_parser import store_sbom
+from services.tasks import scan_sbom
+
+logger = logging.getLogger(__name__)
+
+
+class SBOMServiceServicer(BaseServicer):
+    def __init__(self, session_factory=None):
+        if session_factory is not None:
+            self._session_factory = session_factory
+        else:
+            engine = create_async_engine(settings.database_url, echo=False, poolclass=NullPool)
+            self._session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def UploadSBOM(self, request: UploadRequest, context: grpc.aio.ServicerContext) -> UploadResponse:
+        try:
+            project_uuid = uuid.UUID(request.project_id)
+        except ValueError:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "invalid project_id UUID")
+            return UploadResponse()
+
+        async with self._session_factory() as db:
+            result = await db.execute(select(Project).where(Project.id == project_uuid))
+            if not result.scalar_one_or_none():
+                await context.abort(grpc.StatusCode.NOT_FOUND, "project not found")
+                return UploadResponse()
+
+            try:
+                raw = json.loads(request.sbom_json)
+            except json.JSONDecodeError as e:
+                await context.abort(grpc.StatusCode.INVALID_ARGUMENT, f"invalid JSON: {e}")
+                return UploadResponse()
+
+            version = request.version if request.HasField("version") else None
+            sbom = await store_sbom(db, project_uuid, raw, version)
+            await db.commit()
+
+            scan_sbom.delay(str(sbom.id))
+
+            return UploadResponse(
+                sbom_id=str(sbom.id),
+                format=sbom.format or "",
+                dependency_count=sbom.dependency_count or 0,
+                sha256=sbom.sha256,
+            )
+
+
+async def start_grpc_server():
+    server = grpc.aio.server()
+    add_SBOMServiceServicer_to_server(SBOMServiceServicer(), server)
+    port = settings.grpc_port
+    server.add_insecure_port(f"0.0.0.0:{port}")
+    await server.start()
+    logger.info("gRPC server listening on port %d", port)
+    return server

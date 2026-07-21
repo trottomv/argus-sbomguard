@@ -1,0 +1,26 @@
+<dialog id="detail_modal" class="modal" @click="if($event.target === $el) $el.close()">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg flex items-center gap-2">
+            <code class="text-sm" x-text="detail.cve_id"></code>
+            <span class="badge" :class="{
+                'badge-error': detail.severity === 'CRITICAL',
+                'badge-warning': detail.severity === 'HIGH',
+                'badge-info': detail.severity === 'MEDIUM'
+            }" x-text="detail.severity"></span>
+        </h3>
+        <div class="mt-4 space-y-3 text-sm max-h-80 overflow-y-auto">
+            <div x-show="detail.dependency"><span class="text-xs opacity-60">Library</span><p class="font-mono text-xs" x-text="detail.dependency || '-'"></p></div>
+            <div x-show="detail.fixed.length"><span class="text-xs opacity-60">Fixed in</span><div class="flex flex-wrap gap-1 mt-1"><template x-for="ver in detail.fixed"><span class="badge badge-success badge-xs" x-text="ver"></span></template></div></div>
+            <div><span class="text-xs opacity-60">CVSS Score</span><p class="font-mono" x-text="detail.cvss || '-'"></p></div>
+            <div x-show="detail.cvss_vector"><span class="text-xs opacity-60">CVSS Vector</span><p class="font-mono text-xs break-all opacity-70" x-text="detail.cvss_vector"></p></div>
+            <div x-show="detail.published"><span class="text-xs opacity-60">Published</span><p x-text="detail.published"></p></div>
+            <div x-show="detail.summary"><span class="text-xs opacity-60">Description</span><p class="opacity-80" x-text="detail.summary"></p></div>
+            <div x-show="detail.urls.length"><span class="text-xs opacity-60">References</span><ul class="list-disc list-inside space-y-1"><template x-for="url in detail.urls"><li><a :href="url" target="_blank" class="link link-primary text-xs" x-text="url"></a></li></template></ul></div>
+        </div>
+        <div class="modal-action">
+            <a class="btn btn-sm btn-outline" target="_blank"
+               :href="detail.cve_id.startsWith('CVE') ? 'https://nvd.nist.gov/vuln/detail/' + detail.cve_id : 'https://github.com/advisories/' + detail.cve_id">View Advisory &nearhk;</a>
+            <button class="btn btn-sm" onclick="document.getElementById('detail_modal').close()">Close</button>
+        </div>
+    </div>
+</dialog>

@@ -33,23 +33,27 @@ services:
 
   app:
     build:
-      context: ./backend
+      context: ./app
       dockerfile: Dockerfile
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
+      - "50051:50051"
     volumes:
-      - ./backend/app/__init__.py:/app/app/__init__.py
-      - ./backend/app/main.py:/app/app/main.py
-      - ./backend/app/config.py:/app/app/config.py
-      - ./backend/app/celery_app.py:/app/app/celery_app.py
-      - ./backend/app/database.py:/app/app/database.py
-      - ./backend/app/api:/app/app/api
-      - ./backend/app/services:/app/app/services
-      - ./backend/app/models:/app/app/models
-      - ./backend/app/templates:/app/app/templates
-      - ./backend/app/static/css/app.css:/app/app/static/css/app.css
-      - ./backend/migrations:/app/migrations
+      - ./app/__init__.py:/app/__init__.py
+      - ./app/main.py:/app/main.py
+      - ./app/config.py:/app/config.py
+      - ./app/celery_app.py:/app/celery_app.py
+      - ./app/database.py:/app/database.py
+      - ./app/api:/app/api
+      - ./app/services:/app/services
+      - ./app/models:/app/models
+      - ./app/templates:/app/templates
+      - ./app/tests:/app/tests
+      - ./app/static/css/app.css:/app/static/css/app.css
+      - ./app/protos/sbom.proto:/app/protos/sbom.proto
+      - ./app/protos/__init__.py:/app/protos/__init__.py
+      - ./app/migrations:/app/migrations
     env_file:
       - .env
     depends_on:
@@ -60,15 +64,15 @@ services:
 
   worker:
     build:
-      context: ./backend
+      context: ./app
       dockerfile: Dockerfile
-    command: celery -A app.celery_app worker --loglevel=info --concurrency=4
+    command: celery -A celery_app worker --loglevel=info --concurrency=4
     volumes:
-      - ./backend/app/celery_app.py:/app/app/celery_app.py
-      - ./backend/app/config.py:/app/app/config.py
-      - ./backend/app/database.py:/app/app/database.py
-      - ./backend/app/services:/app/app/services
-      - ./backend/app/models:/app/app/models
+      - ./app/celery_app.py:/app/celery_app.py
+      - ./app/config.py:/app/config.py
+      - ./app/database.py:/app/database.py
+      - ./app/services:/app/services
+      - ./app/models:/app/models
     env_file:
       - .env
     depends_on:
@@ -79,32 +83,17 @@ services:
 
   scheduler:
     build:
-      context: ./backend
+      context: ./app
       dockerfile: Dockerfile
-    command: celery -A app.celery_app beat --loglevel=info
+    command: celery -A celery_app beat --loglevel=info
     volumes:
-      - ./backend/app/celery_app.py:/app/app/celery_app.py
-      - ./backend/app/config.py:/app/app/config.py
+      - ./app/celery_app.py:/app/celery_app.py
+      - ./app/config.py:/app/config.py
     env_file:
       - .env
     depends_on:
       - rabbitmq
 
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
-    depends_on:
-      - postgres
-
 volumes:
   postgres_data:
   rabbitmq_data:
-  grafana_data:
