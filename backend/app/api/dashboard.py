@@ -12,7 +12,6 @@ from app.models.vulnerability import SBOMVulnerability, Vulnerability
 
 router = APIRouter(tags=["dashboard"])
 templates = Jinja2Templates(directory="app/templates")
-templates.env.cache_size = 0  # workaround for Jinja2 cache bug
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -39,9 +38,9 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     recent_sboms = recent_result.scalars().all()
 
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "project_count": project_count,
             "sbom_count": sbom_count,
             "critical": row.critical or 0,
@@ -58,8 +57,9 @@ async def projects_page(request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Project).order_by(Project.created_at.desc()))
     projects = result.scalars().all()
     return templates.TemplateResponse(
+        request,
         "projects/list.html",
-        {"request": request, "projects": projects},
+        {"projects": projects},
     )
 
 
@@ -80,8 +80,9 @@ async def project_detail_page(
     sboms = sboms_result.scalars().all()
 
     return templates.TemplateResponse(
+        request,
         "projects/detail.html",
-        {"request": request, "project": project, "sboms": sboms},
+        {"project": project, "sboms": sboms},
     )
 
 
@@ -96,8 +97,9 @@ async def vulnerabilities_page(request: Request, db: AsyncSession = Depends(get_
     )
     vulns = result.scalars().all()
     return templates.TemplateResponse(
+        request,
         "vulnerabilities/list.html",
-        {"request": request, "vulnerabilities": vulns},
+        {"vulnerabilities": vulns},
     )
 
 
@@ -106,6 +108,7 @@ async def settings_page(request: Request, db: AsyncSession = Depends(get_db)):
     projects = (await db.execute(select(Project).order_by(Project.name))).scalars().all()
     alerts = (await db.execute(select(AlertConfig).order_by(AlertConfig.created_at.desc()))).scalars().all()
     return templates.TemplateResponse(
+        request,
         "settings.html",
-        {"request": request, "projects": projects, "alerts": alerts},
+        {"projects": projects, "alerts": alerts},
     )
