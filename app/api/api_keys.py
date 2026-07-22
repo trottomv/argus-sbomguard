@@ -38,7 +38,7 @@ async def create_key(
     body = await request.json()
     label = body.get("label", "")
 
-    key, raw = await create_api_key(db, _user.id, label=label)
+    key, raw = await create_api_key(db, uuid.UUID(str(_user.id)), label=label)
     await db.commit()
 
     return {
