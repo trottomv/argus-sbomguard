@@ -7,7 +7,8 @@ from services.auth import validate_api_key
 
 
 async def api_key_required(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     session_user = getattr(request.state, "user", None)
     if session_user is not None:

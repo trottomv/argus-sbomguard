@@ -7,7 +7,11 @@ from middleware.api_key import api_key_required
 from models.sbom import SBOM
 from models.vulnerability import SBOMVulnerability, Vulnerability
 
-router = APIRouter(prefix="/api/v1/vulnerabilities", tags=["vulnerabilities"], dependencies=[Depends(api_key_required)])
+router = APIRouter(
+    prefix="/api/v1/vulnerabilities",
+    tags=["vulnerabilities"],
+    dependencies=[Depends(api_key_required)],
+)
 
 
 @router.get("/active")

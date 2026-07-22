@@ -1,4 +1,5 @@
 import uuid
+
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -10,7 +11,6 @@ from models.alert import AlertConfig
 from models.project import Project
 from models.sbom import SBOM, Dependency
 from models.service import Service
-from models.user import ApiKey
 from models.vulnerability import SBOMVulnerability, Vulnerability, VulnerabilitySnapshot
 from services.auth import create_api_key, list_api_keys, revoke_api_key
 
@@ -37,6 +37,68 @@ def _dep_name(name: str | None, version: str | None, purl: str | None) -> str:
 
 router = APIRouter(tags=["dashboard"])
 templates = Jinja2Templates(directory="templates")
+
+
+@router.get("/projects/{project_id}/edit-name", response_class=HTMLResponse)
+async def edit_project_name(request: Request, project_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        return HTMLResponse("", status_code=404)
+
+    return templates.TemplateResponse(
+        request,
+        "partials/edit_project_name.html",
+        {"project": project},
+    )
+
+
+@router.get("/projects/{project_id}/cancel-edit-name", response_class=HTMLResponse)
+async def cancel_edit_project_name(
+    request: Request, project_id: str, db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        return HTMLResponse("", status_code=404)
+
+    return templates.TemplateResponse(
+        request,
+        "partials/project_name_display.html",
+        {"project": project},
+    )
+
+
+@router.patch("/projects/{project_id}/name", response_class=HTMLResponse)
+async def update_project_name(
+    request: Request,
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    form = await request.form()
+    name = form.get("name", "").strip()
+    if not name:
+        return HTMLResponse("", status_code=422)
+
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        return HTMLResponse("", status_code=404)
+
+    existing = await db.execute(
+        select(Project).where(Project.name == name, Project.id != uuid.UUID(project_id))
+    )
+    if existing.scalar_one_or_none():
+        return HTMLResponse("", status_code=409)
+
+    project.name = name
+    await db.commit()
+
+    return templates.TemplateResponse(
+        request,
+        "partials/project_name_display.html",
+        {"project": project},
+    )
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -425,7 +487,7 @@ async def create_api_key_web(
     form = await request.form()
     label = form.get("label", "")
 
-    key, raw = await create_api_key(db, user.id, label=str(label))
+    key, raw = await create_api_key(db, uuid.UUID(user.id), label=str(label))
     await db.commit()
 
     api_keys = await list_api_keys(db)

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from middleware.api_key import api_key_required
-from services.auth import ApiKey, create_api_key, list_api_keys, revoke_api_key
+from services.auth import create_api_key, list_api_keys, revoke_api_key
 
 router = APIRouter(prefix="/api/v1/api-keys", tags=["api-keys"])
 

@@ -3,7 +3,7 @@ import logging
 import secrets
 import string
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +14,8 @@ from models.user import ApiKey, LoginToken, User
 logger = logging.getLogger(__name__)
 
 try:
-    import aiosmtplib  # noqa: F811
+    import aiosmtplib
+
     HAS_SMTP = True
 except ImportError:
     HAS_SMTP = False
@@ -47,15 +48,13 @@ async def seed_admin_user(db: AsyncSession) -> User:
 def _generate_code() -> str:
     alphabet = string.ascii_uppercase + string.digits
     chars = "".join(secrets.choice(alphabet) for _ in range(16))
-    return "-".join(chars[i:i + 4] for i in range(0, 16, 4))
+    return "-".join(chars[i : i + 4] for i in range(0, 16, 4))
 
 
 async def create_login_token(db: AsyncSession, user_id: uuid.UUID) -> str:
     raw_code = _generate_code()
     token_hash = _hash_token(raw_code)
-    expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.login_token_expire_minutes
-    )
+    expires_at = datetime.now(UTC) + timedelta(minutes=settings.login_token_expire_minutes)
 
     lt = LoginToken(user_id=user_id, token_hash=token_hash, expires_at=expires_at)
     db.add(lt)
@@ -66,7 +65,7 @@ async def create_login_token(db: AsyncSession, user_id: uuid.UUID) -> str:
 
 async def verify_login_token(db: AsyncSession, raw_token: str) -> User | None:
     token_hash = _hash_token(raw_token)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     result = await db.execute(
         select(LoginToken).where(
@@ -134,21 +133,17 @@ async def validate_api_key(db: AsyncSession, raw_key: str) -> User | None:
         return None
 
     key_hash = _hash_token(raw_key)
-    result = await db.execute(
-        select(ApiKey).where(ApiKey.key_hash == key_hash)
-    )
+    result = await db.execute(select(ApiKey).where(ApiKey.key_hash == key_hash))
     key = result.scalar_one_or_none()
     if not key:
         return None
 
-    key.last_used_at = datetime.now(timezone.utc)
+    key.last_used_at = datetime.now(UTC)
     return await get_user_by_id(db, key.user_id)
 
 
 async def list_api_keys(db: AsyncSession) -> list[ApiKey]:
-    result = await db.execute(
-        select(ApiKey).order_by(ApiKey.created_at.desc())
-    )
+    result = await db.execute(select(ApiKey).order_by(ApiKey.created_at.desc()))
     return list(result.scalars().all())
 
 

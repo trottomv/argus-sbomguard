@@ -10,7 +10,9 @@ from middleware.api_key import api_key_required
 from models.alert import AlertConfig
 from models.project import Project
 
-router = APIRouter(prefix="/api/v1/alerts", tags=["alerts"], dependencies=[Depends(api_key_required)])
+router = APIRouter(
+    prefix="/api/v1/alerts", tags=["alerts"], dependencies=[Depends(api_key_required)]
+)
 
 
 class AlertConfigCreate(BaseModel):

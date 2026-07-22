@@ -1,5 +1,5 @@
 import logging
-import uuid
+from dataclasses import dataclass
 
 from fastapi import Request
 from fastapi.responses import RedirectResponse
@@ -7,8 +7,6 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from config import settings
-from database import get_db
-from services.auth import get_user_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -19,19 +17,25 @@ _SESSION_MAX_AGE = settings.session_max_age_hours * 3600
 _session_serializer = URLSafeTimedSerializer(settings.secret_key, salt="argus-session")
 
 
-def _get_user_id_from_cookie(request: Request) -> str | None:
+@dataclass
+class SessionUser:
+    id: str
+    email: str
+
+
+def _get_user_from_cookie(request: Request) -> SessionUser | None:
     cookie = request.cookies.get("argus_session")
     if not cookie:
         return None
     try:
         data = _session_serializer.loads(cookie, max_age=_SESSION_MAX_AGE)
-        return data.get("user_id")
+        return SessionUser(id=data["user_id"], email=data.get("email", ""))
     except BadSignature:
         return None
 
 
-def set_session_cookie(response, user_id: str):
-    cookie = _session_serializer.dumps({"user_id": user_id})
+def set_session_cookie(response, user_id: str, email: str = ""):
+    cookie = _session_serializer.dumps({"user_id": user_id, "email": email})
     response.set_cookie(
         "argus_session",
         cookie,
@@ -50,17 +54,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path.rstrip("/") or "/"
 
-        user_id = _get_user_id_from_cookie(request)
-
-        if user_id:
-            db_gen = get_db()
-            async for db in db_gen:
-                try:
-                    user = await get_user_by_id(db, uuid.UUID(user_id))
-                    if user:
-                        request.state.user = user
-                finally:
-                    break
+        session_user = _get_user_from_cookie(request)
+        if session_user:
+            request.state.user = session_user
 
         if (
             path in PUBLIC_PATHS
@@ -70,7 +66,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         ):
             return await call_next(request)
 
-        if not user_id:
+        if not session_user:
             return RedirectResponse(url="/login", status_code=302)
 
         return await call_next(request)

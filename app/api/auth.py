@@ -70,7 +70,7 @@ async def login_verify(
         )
 
     response = RedirectResponse(url="/", status_code=302)
-    set_session_cookie(response, str(user.id))
+    set_session_cookie(response, str(user.id), user.email)
     return response
 
 
