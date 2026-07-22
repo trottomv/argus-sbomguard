@@ -1,50 +1,56 @@
 {% extends "base.html" %}
 {% block title %}Projects - Argus SBOM Guard{% endblock %}
 {% block content %}
-<div class="space-y-6" x-data="{ delId: null, delName: '' }">
+<div class="space-y-6" x-data="{ delId: null, delName: '', editId: null, name: '', description: '', repo_url: '', platform: '' }">
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold">Projects</h1>
-        <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white" onclick="my_modal_1.showModal()">Add Project</button>
+        <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
+                @click="editId=null; name=''; description=''; repo_url=''; platform=''; my_modal_1.showModal()">Add Project</button>
     </div>
 
     <dialog id="my_modal_1" class="modal">
         <div class="modal-box">
-            <h3 class="font-bold text-lg">New Project</h3>
-            <div x-data="{ name: '', description: '', repo_url: '', platform: '' }">
-                <form @submit.prevent="
-                    fetch('/api/v1/projects', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name, description, repo_url, platform })
-                    }).then(r => { if(r.ok) location.reload(); });
-                " class="space-y-4 mt-4">
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">Name</legend>
-                        <input type="text" x-model="name" class="input w-full" placeholder="my-service" required>
-                    </fieldset>
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">Description</legend>
-                        <textarea x-model="description" class="textarea w-full" placeholder="Optional description"></textarea>
-                    </fieldset>
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">Repository URL</legend>
-                        <input type="url" x-model="repo_url" class="input w-full" placeholder="https://github.com/org/repo">
-                    </fieldset>
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">Platform</legend>
-                        <select x-model="platform" class="select select.sm w-full">
-                            <option value="">-</option>
-                            <option value="github">GitHub</option>
-                            <option value="gitlab">GitLab</option>
-                            <option value="bitbucket">Bitbucket</option>
-                        </select>
-                    </fieldset>
-                    <div class="modal-action">
-                        <button type="submit" class="btn btn-primary">Create</button>
-                        <button type="button" class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="my_modal_1.close()">Cancel</button>
-                    </div>
-                </form>
-            </div>
+            <h3 class="font-bold text-lg" x-text="editId ? 'Edit Project' : 'New Project'"></h3>
+            <form @submit.prevent="
+                const url = editId ? '/api/v1/projects/' + editId : '/api/v1/projects';
+                const method = editId ? 'PATCH' : 'POST';
+                const body = { name };
+                if (description) body.description = description;
+                if (repo_url) body.repo_url = repo_url;
+                if (platform) body.platform = platform;
+                fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                }).then(r => { if(r.ok) location.reload(); });
+            " class="space-y-4 mt-4">
+                <fieldset class="fieldset">
+                    <legend class="fieldset-legend">Name</legend>
+                    <input type="text" x-model="name" class="input w-full" placeholder="my-service" required>
+                </fieldset>
+                <fieldset class="fieldset">
+                    <legend class="fieldset-legend">Description</legend>
+                    <textarea x-model="description" class="textarea w-full" placeholder="Optional description"></textarea>
+                </fieldset>
+                <fieldset class="fieldset">
+                    <legend class="fieldset-legend">Repository URL</legend>
+                    <input type="url" x-model="repo_url" class="input w-full" placeholder="https://github.com/org/repo">
+                </fieldset>
+                <fieldset class="fieldset">
+                    <legend class="fieldset-legend">Platform</legend>
+                    <select x-model="platform" class="select select-lg w-full">
+                        <option value="">-</option>
+                        <option value="github">GitHub</option>
+                        <option value="gitlab">GitLab</option>
+                        <option value="bitbucket">Bitbucket</option>
+                    </select>
+                </fieldset>
+                <div class="modal-action">
+                    <button type="submit" class="btn btn-primary btn-lg bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
+                            x-text="editId ? 'Save' : 'Create'"></button>
+                    <button type="button" class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="my_modal_1.close()">Cancel</button>
+                </div>
+            </form>
         </div>
     </dialog>
 
@@ -79,6 +85,10 @@
             <button class="btn btn-ghost btn-sm text-error absolute top-2 right-2 opacity-0 group-hover:opacity-100"
                     @click.stop="delId='{{ project.id }}'; delName='{{ project.name }}'; delete_modal.showModal()">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+            <button class="btn btn-ghost btn-sm absolute top-2 right-10 opacity-0 group-hover:opacity-100"
+                    @click.stop="editId='{{ project.id }}'; name='{{ project.name }}'; description='{{ project.description or '' }}'; repo_url='{{ project.repo_url or '' }}'; platform='{{ project.platform or '' }}'; my_modal_1.showModal()">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
             </button>
         </div>
         {% else %}
