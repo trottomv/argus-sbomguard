@@ -19,14 +19,14 @@
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold">SBOMs</h1>
         <div class="flex gap-2">
-            <select class="select select-bordered select-sm" x-model="project"
+            <select class="select select-bordered select-lg" x-model="project"
                     @change="service=''; window.location.href='/sboms?sort={{ active_sort }}&order={{ active_order }}&project_id=' + project">
                 <option value="">All Projects</option>
                 {% for p in projects %}
                 <option value="{{ p.id }}">{{ p.name }}</option>
                 {% endfor %}
             </select>
-            <select class="select select-bordered select-sm" x-model="service" x-show="project || service"
+            <select class="select select-bordered select-lg" x-model="service" x-show="project || service"
                     @change="window.location.href='/sboms?sort={{ active_sort }}&order={{ active_order }}&project_id=' + project + '&service_id=' + service">
                 <option value="">All Services</option>
                 {% for s in services %}
@@ -41,17 +41,17 @@
             <h3 class="font-bold text-lg">Delete SBOM</h3>
             <p class="py-4">Delete SBOM version <strong x-text="sbomDelVer || 'N/A'"></strong>?</p>
             <div class="modal-action">
-                <button class="btn btn-error" @click="
+                <button class="btn btn-error btn-lg" @click="
                     fetch('/api/v1/sboms/' + sbomDelId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                     delete_sbom_modal.close();
                 ">Delete</button>
-                <button class="btn" onclick="document.getElementById('delete_sbom_modal').close()">Cancel</button>
+                <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="document.getElementById('delete_sbom_modal').close()">Cancel</button>
             </div>
         </div>
     </dialog>
 
-    <div class="card bg-base-100 shadow-sm">
-        <div class="card-body p-0">
+    <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
+        <div class="p-0">
             <div class="overflow-x-auto">
                 <table class="table table-zebra">
                     <thead>
@@ -89,7 +89,7 @@
                             <td><code class="text-xs">{{ sbom.sha256[:16] }}...</code></td>
                             <td class="text-sm whitespace-nowrap">{{ sbom.created_at.strftime('%Y-%m-%d %H:%M') if sbom.created_at else "-" }}</td>
                             <td>
-                                <button class="btn btn-ghost btn-xs text-error"
+                                <button class="btn btn-error btn-sm"
                                         @click="sbomDelId='{{ sbom.id }}'; sbomDelVer='{{ sbom.version or 'N/A' }}'; delete_sbom_modal.showModal()">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>

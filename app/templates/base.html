@@ -12,11 +12,11 @@
 <body class="bg-ctp-base text-ctp-text antialiased">
     <div class="flex h-screen overflow-hidden">
         <aside class="hidden lg:flex lg:flex-col w-64 bg-ctp-mantle border-r border-ctp-surface0">
-            <div class="p-5 border-b border-ctp-surface0">
+            <div class="px-4 h-14 flex items-center border-b border-ctp-surface0">
                 <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-500/20">
-                        A
-                    </div>
+                     <div class="w-9 h-9 flex items-center justify-center">
+                         <img src="/static/img/argus-sbomguard.svg" class="w-full h-full" alt="Argus">
+                     </div>
                     <div>
                         <h1 class="text-base font-bold tracking-tight text-ctp-text">Argus</h1>
                         <p class="text-xs text-ctp-overlay0">SBOM Guard</p>
@@ -68,7 +68,7 @@
                     <div class="flex items-center gap-3">
                         <span class="text-sm text-ctp-subtext0">{{ request.state.user.email }}</span>
                         <form method="post" action="/logout" class="inline">
-                            <button type="submit" class="btn btn-ghost btn-xs tooltip tooltip-bottom" data-tip="Logout">
+                            <button type="submit" class="btn btn-ghost btn-sm tooltip tooltip-bottom" data-tip="Logout">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                             </button>
                         </form>
@@ -88,7 +88,9 @@
         <aside class="absolute left-0 top-0 bottom-0 w-64 bg-ctp-mantle border-r border-ctp-surface0 p-4">
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs">A</div>
+                     <div class="w-8 h-8 flex items-center justify-center">
+                         <img src="/static/img/argus-sbomguard.svg" class="w-full h-full" alt="Argus">
+                     </div>
                     <span class="font-bold">Argus</span>
                 </div>
                 <button onclick="document.getElementById('mobile-menu').classList.add('hidden')" class="p-1 rounded-lg hover:bg-ctp-surface0 transition-colors">

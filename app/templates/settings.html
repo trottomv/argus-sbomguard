@@ -14,7 +14,7 @@
                     fetch('/settings/api-keys/' + keyId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                     revoke_key_modal.close();
                 ">Revoke</button>
-                <button class="btn" onclick="document.getElementById('revoke_key_modal').close()">Cancel</button>
+                <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="document.getElementById('revoke_key_modal').close()">Cancel</button>
             </div>
         </div>
     </dialog>
@@ -25,7 +25,7 @@
             <p class="font-medium text-sm">API Key created — copy it now, it won't be shown again</p>
             <div class="flex items-center gap-2 mt-1">
                 <code class="text-xs break-all">{{ new_key }}</code>
-                <button class="btn btn-ghost btn-xs shrink-0 tooltip" data-tip="Copy" onclick="navigator.clipboard.writeText('{{ new_key }}')">
+                <button class="btn btn-ghost btn-sm shrink-0 tooltip" data-tip="Copy" onclick="navigator.clipboard.writeText('{{ new_key }}')">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 </button>
             </div>
@@ -33,14 +33,14 @@
     </div>
     {% endif %}
 
-    <div class="card bg-base-100 shadow-sm">
-        <div class="card-body">
-            <h2 class="card-title">API Keys</h2>
+    <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
+        <div>
+            <h2 class="text-lg font-bold text-ctp-text">API Keys</h2>
             <p class="text-sm text-ctp-subtext0">Use these keys to authenticate REST API and gRPC requests via the <code class="text-xs">X-API-Key</code> header.</p>
 
             <form method="post" action="/settings/api-keys" class="flex gap-2 mt-4">
                 <input type="text" name="label" class="input input-sm flex-1" placeholder="Key label (e.g. CI/CD, cli)">
-                <button type="submit" class="btn btn-primary btn-sm">Generate Key</button>
+                <button type="submit" class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white">Generate Key</button>
             </form>
 
             <div class="overflow-x-auto mt-4">
@@ -62,7 +62,7 @@
                             <td class="text-sm">{{ key.created_at.strftime('%Y-%m-%d %H:%M') if key.created_at else "-" }}</td>
                             <td class="text-sm">{{ key.last_used_at.strftime('%Y-%m-%d %H:%M') if key.last_used_at else "never" }}</td>
                             <td>
-                                <button class="btn btn-ghost btn-xs text-error"
+                                <button class="btn btn-error btn-sm"
                                         @click="keyId='{{ key.id }}'; keyLabel='{{ key.label or key.key_prefix }}...'; revoke_key_modal.showModal()">
                                     Revoke
                                 </button>
@@ -79,10 +79,10 @@
         </div>
     </div>
 
-    <div class="card bg-base-100 shadow-sm">
-        <div class="card-body">
-            <h2 class="card-title">Alert Configurations</h2>
-            <button class="btn btn-primary btn-sm mt-2" onclick="alert_modal.showModal()">New Alert Rule</button>
+    <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
+        <div>
+            <h2 class="text-lg font-bold text-ctp-text">Alert Configurations</h2>
+            <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white" onclick="alert_modal.showModal()">New Alert Rule</button>
 
             <dialog id="alert_modal" class="modal">
                 <div class="modal-box">
@@ -97,7 +97,7 @@
                         " class="space-y-4 mt-4">
                             <fieldset class="fieldset">
                                 <legend class="fieldset-legend">Project</legend>
-                                <select x-model="project_id" class="select w-full" required>
+                                <select x-model="project_id" class="select select.sm w-full" required>
                                     <option value="">Select project...</option>
                                     {% for p in projects %}
                                     <option value="{{ p.id }}">{{ p.name }}</option>
@@ -106,7 +106,7 @@
                             </fieldset>
                             <fieldset class="fieldset">
                                 <legend class="fieldset-legend">Severity Threshold</legend>
-                                <select x-model="severity_threshold" class="select w-full">
+                                <select x-model="severity_threshold" class="select select.sm w-full">
                                     <option value="critical">Critical only</option>
                                     <option value="high" selected>High and above</option>
                                     <option value="medium">Medium and above</option>
@@ -115,7 +115,7 @@
                             </fieldset>
                             <fieldset class="fieldset">
                                 <legend class="fieldset-legend">Notification Type</legend>
-                                <select x-model="notification_type" class="select w-full">
+                                <select x-model="notification_type" class="select select.sm w-full">
                                     <option value="slack">Slack</option>
                                     <option value="email">Email</option>
                                 </select>
@@ -126,7 +126,7 @@
                             </fieldset>
                             <div class="modal-action">
                                 <button type="submit" class="btn btn-primary">Create</button>
-                                <button type="button" class="btn" onclick="alert_modal.close()">Cancel</button>
+                                <button type="button" class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="alert_modal.close()">Cancel</button>
                             </div>
                         </form>
                     </div>

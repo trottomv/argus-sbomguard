@@ -18,9 +18,9 @@
             <div x-show="detail.urls.length"><span class="text-xs opacity-60">References</span><ul class="list-disc list-inside space-y-1"><template x-for="url in detail.urls"><li><a :href="url" target="_blank" class="link link-primary text-xs" x-text="url"></a></li></template></ul></div>
         </div>
         <div class="modal-action">
-            <a class="btn btn-sm btn-outline" target="_blank"
+            <a class="btn btn-outline" target="_blank"
                :href="detail.cve_id.startsWith('CVE') ? 'https://nvd.nist.gov/vuln/detail/' + detail.cve_id : 'https://github.com/advisories/' + detail.cve_id">View Advisory &nearhk;</a>
-            <button class="btn btn-sm" onclick="document.getElementById('detail_modal').close()">Close</button>
+            <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="document.getElementById('detail_modal').close()">Close</button>
         </div>
     </div>
 </dialog>

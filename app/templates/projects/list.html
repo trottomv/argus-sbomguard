@@ -4,7 +4,7 @@
 <div class="space-y-6" x-data="{ delId: null, delName: '' }">
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold">Projects</h1>
-        <button class="btn btn-primary btn-sm" onclick="my_modal_1.showModal()">Add Project</button>
+        <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white" onclick="my_modal_1.showModal()">Add Project</button>
     </div>
 
     <dialog id="my_modal_1" class="modal">
@@ -32,7 +32,7 @@
                     </fieldset>
                     <fieldset class="fieldset">
                         <legend class="fieldset-legend">Platform</legend>
-                        <select x-model="platform" class="select w-full">
+                        <select x-model="platform" class="select select.sm w-full">
                             <option value="">-</option>
                             <option value="github">GitHub</option>
                             <option value="gitlab">GitLab</option>
@@ -41,7 +41,7 @@
                     </fieldset>
                     <div class="modal-action">
                         <button type="submit" class="btn btn-primary">Create</button>
-                        <button type="button" class="btn" onclick="my_modal_1.close()">Cancel</button>
+                        <button type="button" class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="my_modal_1.close()">Cancel</button>
                     </div>
                 </form>
             </div>
@@ -56,16 +56,16 @@
                 <button class="btn btn-error" @click="
                     fetch('/api/v1/projects/' + delId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                 ">Delete</button>
-                <button class="btn" onclick="delete_modal.close()">Cancel</button>
+                <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="delete_modal.close()">Cancel</button>
             </div>
         </div>
     </dialog>
 
     <div id="project-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for project in projects %}
-        <div class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow relative group">
-            <a href="/projects/{{ project.id }}" class="card-body">
-                <h2 class="card-title text-lg">{{ project.name }}</h2>
+        <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-5 card-hover relative group">
+            <a href="/projects/{{ project.id }}" class="block">
+                <h2 class="text-lg font-bold text-ctp-text">{{ project.name }}</h2>
                 {% if project.description %}
                 <p class="text-sm opacity-70">{{ project.description }}</p>
                 {% endif %}
@@ -76,7 +76,7 @@
                     <span>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else "" }}</span>
                 </div>
             </a>
-            <button class="btn btn-ghost btn-xs text-error absolute top-2 right-2 opacity-0 group-hover:opacity-100"
+            <button class="btn btn-ghost btn-sm text-error absolute top-2 right-2 opacity-0 group-hover:opacity-100"
                     @click.stop="delId='{{ project.id }}'; delName='{{ project.name }}'; delete_modal.showModal()">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>

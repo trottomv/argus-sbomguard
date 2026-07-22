@@ -18,8 +18,8 @@
             {% endif %}
         </div>
         <div class="flex gap-2">
-            <button class="btn btn-primary btn-sm" onclick="upload_modal.showModal()">Upload SBOM</button>
-            <button class="btn btn-error btn-sm btn-outline" onclick="delete_project_modal.showModal()">
+            <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white" onclick="upload_modal.showModal()">Upload SBOM</button>
+            <button class="btn btn-error" onclick="delete_project_modal.showModal()">
                 Delete
             </button>
         </div>
@@ -34,7 +34,7 @@
                     fetch('/api/v1/projects/{{ project.id }}', {method:'DELETE'}).then(r => { if(r.ok) window.location='/projects' });
                     document.getElementById('delete_project_modal').close();
                 ">Delete</button>
-                <button class="btn" onclick="document.getElementById('delete_project_modal').close()">Cancel</button>
+                <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="document.getElementById('delete_project_modal').close()">Cancel</button>
             </div>
         </div>
     </dialog>
@@ -48,7 +48,7 @@
                     fetch('/api/v1/sboms/' + sbomDelId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                     document.getElementById('delete_sbom_modal').close();
                 ">Delete</button>
-                <button class="btn" onclick="document.getElementById('delete_sbom_modal').close()">Cancel</button>
+                <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="document.getElementById('delete_sbom_modal').close()">Cancel</button>
             </div>
         </div>
     </dialog>
@@ -79,7 +79,7 @@
                 </fieldset>
                 <div class="modal-action">
                     <button type="submit" class="btn btn-primary">Upload</button>
-                    <button type="button" class="btn" onclick="upload_modal.close()">Cancel</button>
+                    <button type="button" class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="upload_modal.close()">Cancel</button>
                 </div>
             </form>
         </div>
@@ -88,24 +88,24 @@
     {% include 'partials/vuln_detail_modal.html' %}
 
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <a href="/sboms?project_id={{ project.id }}" class="stat bg-base-100 rounded-box shadow-sm hover:shadow-md transition-shadow">
+        <a href="/sboms?project_id={{ project.id }}" class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-5 card-hover">
             <div class="stat-title">SBOMs</div>
             <div class="stat-value text-primary">{{ sboms|length }}</div>
         </a>
-        <div class="stat bg-base-100 rounded-box shadow-sm">
+        <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-5 card-hover">
             <div class="stat-title">Total Dependencies</div>
             <div class="stat-value text-secondary">{{ sboms|map(attribute='dependency_count')|sum }}</div>
         </div>
-        <div class="stat bg-base-100 rounded-box shadow-sm">
+        <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-5 card-hover">
             <div class="stat-title">Active Vulns</div>
             <div class="stat-value text-error">{{ project_vulns|length }}</div>
         </div>
     </div>
 
     {% if services %}
-    <div class="card bg-base-100 shadow-sm">
-        <div class="card-body">
-            <h2 class="card-title">Services</h2>
+    <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
+        <div>
+            <h2 class="text-lg font-bold text-ctp-text">Services</h2>
             <div class="flex flex-wrap gap-2">
                 <a href="/projects/{{ project.id }}" class="badge {% if not request.query_params.get('service_id') %}badge-primary{% else %}badge-outline{% endif %} hover:badge-primary transition-colors">All</a>
                 {% for svc in services %}
@@ -119,9 +119,9 @@
     {% endif %}
 
     {% if project_vulns %}
-    <div class="card bg-base-100 shadow-sm">
-        <div class="card-body">
-            <h2 class="card-title">Vulnerabilities</h2>
+    <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
+        <div>
+            <h2 class="text-lg font-bold text-ctp-text">Vulnerabilities</h2>
             <div class="overflow-x-auto">
                 <table class="table table-zebra">
                     <thead>
@@ -182,9 +182,9 @@
     </div>
     {% endif %}
 
-    <div class="card bg-base-100 shadow-sm">
-        <div class="card-body">
-            <h2 class="card-title">SBOM History</h2>
+    <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
+        <div>
+            <h2 class="text-lg font-bold text-ctp-text">SBOM History</h2>
             <div class="overflow-x-auto">
                 <table id="sbom-table" class="table table-zebra">
                     <thead>
@@ -218,7 +218,7 @@
                             <td><code class="text-xs">{{ sbom.sha256[:16] }}...</code></td>
                             <td>{{ sbom.created_at.strftime('%Y-%m-%d %H:%M') if sbom.created_at else "-" }}</td>
                             <td>
-                                <button class="btn btn-ghost btn-xs text-error"
+                                <button class="btn btn-ghost btn-sm text-error"
                                         @click="sbomDelId='{{ sbom.id }}'; sbomDelVer='{{ sbom.version or 'N/A' }}'; delete_sbom_modal.showModal()">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>

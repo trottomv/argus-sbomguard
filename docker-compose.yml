@@ -64,6 +64,7 @@ services:
       - ./app/templates:/app/templates
       - ./app/tests:/app/tests
       - ./app/static/css/app.css:/app/static/css/app.css
+      - ./app/static/img:/app/static/img
       - ./app/protos/sbom.proto:/app/protos/sbom.proto
       - ./app/protos/__init__.py:/app/protos/__init__.py
       - ./app/migrations:/app/migrations

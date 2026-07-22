@@ -15,8 +15,8 @@
             <h1 class="text-2xl font-bold mt-4">Argus SBOM Guard</h1>
         </div>
 
-        <div class="card bg-base-100 shadow-sm">
-            <div class="card-body">
+        <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
+            <div>
                 {% if error %}
                 <div class="alert alert-error text-sm mb-4">{{ error }}</div>
                 {% endif %}
@@ -37,7 +37,7 @@
                                placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" required autofocus
                                style="letter-spacing:0.3em">
                     </fieldset>
-                    <button type="submit" class="btn btn-primary w-full">Verify</button>
+                    <button type="submit" class="btn btn-primary w-full bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white">Verify</button>
                     <p class="text-xs text-center opacity-50">Code expires in 15 minutes</p>
                 </form>
                 {% else %}
@@ -46,7 +46,7 @@
                         <legend class="fieldset-legend">Email</legend>
                         <input type="email" name="email" class="input w-full" placeholder="admin@argus.local" value="{{ email }}" required autofocus autocomplete="email">
                     </fieldset>
-                    <button type="submit" class="btn btn-primary w-full">Send login code</button>
+                    <button type="submit" class="btn btn-primary w-full bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white">Send login code</button>
                 </form>
                 {% endif %}
             </div>
