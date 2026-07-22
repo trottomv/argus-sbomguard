@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,12 +10,22 @@ from database import get_db
 from middleware.api_key import api_key_required
 from models.project import Project
 from models.sbom import SBOM
+from models.vulnerability import VulnerabilitySnapshot
 
-router = APIRouter(prefix="/api/v1/projects", tags=["projects"], dependencies=[Depends(api_key_required)])
+router = APIRouter(
+    prefix="/api/v1/projects", tags=["projects"], dependencies=[Depends(api_key_required)]
+)
 
 
 class ProjectCreate(BaseModel):
     name: str
+    description: str | None = None
+    repo_url: str | None = None
+    platform: str | None = None
+
+
+class ProjectUpdate(BaseModel):
+    name: str | None = None
     description: str | None = None
     repo_url: str | None = None
     platform: str | None = None
@@ -92,8 +103,40 @@ async def delete_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_d
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    await db.execute(
+        sa_delete(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id == project_id)
+    )
     await db.delete(project)
     await db.commit()
+
+
+@router.patch("/{project_id}")
+async def update_project(
+    project_id: uuid.UUID, data: ProjectUpdate, db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if data.name is not None:
+        existing = await db.execute(
+            select(Project).where(Project.name == data.name, Project.id != project_id)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=409, detail="Project name already exists")
+        project.name = data.name
+    if data.description is not None:
+        project.description = data.description
+    if data.repo_url is not None:
+        project.repo_url = data.repo_url
+    if data.platform is not None:
+        project.platform = data.platform
+
+    await db.commit()
+    await db.refresh(project)
+    return _project_to_dict(project)
 
 
 def _project_to_dict(p: Project) -> dict:

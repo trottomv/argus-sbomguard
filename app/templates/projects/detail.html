@@ -10,7 +10,9 @@
     <div class="flex items-center justify-between">
         <div>
             <a href="/projects" class="text-sm opacity-60 hover:opacity-100">&larr; Projects</a>
-            <h1 class="text-2xl font-bold mt-1">{{ project.name }}</h1>
+            <div class="mt-1" id="project-name">
+                {% include "partials/project_name_display.html" %}
+            </div>
             {% if project.description %}
             <p class="text-sm opacity-70">{{ project.description }}</p>
             {% endif %}

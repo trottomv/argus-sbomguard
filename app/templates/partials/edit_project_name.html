@@ -1,0 +1,12 @@
+<form hx-patch="/projects/{{ project.id }}/name" hx-target="#project-name" hx-swap="innerHTML"
+      class="flex items-center gap-2">
+    <input type="text" name="name" value="{{ project.name }}" class="input input-sm input-bordered text-2xl font-bold w-96" autofocus>
+    <button type="submit" class="btn btn-ghost btn-xs text-ctp-green">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    </button>
+    <button type="button" class="btn btn-ghost btn-xs"
+            hx-get="/projects/{{ project.id }}/cancel-edit-name"
+            hx-target="#project-name" hx-swap="innerHTML">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+</form>
