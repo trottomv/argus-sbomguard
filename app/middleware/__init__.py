@@ -58,6 +58,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if session_user:
             request.state.user = session_user
 
+        request.state.app_version = settings.app_version
+
         if (
             path in PUBLIC_PATHS
             or path.startswith("/login")

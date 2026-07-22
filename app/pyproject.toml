@@ -1,6 +1,6 @@
 [project]
 name = "argus-sbomguard"
-version = "0.1.0"
+version = "0.0.1"
 description = "Centralized SBOM management platform"
 requires-python = ">=3.12"
 dependencies = [
