@@ -91,6 +91,36 @@ async def test_get_project_not_found(client):
 
 
 @pytest.mark.asyncio
+async def test_delete_project(client):
+    create_resp = await client.post("/api/v1/projects", json={"name": "to-delete"})
+    pid = create_resp.json()["id"]
+
+    delete_resp = await client.delete(f"/api/v1/projects/{pid}")
+    assert delete_resp.status_code == 204
+
+    get_resp = await client.get(f"/api/v1/projects/{pid}")
+    assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_project_cascades_snapshots(client):
+    create_resp = await client.post("/api/v1/projects", json={"name": "cascade-test"})
+    pid = create_resp.json()["id"]
+
+    await client.post(
+        "/api/v1/sboms/upload",
+        data={"project_id": pid, "version": "v1"},
+        files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
+    )
+
+    delete_resp = await client.delete(f"/api/v1/projects/{pid}")
+    assert delete_resp.status_code == 204
+
+    get_resp = await client.get(f"/api/v1/projects/{pid}")
+    assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_project_history_empty(client):
     resp = await client.post("/api/v1/projects", json={"name": "history-test"})
     pid = resp.json()["id"]
