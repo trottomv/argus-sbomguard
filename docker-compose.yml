@@ -8,7 +8,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/16/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U argus"]
       interval: 5s
@@ -38,7 +38,9 @@ services:
     build:
       context: ./app
       dockerfile: Dockerfile
+    image: argussbomguard:app
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    container_name: argussbomguard_app
     ports:
       - "8000:8000"
       - "50051:50051"
@@ -69,6 +71,7 @@ services:
     build:
       context: ./app
       dockerfile: Dockerfile
+    image: argussbomguard:app
     command: celery -A celery_app worker --loglevel=info --concurrency=4
     volumes:
       - ./app/celery_app.py:/app/celery_app.py
@@ -88,6 +91,7 @@ services:
     build:
       context: ./app
       dockerfile: Dockerfile
+    image: argussbomguard:app
     command: celery -A celery_app beat --loglevel=info
     volumes:
       - ./app/celery_app.py:/app/celery_app.py
