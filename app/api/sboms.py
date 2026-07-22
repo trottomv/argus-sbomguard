@@ -19,6 +19,7 @@ router = APIRouter(prefix="/api/v1/sboms", tags=["sboms"])
 async def upload_sbom(
     project_id: str = Form(...),
     version: str = Form(None),
+    service_name: str = Form(None),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
@@ -33,7 +34,7 @@ async def upload_sbom(
     except json.JSONDecodeError:
         raise HTTPException(status_code=422, detail="Invalid JSON") from None
 
-    sbom = await store_sbom(db, project_uuid, raw, version)
+    sbom = await store_sbom(db, project_uuid, raw, version, service_name=service_name or None)
     await db.commit()
 
     scan_sbom.delay(str(sbom.id))

@@ -16,6 +16,13 @@ def _extract_service_name(raw: dict) -> str | None:
     return name.strip() if isinstance(name, str) and name.strip() else None
 
 
+def _extract_component_version(raw: dict) -> str | None:
+    meta = raw.get("metadata") or {}
+    component = meta.get("component") or {}
+    ver = component.get("version")
+    return ver.strip() if isinstance(ver, str) and ver.strip() else None
+
+
 async def _get_or_create_service(db: AsyncSession, project_id: str, name: str) -> Service:
     result = await db.execute(
         select(Service).where(Service.project_id == project_id, Service.name == name)
@@ -92,6 +99,7 @@ async def store_sbom(
     project_id: str,
     raw: dict,
     version: str | None = None,
+    service_name: str | None = None,
 ) -> SBOM:
     fmt = raw.get("bomFormat", "").lower()
     if fmt == "cyclonedx":
@@ -104,17 +112,19 @@ async def store_sbom(
         deps_data = []
 
     sha = compute_sha256(raw)
+    version = version or _extract_component_version(raw) or sha
 
     result = await db.execute(select(SBOM).where(SBOM.sha256 == sha))
     existing = result.scalar_one_or_none()
     if existing:
         return existing
 
-    service_name = _extract_service_name(raw)
-    service_id = None
-    if service_name:
-        service = await _get_or_create_service(db, project_id, service_name)
-        service_id = service.id
+    auto_service = _extract_service_name(raw)
+    effective_name = service_name or auto_service
+    if effective_name:
+        service = await _get_or_create_service(db, project_id, effective_name)
+    else:
+        service = None
 
     created_at = _extract_timestamp(raw)
 
@@ -125,7 +135,7 @@ async def store_sbom(
         raw_sbom=raw,
         sha256=sha,
         dependency_count=len(deps_data),
-        service_id=service_id,
+        service_id=service.id if service else None,
         created_at=created_at,
     )
     # uploaded_at set via server_default at DB level

@@ -59,8 +59,17 @@
                   enctype="multipart/form-data" class="space-y-4 mt-4">
                 <input type="hidden" name="project_id" value="{{ project.id }}">
                 <fieldset class="fieldset">
+                    <legend class="fieldset-legend">Service (optional)</legend>
+                    <input type="text" name="service_name" class="input w-full" placeholder="(auto-detect from SBOM)" list="service-list" autocomplete="off">
+                    <datalist id="service-list">
+                        {% for svc in services %}
+                        <option value="{{ svc.name }}">
+                        {% endfor %}
+                    </datalist>
+                </fieldset>
+                <fieldset class="fieldset">
                     <legend class="fieldset-legend">Version (optional)</legend>
-                    <input type="text" name="version" class="input w-full" placeholder="v1.2.3">
+                    <input type="text" name="version" class="input w-full" placeholder="(auto-detect from SBOM)">
                 </fieldset>
                 <fieldset class="fieldset">
                     <legend class="fieldset-legend">SBOM File (CycloneDX/SPDX JSON)</legend>
