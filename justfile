@@ -1,3 +1,12 @@
+# --------------------
+# justfile
+# --------------------
+set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
+set dotenv-load := false
+
+help:
+    @just --list
+
 # start everything
 up:
     docker compose up -d --build
@@ -63,7 +72,7 @@ db-history:
 
 # shell
 shell:
-    docker compose exec app bash
+    docker compose exec app sh
 
 shell-db:
     docker compose exec postgres psql -U argus
