@@ -55,8 +55,10 @@ class Settings(BaseSettings):
     # gRPC
     grpc_port: int = 50051
 
-    # GitHub
-    github_token: str = ""
+    # Auth
+    admin_email: str = "admin@argus.local"
+    login_token_expire_minutes: int = 15
+    session_max_age_hours: int = 24
 
 
 settings = Settings()

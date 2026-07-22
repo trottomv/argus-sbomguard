@@ -4,8 +4,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from api import alerts, dashboard, projects, sboms, vulnerabilities
+from api import alerts, api_keys, auth, dashboard, projects, sboms, vulnerabilities
 from config import settings
+from database import async_session_factory
+from middleware import AuthMiddleware
+from services.auth import seed_admin_user
 from services.grpc_server import start_grpc_server
 
 
@@ -15,6 +18,10 @@ async def lifespan(app: FastAPI):
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    async with async_session_factory() as db:
+        await seed_admin_user(db)
+        await db.commit()
+
     grpc_server = await start_grpc_server()
     try:
         yield
@@ -28,13 +35,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(AuthMiddleware)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(sboms.router)
 app.include_router(vulnerabilities.router)
 app.include_router(alerts.router)
 app.include_router(dashboard.router)
+app.include_router(api_keys.router)
 
 
 @app.get("/health")

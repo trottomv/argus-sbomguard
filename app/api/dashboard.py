@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -9,7 +10,9 @@ from models.alert import AlertConfig
 from models.project import Project
 from models.sbom import SBOM, Dependency
 from models.service import Service
+from models.user import ApiKey
 from models.vulnerability import SBOMVulnerability, Vulnerability, VulnerabilitySnapshot
+from services.auth import create_api_key, list_api_keys, revoke_api_key
 
 SEVERITY_ORDER = {
     "critical": 0,
@@ -402,11 +405,50 @@ async def settings_page(request: Request, db: AsyncSession = Depends(get_db)):
         .scalars()
         .all()
     )
+    api_keys = await list_api_keys(db)
     return templates.TemplateResponse(
         request,
         "settings.html",
-        {"projects": projects, "alerts": alerts},
+        {"projects": projects, "alerts": alerts, "api_keys": api_keys},
     )
+
+
+@router.post("/settings/api-keys", response_class=HTMLResponse)
+async def create_api_key_web(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    user = getattr(request.state, "user", None)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    form = await request.form()
+    label = form.get("label", "")
+
+    key, raw = await create_api_key(db, user.id, label=str(label))
+    await db.commit()
+
+    api_keys = await list_api_keys(db)
+    return templates.TemplateResponse(
+        request,
+        "settings.html",
+        {
+            "projects": [],
+            "alerts": [],
+            "api_keys": api_keys,
+            "new_key": raw,
+            "new_key_prefix": key.key_prefix,
+        },
+    )
+
+
+@router.delete("/settings/api-keys/{key_id}", status_code=204)
+async def revoke_api_key_web(
+    key_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    await revoke_api_key(db, key_id)
+    await db.commit()
 
 
 @router.get("/sboms", response_class=HTMLResponse)

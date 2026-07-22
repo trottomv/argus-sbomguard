@@ -6,10 +6,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
+from middleware.api_key import api_key_required
 from models.project import Project
 from models.sbom import SBOM
 
-router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
+router = APIRouter(prefix="/api/v1/projects", tags=["projects"], dependencies=[Depends(api_key_required)])
 
 
 class ProjectCreate(BaseModel):

@@ -1,8 +1,83 @@
 {% extends "base.html" %}
 {% block title %}Settings - Argus SBOM Guard{% endblock %}
+{% block breadcrumb %}<span class="text-ctp-text font-medium">Settings</span>{% endblock %}
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6" x-data="{ newKey: '{{ new_key or '' }}', showKey: false, keyId: null, keyLabel: '' }">
     <h1 class="text-2xl font-bold">Settings</h1>
+
+    <dialog id="revoke_key_modal" class="modal" @click="if($event.target === $el) $el.close()">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Revoke API Key</h3>
+            <p class="py-4">Revoke key <strong x-text="keyLabel || 'N/A'"></strong>?</p>
+            <div class="modal-action">
+                <button class="btn btn-error" @click="
+                    fetch('/settings/api-keys/' + keyId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
+                    revoke_key_modal.close();
+                ">Revoke</button>
+                <button class="btn" onclick="document.getElementById('revoke_key_modal').close()">Cancel</button>
+            </div>
+        </div>
+    </dialog>
+
+    {% if new_key %}
+    <div class="alert alert-success">
+        <div>
+            <p class="font-medium text-sm">API Key created — copy it now, it won't be shown again</p>
+            <div class="flex items-center gap-2 mt-1">
+                <code class="text-xs break-all">{{ new_key }}</code>
+                <button class="btn btn-ghost btn-xs shrink-0 tooltip" data-tip="Copy" onclick="navigator.clipboard.writeText('{{ new_key }}')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+            <h2 class="card-title">API Keys</h2>
+            <p class="text-sm text-ctp-subtext0">Use these keys to authenticate REST API and gRPC requests via the <code class="text-xs">X-API-Key</code> header.</p>
+
+            <form method="post" action="/settings/api-keys" class="flex gap-2 mt-4">
+                <input type="text" name="label" class="input input-sm flex-1" placeholder="Key label (e.g. CI/CD, cli)">
+                <button type="submit" class="btn btn-primary btn-sm">Generate Key</button>
+            </form>
+
+            <div class="overflow-x-auto mt-4">
+                <table class="table table-zebra">
+                    <thead>
+                        <tr>
+                            <th>Label</th>
+                            <th>Prefix</th>
+                            <th>Created</th>
+                            <th>Last Used</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for key in api_keys %}
+                        <tr>
+                            <td>{{ key.label or "-" }}</td>
+                            <td><code class="text-xs">{{ key.key_prefix }}...</code></td>
+                            <td class="text-sm">{{ key.created_at.strftime('%Y-%m-%d %H:%M') if key.created_at else "-" }}</td>
+                            <td class="text-sm">{{ key.last_used_at.strftime('%Y-%m-%d %H:%M') if key.last_used_at else "never" }}</td>
+                            <td>
+                                <button class="btn btn-ghost btn-xs text-error"
+                                        @click="keyId='{{ key.id }}'; keyLabel='{{ key.label or key.key_prefix }}...'; revoke_key_modal.showModal()">
+                                    Revoke
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center opacity-60 py-4">No API keys yet</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
     <div class="card bg-base-100 shadow-sm">
         <div class="card-body">

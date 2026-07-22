@@ -12,10 +12,36 @@ from sqlalchemy.pool import NullPool
 
 from config import settings
 from models.project import Project
+from services.auth import validate_api_key
 from services.sbom_parser import store_sbom
 from services.tasks import scan_sbom
 
 logger = logging.getLogger(__name__)
+
+
+class AuthInterceptor(grpc.aio.ServerInterceptor):
+    async def intercept_service(self, continuation, handler_call_details):
+        metadata = dict(handler_call_details.invocation_metadata or [])
+        api_key = metadata.get("api-key", "")
+
+        if not api_key:
+            return _rejecting_handler(grpc.StatusCode.UNAUTHENTICATED, "api-key metadata required")
+
+        engine = create_async_engine(settings.database_url, echo=False, poolclass=NullPool)
+        session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with session_factory() as db:
+            user = await validate_api_key(db, api_key)
+            if not user:
+                return _rejecting_handler(grpc.StatusCode.UNAUTHENTICATED, "invalid api-key")
+
+        return await continuation(handler_call_details)
+
+
+def _rejecting_handler(code: grpc.StatusCode, detail: str):
+    async def handler(request, context):
+        await context.abort(code, detail)
+
+    return handler
 
 
 class SBOMServiceServicer(BaseServicer):
@@ -64,7 +90,7 @@ class SBOMServiceServicer(BaseServicer):
 
 
 async def start_grpc_server():
-    server = grpc.aio.server()
+    server = grpc.aio.server(interceptors=[AuthInterceptor()])
     add_SBOMServiceServicer_to_server(SBOMServiceServicer(), server)
     port = settings.grpc_port
     server.add_insecure_port(f"0.0.0.0:{port}")

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Argus SBOM Guard</title>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link rel="stylesheet" href="/static/css/dist.css">
+</head>
+<body class="bg-ctp-base text-ctp-text antialiased min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+        <div class="text-center mb-8">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg mx-auto shadow-lg shadow-indigo-500/20">A</div>
+            <h1 class="text-2xl font-bold mt-4">Argus SBOM Guard</h1>
+        </div>
+
+        <div class="card bg-base-100 shadow-sm">
+            <div class="card-body">
+                {% if error %}
+                <div class="alert alert-error text-sm mb-4">{{ error }}</div>
+                {% endif %}
+
+                {% if dev_code %}
+                <div class="alert mb-4 text-sm">
+                    <span class="font-mono tracking-wider text-lg">{{ dev_code }}</span>
+                </div>
+                {% endif %}
+
+                {% if step == "code" %}
+                <form method="post" action="/login/verify" class="space-y-4">
+                    <p class="text-sm text-ctp-subtext0">We sent a login code to <strong>{{ email }}</strong></p>
+                    <input type="hidden" name="email" value="{{ email }}">
+                    <fieldset class="fieldset">
+                        <legend class="fieldset-legend">Code</legend>
+                        <input type="text" name="code" class="input w-full text-lg font-mono tracking-wider text-center"
+                               placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" required autofocus
+                               style="letter-spacing:0.3em">
+                    </fieldset>
+                    <button type="submit" class="btn btn-primary w-full">Verify</button>
+                    <p class="text-xs text-center opacity-50">Code expires in 15 minutes</p>
+                </form>
+                {% else %}
+                <form method="post" action="/login" class="space-y-4">
+                    <fieldset class="fieldset">
+                        <legend class="fieldset-legend">Email</legend>
+                        <input type="email" name="email" class="input w-full" placeholder="admin@argus.local" value="{{ email }}" required autofocus autocomplete="email">
+                    </fieldset>
+                    <button type="submit" class="btn btn-primary w-full">Send login code</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -6,13 +6,14 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
+from middleware.api_key import api_key_required
 from models.project import Project
 from models.sbom import SBOM, Dependency
 from models.vulnerability import SBOMVulnerability, Vulnerability
 from services.sbom_parser import store_sbom
 from services.tasks import scan_sbom
 
-router = APIRouter(prefix="/api/v1/sboms", tags=["sboms"])
+router = APIRouter(prefix="/api/v1/sboms", tags=["sboms"], dependencies=[Depends(api_key_required)])
 
 
 @router.post("/upload", status_code=201)

@@ -6,10 +6,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
+from middleware.api_key import api_key_required
 from models.alert import AlertConfig
 from models.project import Project
 
-router = APIRouter(prefix="/api/v1/alerts", tags=["alerts"])
+router = APIRouter(prefix="/api/v1/alerts", tags=["alerts"], dependencies=[Depends(api_key_required)])
 
 
 class AlertConfigCreate(BaseModel):
