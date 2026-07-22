@@ -38,7 +38,7 @@
                 </fieldset>
                 <fieldset class="fieldset">
                     <legend class="fieldset-legend">Platform</legend>
-                    <select x-model="platform" class="select select-lg w-full">
+                    <select x-model="platform" class="select w-full">
                         <option value="">-</option>
                         <option value="github">GitHub</option>
                         <option value="gitlab">GitLab</option>
@@ -48,7 +48,7 @@
                 <div class="modal-action">
                     <button type="submit" class="btn btn-primary"
                             x-text="editId ? 'Save' : 'Create'"></button>
-                    <button type="button" class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="my_modal_1.close()">Cancel</button>
+                    <button type="button" class="btn btn-outline" onclick="my_modal_1.close()">Cancel</button>
                 </div>
             </form>
         </div>
@@ -62,7 +62,7 @@
                 <button class="btn btn-error" @click="
                     fetch('/api/v1/projects/' + delId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                 ">Delete</button>
-                <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="delete_modal.close()">Cancel</button>
+                <button class="btn btn-outline" onclick="delete_modal.close()">Cancel</button>
             </div>
         </div>
     </dialog>

@@ -29,7 +29,7 @@
                     fetch('/settings/api-keys/' + keyId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                     revoke_key_modal.close();
                 ">Revoke</button>
-                <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="document.getElementById('revoke_key_modal').close()">Cancel</button>
+                <button class="btn btn-outline" onclick="document.getElementById('revoke_key_modal').close()">Cancel</button>
             </div>
         </div>
     </dialog>
@@ -43,7 +43,7 @@
                     fetch('/api/v1/alerts/' + delAlertId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                     delete_alert_modal.close();
                 ">Delete</button>
-                <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="document.getElementById('delete_alert_modal').close()">Cancel</button>
+                <button class="btn btn-outline" onclick="document.getElementById('delete_alert_modal').close()">Cancel</button>
             </div>
         </div>
     </dialog>
@@ -76,7 +76,7 @@
                         </fieldset>
                         <div class="modal-action">
                             <button type="submit" class="btn btn-primary">Create</button>
-                            <button type="button" class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="gen_key_modal.close()">Cancel</button>
+                            <button type="button" class="btn btn-outline" onclick="gen_key_modal.close()">Cancel</button>
                         </div>
                     </form>
                 </div>
@@ -136,7 +136,7 @@
                     " class="space-y-4 mt-4">
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend">Project</legend>
-                            <select x-model="alertProject" class="select select-lg w-full" required>
+                            <select x-model="alertProject" class="select w-full" required>
                                 <option value="">Select project...</option>
                                 {% for p in projects %}
                                 <option value="{{ p.id }}">{{ p.name }}</option>
@@ -145,7 +145,7 @@
                         </fieldset>
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend">Severity Threshold</legend>
-                            <select x-model="alertSeverity" class="select select-lg w-full">
+                            <select x-model="alertSeverity" class="select w-full">
                                 <option value="critical">Critical only</option>
                                 <option value="high">High and above</option>
                                 <option value="medium">Medium and above</option>
@@ -154,7 +154,7 @@
                         </fieldset>
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend">Notification Type</legend>
-                            <select x-model="alertType" class="select select-lg w-full">
+                            <select x-model="alertType" class="select w-full">
                                 <option value="slack">Slack</option>
                                 <option value="email">Email</option>
                             </select>
@@ -166,7 +166,7 @@
                         <div class="modal-action">
                             <button type="submit" class="btn btn-primary"
                                     x-text="editAlertId ? 'Save' : 'Create'"></button>
-                            <button type="button" class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="alert_modal.close()">Cancel</button>
+                            <button type="button" class="btn btn-outline" onclick="alert_modal.close()">Cancel</button>
                         </div>
                     </form>
                 </div>

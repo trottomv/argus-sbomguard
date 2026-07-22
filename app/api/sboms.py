@@ -2,6 +2,7 @@ import json
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,6 +47,21 @@ async def upload_sbom(
         "dependency_count": sbom.dependency_count,
         "sha256": sbom.sha256,
     }
+
+
+@router.get("/{sbom_id}/download")
+async def download_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(SBOM).where(SBOM.id == sbom_id))
+    sbom = result.scalar_one_or_none()
+    if not sbom:
+        raise HTTPException(status_code=404, detail="SBOM not found")
+
+    content = json.dumps(sbom.raw_sbom, indent=2)
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename=sbom-{sbom_id}.json"},
+    )
 
 
 @router.get("/{sbom_id}")

@@ -34,7 +34,7 @@
                     fetch('/api/v1/projects/{{ project.id }}', {method:'DELETE'}).then(r => { if(r.ok) window.location='/projects' });
                     document.getElementById('delete_project_modal').close();
                 ">Delete</button>
-                <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="document.getElementById('delete_project_modal').close()">Cancel</button>
+                <button class="btn btn-outline" onclick="document.getElementById('delete_project_modal').close()">Cancel</button>
             </div>
         </div>
     </dialog>
@@ -48,7 +48,7 @@
                     fetch('/api/v1/sboms/' + sbomDelId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                     document.getElementById('delete_sbom_modal').close();
                 ">Delete</button>
-                <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="document.getElementById('delete_sbom_modal').close()">Cancel</button>
+                <button class="btn btn-outline" onclick="document.getElementById('delete_sbom_modal').close()">Cancel</button>
             </div>
         </div>
     </dialog>
@@ -79,7 +79,7 @@
                 </fieldset>
                 <div class="modal-action">
                     <button type="submit" class="btn btn-primary">Upload</button>
-                    <button type="button" class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="upload_modal.close()">Cancel</button>
+                    <button type="button" class="btn btn-outline" onclick="upload_modal.close()">Cancel</button>
                 </div>
             </form>
         </div>
