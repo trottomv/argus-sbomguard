@@ -41,7 +41,7 @@
             <h3 class="font-bold text-lg">Delete SBOM</h3>
             <p class="py-4">Delete SBOM version <strong x-text="sbomDelVer || 'N/A'"></strong>?</p>
             <div class="modal-action">
-                <button class="btn btn-error btn-lg" @click="
+                <button class="btn btn-error" @click="
                     fetch('/api/v1/sboms/' + sbomDelId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                     delete_sbom_modal.close();
                 ">Delete</button>

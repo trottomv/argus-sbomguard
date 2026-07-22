@@ -468,10 +468,16 @@ async def settings_page(request: Request, db: AsyncSession = Depends(get_db)):
         .all()
     )
     api_keys = await list_api_keys(db)
+    project_names = {str(p.id): p.name for p in projects}
     return templates.TemplateResponse(
         request,
         "settings.html",
-        {"projects": projects, "alerts": alerts, "api_keys": api_keys},
+        {
+            "projects": projects,
+            "alerts": alerts,
+            "api_keys": api_keys,
+            "project_names": project_names,
+        },
     )
 
 

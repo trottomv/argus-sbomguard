@@ -2,7 +2,7 @@
 {% block title %}Settings - Argus SBOM Guard{% endblock %}
 {% block breadcrumb %}<span class="text-ctp-text font-medium">Settings</span>{% endblock %}
 {% block content %}
-<div class="space-y-6" x-data="{ newKey: '{{ new_key or '' }}', showKey: false, keyId: null, keyLabel: '' }">
+<div class="space-y-6" x-data="{ newKey: '{{ new_key or '' }}', showKey: false, keyId: null, keyLabel: '', editAlertId: null, alertProject: '', alertSeverity: 'high', alertType: 'slack', alertEnabled: true, delAlertId: null }">
     <h1 class="text-2xl font-bold">Settings</h1>
 
     <dialog id="revoke_key_modal" class="modal" @click="if($event.target === $el) $el.close()">
@@ -15,6 +15,20 @@
                     revoke_key_modal.close();
                 ">Revoke</button>
                 <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="document.getElementById('revoke_key_modal').close()">Cancel</button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="delete_alert_modal" class="modal" @click="if($event.target === $el) $el.close()">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Delete Alert Rule</h3>
+            <p class="py-4">Delete this alert rule?</p>
+            <div class="modal-action">
+                <button class="btn btn-error" @click="
+                    fetch('/api/v1/alerts/' + delAlertId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
+                    delete_alert_modal.close();
+                ">Delete</button>
+                <button class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="document.getElementById('delete_alert_modal').close()">Cancel</button>
             </div>
         </div>
     </dialog>
@@ -82,54 +96,54 @@
     <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
         <div>
             <h2 class="text-lg font-bold text-ctp-text">Alert Configurations</h2>
-            <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white" onclick="alert_modal.showModal()">New Alert Rule</button>
+            <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
+                    @click="editAlertId=null; alertProject=''; alertSeverity='high'; alertType='slack'; alertEnabled=true; alert_modal.showModal()">New Alert Rule</button>
 
             <dialog id="alert_modal" class="modal">
                 <div class="modal-box">
-                    <h3 class="font-bold text-lg">New Alert Rule</h3>
-                    <div x-data="{ project_id: '', severity_threshold: 'high', notification_type: 'slack', enabled: true }">
-                        <form @submit.prevent="
-                            fetch('/api/v1/alerts', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ project_id, severity_threshold, notification_type, enabled })
-                            }).then(r => { if(r.ok) location.reload(); });
-                        " class="space-y-4 mt-4">
-                            <fieldset class="fieldset">
-                                <legend class="fieldset-legend">Project</legend>
-                                <select x-model="project_id" class="select select.sm w-full" required>
-                                    <option value="">Select project...</option>
-                                    {% for p in projects %}
-                                    <option value="{{ p.id }}">{{ p.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </fieldset>
-                            <fieldset class="fieldset">
-                                <legend class="fieldset-legend">Severity Threshold</legend>
-                                <select x-model="severity_threshold" class="select select.sm w-full">
-                                    <option value="critical">Critical only</option>
-                                    <option value="high" selected>High and above</option>
-                                    <option value="medium">Medium and above</option>
-                                    <option value="low">All</option>
-                                </select>
-                            </fieldset>
-                            <fieldset class="fieldset">
-                                <legend class="fieldset-legend">Notification Type</legend>
-                                <select x-model="notification_type" class="select select.sm w-full">
-                                    <option value="slack">Slack</option>
-                                    <option value="email">Email</option>
-                                </select>
-                            </fieldset>
-                            <fieldset class="fieldset">
-                                <legend class="fieldset-legend">Enabled</legend>
-                                <input type="checkbox" x-model="enabled" class="toggle" checked>
-                            </fieldset>
-                            <div class="modal-action">
-                                <button type="submit" class="btn btn-primary">Create</button>
-                                <button type="button" class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="alert_modal.close()">Cancel</button>
-                            </div>
-                        </form>
-                    </div>
+                    <h3 class="font-bold text-lg" x-text="editAlertId ? 'Edit Alert Rule' : 'New Alert Rule'"></h3>
+                    <form @submit.prevent="
+                        const url = editAlertId ? '/api/v1/alerts/' + editAlertId : '/api/v1/alerts';
+                        const method = editAlertId ? 'PATCH' : 'POST';
+                        const body = { project_id: alertProject, severity_threshold: alertSeverity, notification_type: alertType, enabled: alertEnabled };
+                        fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+                            .then(r => { if(r.ok) location.reload(); });
+                    " class="space-y-4 mt-4">
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">Project</legend>
+                            <select x-model="alertProject" class="select select-lg w-full" required>
+                                <option value="">Select project...</option>
+                                {% for p in projects %}
+                                <option value="{{ p.id }}">{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </fieldset>
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">Severity Threshold</legend>
+                            <select x-model="alertSeverity" class="select select-lg w-full">
+                                <option value="critical">Critical only</option>
+                                <option value="high">High and above</option>
+                                <option value="medium">Medium and above</option>
+                                <option value="low">All</option>
+                            </select>
+                        </fieldset>
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">Notification Type</legend>
+                            <select x-model="alertType" class="select select-lg w-full">
+                                <option value="slack">Slack</option>
+                                <option value="email">Email</option>
+                            </select>
+                        </fieldset>
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">Enabled</legend>
+                            <input type="checkbox" x-model="alertEnabled" class="toggle">
+                        </fieldset>
+                        <div class="modal-action">
+                            <button type="submit" class="btn btn-primary"
+                                    x-text="editAlertId ? 'Save' : 'Create'"></button>
+                            <button type="button" class="btn btn-ghost hover:bg-ctp-surface0/40" onclick="alert_modal.close()">Cancel</button>
+                        </div>
+                    </form>
                 </div>
             </dialog>
 
@@ -141,12 +155,13 @@
                             <th>Threshold</th>
                             <th>Channel</th>
                             <th>Status</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for alert in alerts %}
                         <tr>
-                            <td>{{ alert.project_id }}</td>
+                            <td>{{ project_names.get(alert.project_id|string, alert.project_id|string) }}</td>
                             <td><span class="badge badge-outline">{{ alert.severity_threshold }}</span></td>
                             <td>{{ alert.notification_type }}</td>
                             <td>
@@ -156,10 +171,22 @@
                                 <span class="badge badge-ghost">Disabled</span>
                                 {% endif %}
                             </td>
+                            <td>
+                                <div class="flex gap-1">
+                                    <button class="btn btn-ghost btn-sm"
+                                            @click="editAlertId='{{ alert.id }}'; alertProject='{{ alert.project_id }}'; alertSeverity='{{ alert.severity_threshold }}'; alertType='{{ alert.notification_type }}'; alertEnabled={{ 'true' if alert.enabled else 'false' }}; alert_modal.showModal()">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                    </button>
+                                    <button class="btn btn-ghost btn-sm text-error"
+                                            @click="delAlertId='{{ alert.id }}'; delete_alert_modal.showModal()">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </div>
+                            </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="4" class="text-center opacity-60 py-4">No alert rules configured</td>
+                            <td colspan="5" class="text-center opacity-60 py-4">No alert rules configured</td>
                         </tr>
                         {% endfor %}
                     </tbody>
