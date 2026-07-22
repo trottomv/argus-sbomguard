@@ -92,7 +92,7 @@ async def send_login_email(email: str, code: str) -> bool:
 
     message = f"From: {settings.smtp_from}\r\nTo: {email}\r\n"
     message += "Subject: Argus SBOM Guard - Login Code\r\n\r\n"
-    message += f"Your login code is: {code}\r\n\r\n"
+    message += f"Your login code is:\r\n\r\n{code}\r\n\r\n"
     message += f"This code expires in {settings.login_token_expire_minutes} minutes.\r\n"
 
     try:
