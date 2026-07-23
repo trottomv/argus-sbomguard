@@ -1,0 +1,59 @@
+services:
+  app:
+    build:
+      context: ../app
+      dockerfile: Dockerfile
+      target: base
+    image: argussbomguard:${APP_ENV:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+    logging:
+      driver: local
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-3}
+
+  worker:
+    build:
+      context: ../app
+      dockerfile: Dockerfile
+      target: base
+    image: argussbomguard:${APP_ENV:-development}
+    command: celery -A celery_app worker --loglevel=info --concurrency=4
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A celery_app inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: on-failure
+    logging:
+      driver: local
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-3}
+
+  scheduler:
+    build:
+      context: ../app
+      dockerfile: Dockerfile
+      target: base
+    image: argussbomguard:${APP_ENV:-development}
+    command: celery -A celery_app beat --loglevel=info
+    depends_on:
+      - rabbitmq
+    restart: on-failure
+    logging:
+      driver: local
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-3}
