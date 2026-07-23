@@ -1,0 +1,28 @@
+services:
+  rabbitmq:
+    image: dhi.io/rabbitmq:4
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-argus}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-argus}
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbitmq_management agent [disable_metrics_collector:true]"
+      RABBITMQ_CONFIG_FILE: /etc/rabbitmq/rabbitmq.conf
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ../rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-3}
+
+volumes:
+  rabbitmq_data:

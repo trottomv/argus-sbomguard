@@ -226,5 +226,8 @@ __marimo__/
 sboms/
 .tokensave
 
+# Generated protobuf
+app/protos/generated/
+
 # Devcontainer
 .devcontainer/

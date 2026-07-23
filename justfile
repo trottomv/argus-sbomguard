@@ -77,9 +77,17 @@ shell:
 shell-db:
     docker compose exec postgres psql -U argus
 
-# scan all images in docker-compose.yml with syft
+# scan all images with syft
 scan-all:
     @bash scripts/scan-all.sh
+
+# regenerate protobuf stubs
+proto:
+    docker compose run --rm --no-deps --entrypoint python app -m grpc_tools.protoc -Iprotos --python_out=/app/protos/generated --grpc_python_out=/app/protos/generated protos/sbom.proto
+
+# build tailwind CSS
+css:
+    cd app && npm ci && npm run build:css
 
 # clean
 clean:

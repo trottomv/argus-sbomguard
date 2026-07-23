@@ -82,7 +82,7 @@ users → api_keys / login_tokens
 
 - **Backend**: Python FastAPI + asyncpg + Celery + RabbitMQ
 - **Frontend**: HTMX + Jinja2 + Alpine.js + DaisyUI 5 + Tailwind CSS v4 (SSR)
-- **Database**: PostgreSQL 16
+- **Database**: PostgreSQL 18
 - **Vuln Scanner**: Grype (via Celery task) + OSV API
 - **gRPC**: SBOM upload via `sbom.proto` on port 50051
 

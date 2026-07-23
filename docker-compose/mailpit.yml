@@ -1,0 +1,11 @@
+services:
+  mailpit:
+    image: axllent/mailpit:v1.22.0
+    environment:
+      MP_MAX_MESSAGES: "5000"
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-3}

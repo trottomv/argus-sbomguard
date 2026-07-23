@@ -3,8 +3,11 @@ __pycache__
 .git
 .pytest_cache
 .ruff_cache
+.mypy_cache
+*.egg-info
+dist/
+.tox/
 node_modules
-dist.css
+protos/generated/*_pb2.py
+protos/generated/*_pb2_grpc.py
 .env
-protos/*_pb2.py
-protos/*_pb2_grpc.py

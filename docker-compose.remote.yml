@@ -1,0 +1,37 @@
+include:
+  - docker-compose/postgresql.yml
+  - docker-compose/rabbitmq.yml
+  - docker-compose/app.yml
+
+services:
+  app:
+    env_file:
+      - .env
+    ports:
+      - 127.0.0.1:8000:8000
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${APP_MEM_LIMIT:-512M}
+          cpus: ${APP_CPU_LIMIT:-1.0}
+
+  worker:
+    env_file:
+      - .env
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${WORKER_MEM_LIMIT:-512M}
+          cpus: ${WORKER_CPU_LIMIT:-1.0}
+
+  scheduler:
+    env_file:
+      - .env
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${SCHEDULER_MEM_LIMIT:-128M}
+          cpus: ${SCHEDULER_CPU_LIMIT:-0.5}
