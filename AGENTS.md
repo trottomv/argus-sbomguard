@@ -2,34 +2,51 @@
 
 ## Stack
 - **Backend**: Python FastAPI + asyncpg + Celery + RabbitMQ
-- **Frontend**: HTMX + Jinja2 + Alpine.js (SSR, no JS framework)
+- **Frontend**: HTMX + Jinja2 + Alpine.js + DaisyUI 5 + Tailwind CSS v4 (SSR)
 - **Database**: PostgreSQL 16 + JSONB
-- **Charts**: Grafana (datasource PostgreSQL, no Mimir)
 - **Deploy**: Docker Compose
-- **Vuln Scanner**: OSV API (`/v1/querybatch`)
+- **Vuln Scanner**: Grype (via Celery) + OSV API
+- **Email (dev)**: Mailpit on port 8025
+- **Auth**: Passwordless email login + API keys for REST/gRPC
+
+## Pre-commit & quality checks (MANDATORY before every commit)
+
+```bash
+# Run all checks
+pre-commit run --all-files
+
+# Run tests
+docker compose exec app pytest -v
+
+# Only commit if BOTH pass
+```
+
+If any hook fails, fix and re-run before committing. Never commit with failing checks.
 
 ## Project structure
 ```
 argus-sbomguard/
-├── docker-compose.yml            # postgres + rabbitmq + app + worker + scheduler
+├── docker-compose.yml            # postgres + rabbitmq + app + worker + scheduler + mailpit
 ├── .env.example                  # copy to .env before running
 ├── AGENTS.md
 ├── justfile                      # shortcut commands
+├── scripts/                      # utility scripts
 ├── app/
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   ├── alembic.ini              # points to migrations/
-│   ├── migrations/              # DB migrations
+│   ├── migrations/              # DB migrations (single 0001_initial_schema)
 │   ├── pyproject.toml
 │   ├── main.py                  # FastAPI entrypoint + lifespan
 │   ├── config.py                # pydantic-settings (reads .env)
 │   ├── database.py              # async engine + session factory
 │   ├── celery_app.py            # Celery app config
-│   ├── models/                  # SQLAlchemy ORM (9 tables)
+│   ├── middleware/               # AuthMiddleware + API key dependency
+│   ├── models/                  # SQLAlchemy ORM (14 tables)
 │   ├── api/                     # FastAPI route handlers
 │   ├── services/                # Business logic + Celery tasks
 │   ├── templates/               # Jinja2 (HTMX pages + partials)
-│   ├── static/                  # CSS
+│   ├── static/                  # CSS + images
 │   └── tests/                   # pytest + httpx
 ```
 
@@ -47,29 +64,14 @@ docker compose exec app alembic revision --autogenerate -m "description"
 # Run tests
 docker compose exec app pytest -v
 
-# Single test file
-docker compose exec app pytest tests/test_api.py -v
+# Run all checks (lint + format + SAST + SCA)
+pre-commit run --all-files
 
-# Watch app logs
-docker compose logs -f app
-
-# Tail worker logs
-docker compose logs -f worker
-
-# Enter app container
-docker compose exec app bash
-
-# Lint check (ruff)
+# Lint check
 docker compose exec app ruff check app/
-
-# Lint fix
-docker compose exec app ruff check app/ --fix
 
 # Format check
 docker compose exec app ruff format app/ --check
-
-# Format
-docker compose exec app ruff format app/
 
 # SAST (bandit)
 docker compose exec app bandit -c pyproject.toml -r app/
@@ -77,47 +79,54 @@ docker compose exec app bandit -c pyproject.toml -r app/
 # SCA (pip-audit)
 docker compose exec app pip-audit --strict -r requirements.txt
 
+# Scan compose images with syft
+just scan-all
+
 # Pre-commit (install once)
 pip install pre-commit && pre-commit install
-
-# Run all pre-commit hooks
-pre-commit run --all-files
 ```
 
 ## Key conventions
-- **SBOM formats**: CycloneDX (JSON) primary; SPDX secondary. Both validated via `store_sbom()` in `services/sbom_parser.py`.
-- **JSONB columns**: `sboms.raw_sbom`, `dependencies.metadata`. All flexible/schemaless data goes here.
+- **SBOM formats**: CycloneDX (JSON) primary; SPDX secondary.
+- **Auth**: Passwordless email login for HTML UI. API keys (`X-API-Key` header) for REST/gRPC. gRPC metadata `api-key`. Session via signed cookie (no Starlette SessionMiddleware).
+- **JSONB columns**: `sboms.raw_sbom`, `dependencies.metadata`.
 - **Async everywhere**: `asyncpg` + SQLAlchemy async session. No sync DB access.
-- **Migrations**: Always via `alembic revision --autogenerate`, never raw SQL.
+- **Migrations**: Single `0001_initial_schema.py`. Always via `alembic revision --autogenerate`.
 - **Celery tasks**: Defined in `services/tasks.py` with `@celery_app.task(name="tasks.*")`.
-- **OSV API**: Batch query via `/v1/querybatch` in `services/vulnerability_scanner.py`.
-- **HTMX routes**: Return `TemplateResponse` (not JSON) for pages under `/`, `GET`/`POST` API under `/api/v1/`.
-- **No auth in MVP**: Single admin user. No auth middleware.
+- **HTMX routes**: Return `TemplateResponse` for pages. API under `/api/v1/`.
+- **Buttons**: Primary CTAs use `btn-primary btn-lg` + gradient (`bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white`). Destructive use `btn-error`. Modal buttons use solid colors (no gradient). Cancel buttons use `btn-outline`.
+- **Cards**: Use `rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6` (not DaisyUI card).
+- **Template partials**: Reusable components in `app/templates/partials/`.
 
-## Database — 9 tables
+## Database — 14 tables
 ```
-projects → sboms → dependencies
+users → api_keys / login_tokens
+projects → services → sboms → dependencies
 vulnerabilities ──M:N (via sbom_vulnerabilities)── sboms
-vulnerability_snapshots (daily metrics per project)
-alert_configs → notifications
-pull_requests (renovate bot — Fase 2)
+vulnerability_snapshots (daily per-project metrics)
+alert_configs → notifications / pull_requests
 ```
+
+## Services in docker-compose
+| Service | Port | Purpose |
+|---------|------|---------|
+| app | 8000, 50051 | FastAPI + gRPC |
+| postgres | 5432 | Database |
+| rabbitmq | 5672, 15672 | Celery broker |
+| mailpit | 1025, 8025 | Dev SMTP + UI |
+| worker | — | Celery worker |
+| scheduler | — | Celery beat |
 
 ## Testing
 - `pytest` + `httpx.AsyncClient` in `tests/test_api.py`
 - `pytest-asyncio` for async tests
 - SQLite in-memory for tests (via `conftest.py`)
-- Integration tests need `docker compose up -d postgres rabbitmq`
+- 61 tests, all must pass before committing
 
 ## Gotchas
-- `.env` required (copy from `.env.example`). Without it, defaults point to Docker services.
+- `.env` required (copy from `.env.example`).
 - DB tables created via `alembic upgrade head` (not auto-create).
-- `worker` container runs the same image as `app` but with Celery command.
-- Grafana provisioning is manual for now — connect datasource to `postgres` via UI.
-- Renovate PR automation and AI agent not yet implemented (Fase 2).
-
-## Grafana
-- URL: `http://localhost:3000`
-- Default credentials: `admin / admin`
-- Datasource: PostgreSQL (`postgres:5432`, database `argus`)
-- Recommended dashboards: vulnerability trends (use `vulnerability_snapshots` table)
+- `worker` and `scheduler` run the same image as `app`.
+- Mailpit catches all dev emails at `localhost:8025`.
+- Migration file may be root-owned after Docker generation — `chown` before committing.
+- API key endpoints accept both session cookie (web UI) and `X-API-Key` header (API).
