@@ -64,7 +64,34 @@ async def test_list_projects(client):
     resp = await client.get("/api/v1/projects")
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data["projects"]) >= 2
+    assert "items" in data
+    assert "total" in data
+    assert "page" in data
+    assert "per_page" in data
+    assert "total_pages" in data
+    assert len(data["items"]) >= 2
+
+
+@pytest.mark.asyncio
+async def test_list_projects_pagination(client):
+    await client.post("/api/v1/projects", json={"name": "p1"})
+    await client.post("/api/v1/projects", json={"name": "p2"})
+    await client.post("/api/v1/projects", json={"name": "p3"})
+
+    resp = await client.get("/api/v1/projects?page=1&per_page=2")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["items"]) == 2
+    assert data["total"] >= 3
+    assert data["total_pages"] >= 2
+    assert data["page"] == 1
+    assert data["per_page"] == 2
+
+    resp2 = await client.get("/api/v1/projects?page=2&per_page=2")
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert len(data2["items"]) >= 1
+    assert data2["page"] == 2
 
 
 @pytest.mark.asyncio
@@ -127,7 +154,11 @@ async def test_project_history_empty(client):
 
     resp = await client.get(f"/api/v1/projects/{pid}/history")
     assert resp.status_code == 200
-    assert resp.json()["sboms"] == []
+    data = resp.json()
+    assert "items" in data
+    assert data["items"] == []
+    assert data["total"] == 0
+    assert "page" in data
 
 
 @pytest.mark.asyncio
@@ -143,7 +174,36 @@ async def test_project_history_with_sboms(client):
 
     resp = await client.get(f"/api/v1/projects/{pid}/history")
     assert resp.status_code == 200
-    assert len(resp.json()["sboms"]) == 1
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["total"] == 1
+
+
+@pytest.mark.asyncio
+async def test_project_history_pagination(client):
+    proj = await client.post("/api/v1/projects", json={"name": "hist-pag"})
+    pid = proj.json()["id"]
+
+    base = {
+        "bomFormat": "CycloneDX",
+        "components": [{"name": "lodash", "version": "4.17.20"}],
+    }
+
+    for v in ["v1", "v2", "v3"]:
+        content = dict(base)
+        content["version"] = v  # different version field in SBOM -> different SHA256
+        await client.post(
+            "/api/v1/sboms/upload",
+            data={"project_id": pid, "version": v},
+            files={"file": ("sbom.json", json.dumps(content), "application/json")},
+        )
+
+    resp = await client.get(f"/api/v1/projects/{pid}/history?page=1&per_page=2")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["items"]) == 2
+    assert data["total"] >= 3
+    assert data["total_pages"] >= 2
 
 
 # ── SBOMs ──
@@ -298,8 +358,21 @@ async def test_active_vulnerabilities(client):
     resp = await client.get("/api/v1/vulnerabilities/active")
     assert resp.status_code == 200
     data = resp.json()
-    assert "vulnerabilities" in data
+    assert "items" in data
     assert "total" in data
+    assert "page" in data
+    assert "per_page" in data
+    assert "total_pages" in data
+
+
+@pytest.mark.asyncio
+async def test_active_vulnerabilities_pagination(client):
+    resp = await client.get("/api/v1/vulnerabilities/active?page=1&per_page=10")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["items"]) <= 10
+    assert data["page"] == 1
+    assert data["per_page"] == 10
 
 
 @pytest.mark.asyncio
@@ -360,7 +433,20 @@ async def test_list_alerts(client):
 
     resp = await client.get("/api/v1/alerts")
     assert resp.status_code == 200
-    assert len(resp.json()["alerts"]) >= 1
+    data = resp.json()
+    assert "items" in data
+    assert "total" in data
+    assert "page" in data
+    assert len(data["items"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_list_alerts_pagination(client):
+    resp = await client.get("/api/v1/alerts?page=1&per_page=5")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["page"] == 1
+    assert data["per_page"] == 5
 
 
 @pytest.mark.asyncio
@@ -403,6 +489,13 @@ async def test_projects_page(client):
 
 
 @pytest.mark.asyncio
+async def test_projects_page_pagination(client):
+    resp = await client.get("/projects?page=1&per_page=10")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+
+
+@pytest.mark.asyncio
 async def test_vulnerabilities_page(client):
     resp = await client.get("/vulnerabilities")
     assert resp.status_code == 200
@@ -410,7 +503,54 @@ async def test_vulnerabilities_page(client):
 
 
 @pytest.mark.asyncio
+async def test_vulnerabilities_page_pagination(client):
+    resp = await client.get("/vulnerabilities?page=1&per_page=10&sort=cvss_score&order=desc")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+
+
+@pytest.mark.asyncio
 async def test_settings_page(client):
     resp = await client.get("/settings")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+
+
+@pytest.mark.asyncio
+async def test_sboms_page(client):
+    resp = await client.get("/sboms")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+
+
+@pytest.mark.asyncio
+async def test_sboms_page_pagination(client):
+    resp = await client.get("/sboms?page=1&per_page=10&sort=created_at&order=desc")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+
+
+@pytest.mark.asyncio
+async def test_project_detail_page(client):
+    create_resp = await client.post("/api/v1/projects", json={"name": "detail-html"})
+    pid = create_resp.json()["id"]
+
+    resp = await client.get(f"/projects/{pid}")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+
+
+@pytest.mark.asyncio
+async def test_project_sboms_lazy_load(client):
+    create_resp = await client.post("/api/v1/projects", json={"name": "lazy-test"})
+    pid = create_resp.json()["id"]
+
+    await client.post(
+        "/api/v1/sboms/upload",
+        data={"project_id": pid, "version": "v1"},
+        files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
+    )
+
+    resp = await client.get(f"/projects/{pid}/sboms?page=1&per_page=25")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]

@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
@@ -11,6 +11,7 @@ from middleware.api_key import api_key_required
 from models.project import Project
 from models.sbom import SBOM
 from models.vulnerability import VulnerabilitySnapshot
+from services.pagination import PROJECT_PER_PAGE, PROJECT_SBOM_HISTORY_PER_PAGE, Page, paginate
 
 router = APIRouter(
     prefix="/api/v1/projects", tags=["projects"], dependencies=[Depends(api_key_required)]
@@ -44,10 +45,20 @@ class ProjectResponse(BaseModel):
 
 
 @router.get("")
-async def list_projects(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Project).order_by(Project.created_at.desc()))
-    projects = result.scalars().all()
-    return {"projects": [_project_to_dict(p) for p in projects]}
+async def list_projects(
+    db: AsyncSession = Depends(get_db),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(PROJECT_PER_PAGE, ge=1, le=200),
+):
+    query = select(Project).order_by(Project.created_at.desc())
+    pg: Page = await paginate(db, query, page=page, per_page=per_page)
+    return {
+        "items": [_project_to_dict(p) for p in pg.items],
+        "total": pg.total,
+        "page": pg.page,
+        "per_page": pg.per_page,
+        "total_pages": pg.total_pages,
+    }
 
 
 @router.post("", status_code=201)
@@ -78,13 +89,16 @@ async def get_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_db))
 
 
 @router.get("/{project_id}/history")
-async def project_history(project_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(SBOM).where(SBOM.project_id == project_id).order_by(SBOM.created_at.desc())
-    )
-    sboms = result.scalars().all()
+async def project_history(
+    project_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(PROJECT_SBOM_HISTORY_PER_PAGE, ge=1, le=200),
+):
+    query = select(SBOM).where(SBOM.project_id == project_id).order_by(SBOM.created_at.desc())
+    pg: Page = await paginate(db, query, page=page, per_page=per_page)
     return {
-        "sboms": [
+        "items": [
             {
                 "id": str(s.id),
                 "version": s.version,
@@ -92,8 +106,12 @@ async def project_history(project_id: uuid.UUID, db: AsyncSession = Depends(get_
                 "dependency_count": s.dependency_count,
                 "created_at": s.created_at.isoformat() if s.created_at else None,
             }
-            for s in sboms
-        ]
+            for s in pg.items
+        ],
+        "total": pg.total,
+        "page": pg.page,
+        "per_page": pg.per_page,
+        "total_pages": pg.total_pages,
     }
 
 

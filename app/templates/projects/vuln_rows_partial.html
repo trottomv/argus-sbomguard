@@ -1,0 +1,43 @@
+{% for vuln in items %}
+<tr class="hover:bg-base-200 cursor-pointer"
+    x-on:click='openDetail({
+        cve_id: {{ vuln.cve_id | tojson }},
+        severity: {{ vuln.severity | tojson }},
+        cvss: {{ (vuln.cvss_score or "") | tojson }},
+        cvss_vector: {{ vuln.cvss_vector | tojson }},
+        summary: {{ (vuln.summary or "") | tojson }},
+        published: {{ vuln.published | tojson }},
+        dependency: {{ (vuln.dependency_name or "") | tojson }},
+        urls: {{ vuln.urls | tojson }},
+        fixed: {{ vuln.fix_versions | tojson }}
+    })'>
+    <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
+    <td>
+        {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}
+        {% if sev == "critical" %}
+        <span class="badge badge-error">{{ vuln.severity }}</span>
+        {% elif sev == "high" %}
+        <span class="badge badge-warning">{{ vuln.severity }}</span>
+        {% elif sev == "medium" %}
+        <span class="badge badge-info">{{ vuln.severity }}</span>
+{% elif sev == "low" %}
+<span class="badge" style="background:#585b70; color:#cdd6f4; border-color:#585b70">{{ vuln.severity }}</span>
+{% else %}
+<span class="badge badge-ghost">{{ vuln.severity }}</span>
+{% endif %}
+    </td>
+    <td>{{ vuln.cvss_score or "-" }}</td>
+    <td>
+        {% if vuln.service_name %}
+        <span class="badge badge-ghost badge-sm">{{ vuln.service_name }}</span>
+        {% else %}
+        <span class="text-xs opacity-40">-</span>
+        {% endif %}
+    </td>
+    <td class="max-w-xs truncate text-xs font-mono">{{ vuln.dependency_name or "-" }}</td>
+    <td class="max-w-md truncate text-sm">{{ vuln.summary or "-" }}</td>
+</tr>
+{% endfor %}
+<div id="load-more-project-vuln-section" hx-swap-oob="true">
+{% include 'partials/load_more.html' with context %}
+</div>

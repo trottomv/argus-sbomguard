@@ -1,0 +1,14 @@
+{% if items and has_more %}
+<div class="text-center py-4">
+        <button class="btn btn-outline btn-sm w-full max-w-md"
+            hx-get="{{ load_more_url }}&page={{ page + 1 }}"
+            hx-target="#{{ target }}-tbody"
+            hx-swap="beforeend"
+            hx-trigger="click once"
+            hx-indicator="#load-more-indicator-{{ target }}">
+        {% if label %}{{ label }}{% else %}Load more{% endif %}
+        ({{ total - (per_page * page) }} remaining)
+        <span id="load-more-indicator-{{ target }}" class="htmx-indicator loading loading-spinner loading-sm"></span>
+    </button>
+</div>
+{% endif %}
