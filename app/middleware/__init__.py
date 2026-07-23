@@ -69,6 +69,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         if not session_user:
-            return RedirectResponse(url="/login", status_code=302)
+            response = RedirectResponse(url="/login", status_code=302)
+            if request.headers.get("HX-Request"):
+                response.headers["HX-Redirect"] = "/login"
+            return response
 
         return await call_next(request)

@@ -1,0 +1,58 @@
+{% for vuln in items %}
+{% set ed = vuln.extra_data or {} %}
+{% set fix_avail = (ed.get('fix') or {}).get('available') or [] %}
+{% set fix_versions = (ed.get('fix') or {}).get('versions') or [] %}
+{% set urls = ed.get('urls') or [] %}
+{% set cvss_list = ed.get('cvss') or [] %}
+{% set cvss_vec = cvss_list[0].get('vector') if cvss_list else '' %}
+{% set detail_json = {
+    'cve_id': vuln.cve_id,
+    'severity': vuln.severity,
+    'cvss': (vuln.cvss_score or ''),
+    'cvss_vector': cvss_vec,
+    'summary': (vuln.summary or ''),
+    'published': (vuln.published_at.strftime('%Y-%m-%d') if vuln.published_at else ''),
+    'urls': urls,
+    'affected': (vuln.affected_packages or []),
+    'fixed': fix_versions
+} | tojson %}
+<tr class="hover:bg-base-200 cursor-pointer"
+    x-on:click='openDetail({{ detail_json }})'>
+    <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
+    <td>
+        {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}
+        {% if sev == "critical" %}
+        <span class="badge badge-error">{{ vuln.severity }}</span>
+        {% elif sev == "high" %}
+        <span class="badge badge-warning">{{ vuln.severity }}</span>
+        {% elif sev == "medium" %}
+        <span class="badge badge-info">{{ vuln.severity }}</span>
+{% elif sev == "low" %}
+<span class="badge" style="background:#585b70; color:#cdd6f4; border-color:#585b70">{{ vuln.severity }}</span>
+{% else %}
+<span class="badge badge-ghost">{{ vuln.severity }}</span>
+{% endif %}
+    </td>
+    <td>{{ vuln.cvss_score or "-" }}</td>
+    <td>
+        <div class="flex flex-wrap gap-1">
+            {% for pname in project_map.get(vuln.id, []) %}
+            <span class="badge badge-outline badge-xs">{{ pname }}</span>
+            {% endfor %}
+        </div>
+    </td>
+    <td>
+        <div class="flex flex-wrap gap-1">
+            {% for sn in service_map.get(vuln.id, []) %}
+            <span class="badge badge-ghost badge-xs">{{ sn }}</span>
+            {% endfor %}
+            </div>
+    </td>
+    <td class="max-w-md truncate text-sm">{{ vuln.summary or "-" }}</td>
+    <td><span class="badge badge-outline badge-sm">{{ vuln.source or "unknown" }}</span></td>
+    <td class="text-sm">{{ vuln.published_at.strftime('%Y-%m-%d') if vuln.published_at else "-" }}</td>
+</tr>
+{% endfor %}
+<div id="load-more-vuln-section" hx-swap-oob="true">
+{% include 'partials/load_more.html' with context %}
+</div>

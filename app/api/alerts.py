@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +9,7 @@ from database import get_db
 from middleware.api_key import api_key_required
 from models.alert import AlertConfig
 from models.project import Project
+from services.pagination import ALERT_PER_PAGE, Page, paginate
 
 router = APIRouter(
     prefix="/api/v1/alerts", tags=["alerts"], dependencies=[Depends(api_key_required)]
@@ -31,11 +32,15 @@ class AlertConfigUpdate(BaseModel):
 
 
 @router.get("")
-async def list_alerts(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(AlertConfig).order_by(AlertConfig.created_at.desc()))
-    alerts = result.scalars().all()
+async def list_alerts(
+    db: AsyncSession = Depends(get_db),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(ALERT_PER_PAGE, ge=1, le=200),
+):
+    query = select(AlertConfig).order_by(AlertConfig.created_at.desc())
+    pg: Page = await paginate(db, query, page=page, per_page=per_page)
     return {
-        "alerts": [
+        "items": [
             {
                 "id": str(a.id),
                 "project_id": str(a.project_id),
@@ -44,8 +49,12 @@ async def list_alerts(db: AsyncSession = Depends(get_db)):
                 "enabled": a.enabled,
                 "created_at": a.created_at.isoformat() if a.created_at else None,
             }
-            for a in alerts
-        ]
+            for a in pg.items
+        ],
+        "total": pg.total,
+        "page": pg.page,
+        "per_page": pg.per_page,
+        "total_pages": pg.total_pages,
     }
 
 

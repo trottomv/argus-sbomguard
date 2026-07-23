@@ -91,11 +91,11 @@
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <a href="/sboms?project_id={{ project.id }}" class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-5 card-hover">
             <div class="stat-title">SBOMs</div>
-            <div class="stat-value text-primary">{{ sboms|length }}</div>
+            <div class="stat-value text-primary">{{ sbom_history_total }}</div>
         </a>
         <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-5 card-hover">
             <div class="stat-title">Total Dependencies</div>
-            <div class="stat-value text-secondary">{{ sboms|map(attribute='dependency_count')|sum }}</div>
+            <div class="stat-value text-secondary">{{ total_dependency_count }}</div>
         </div>
         <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-5 card-hover">
             <div class="stat-title">Active Vulns</div>
@@ -135,7 +135,7 @@
                             <th>Summary</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="project-vuln-tbody">
                         {% for vuln in project_vulns %}
                         <tr class="hover:bg-base-200 cursor-pointer"
                             x-on:click='openDetail({
@@ -180,6 +180,19 @@
                 </table>
             </div>
         </div>
+        <div id="load-more-project-vuln-section">
+        {% if project_vuln_has_more %}
+        <div class="text-center py-4">
+            <button class="btn btn-outline btn-sm w-full max-w-md"
+                    hx-get="/projects/{{ project.id }}/vulns?page=2&per_page={{ project_vuln_per_page }}{% if request.query_params.get('service_id') %}&service_id={{ request.query_params.get('service_id') }}{% endif %}"
+                    hx-target="#project-vuln-tbody"
+                    hx-swap="beforeend"
+                    hx-trigger="click once">
+                Load more ({{ project_vuln_total - project_vuln_per_page }} remaining)
+            </button>
+        </div>
+        {% endif %}
+        </div>
     </div>
     {% endif %}
 
@@ -187,7 +200,7 @@
         <div>
             <h2 class="text-lg font-bold text-ctp-text">SBOM History</h2>
             <div class="overflow-x-auto">
-                <table id="sbom-table" class="table table-zebra">
+                <table class="table table-zebra">
                     <thead>
                         <tr>
                             <th>Version</th>
@@ -201,20 +214,20 @@
                             <th></th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {% for sbom in sboms %}
+                    <tbody id="sbom-history-tbody">
+                        {% for sbom, sbom_svc_name in sboms_with_svc[:sbom_history_per_page] %}
                         <tr>
                             <td>{{ sbom.version or "-" }}</td>
                             <td>
-                                {% if svc_names.get(sbom.id) %}
-                                <span class="badge badge-ghost badge-sm">{{ svc_names[sbom.id] }}</span>
+                                {% if sbom_svc_name %}
+                                <span class="badge badge-ghost badge-sm">{{ sbom_svc_name }}</span>
                                 {% else %}
                                 <span class="text-xs opacity-40">-</span>
                                 {% endif %}
                             </td>
                             <td><span class="badge badge-outline">{{ sbom.format }}</span></td>
                             <td>{{ sbom.dependency_count or 0 }}</td>
-                            <td>{{ vulns_by_sbom.get(sbom.id, [])|length + fixed_by_sbom.get(sbom.id, 0) }}</td>
+                            <td>{{ vulns_by_sbom.get(sbom.id, 0) + fixed_by_sbom.get(sbom.id, 0) }}</td>
                             <td>{{ fixed_by_sbom.get(sbom.id, 0) }}</td>
                             <td><code class="text-xs">{{ sbom.sha256[:16] }}...</code></td>
                             <td>{{ sbom.created_at.strftime('%Y-%m-%d %H:%M') if sbom.created_at else "-" }}</td>
@@ -233,6 +246,19 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+        <div id="load-more-sbom-history-section">
+        {% if sbom_history_pages > 1 %}
+        <div class="text-center py-4">
+            <button class="btn btn-outline btn-sm w-full max-w-md"
+                    hx-get="/projects/{{ project.id }}/sboms?page=2&per_page={{ sbom_history_per_page }}{% if request.query_params.get('service_id') %}&service_id={{ request.query_params.get('service_id') }}{% endif %}"
+                    hx-target="#sbom-history-tbody"
+                    hx-swap="beforeend"
+                    hx-trigger="click once">
+                Load more ({{ sbom_history_total - sbom_history_per_page }} remaining)
+            </button>
+        </div>
+        {% endif %}
         </div>
     </div>
 </div>
