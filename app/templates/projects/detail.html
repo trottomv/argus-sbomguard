@@ -18,7 +18,8 @@
             {% endif %}
         </div>
         <div class="flex gap-2">
-            <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white" onclick="upload_modal.showModal()">Upload SBOM</button>
+            <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
+                    onclick="document.querySelector('#upload-form').reset(); upload_modal.showModal()">Upload SBOM</button>
             <button class="btn btn-error" onclick="delete_project_modal.showModal()">
                 Delete
             </button>
@@ -56,9 +57,9 @@
     <dialog id="upload_modal" class="modal">
         <div class="modal-box">
             <h3 class="font-bold text-lg">Upload SBOM</h3>
-            <form hx-post="/api/v1/sboms/upload" hx-target="#sbom-table" hx-swap="afterbegin"
+            <form id="upload-form" hx-post="/api/v1/sboms/upload" hx-target="#sbom-table" hx-swap="afterbegin"
                   hx-on::after-request="if(event.detail.successful) { upload_modal.close(); location.reload() }"
-                  enctype="multipart/form-data" class="space-y-4 mt-4">
+                  enctype="multipart/form-data" class="space-y-4 mt-4" autocomplete="off">
                 <input type="hidden" name="project_id" value="{{ project.id }}">
                 <fieldset class="fieldset">
                     <legend class="fieldset-legend">Service (optional)</legend>
