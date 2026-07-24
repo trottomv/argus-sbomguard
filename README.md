@@ -58,7 +58,7 @@ docker compose exec app ruff format app/
 docker compose exec app bandit -c pyproject.toml -r app/
 
 # SCA (dependency audit)
-docker compose exec app pip-audit --strict -r requirements.txt
+docker compose exec app pip-audit --require-hashes --disable-pip -r requirements/remote.txt
 
 # Tests
 docker compose exec app pytest -v

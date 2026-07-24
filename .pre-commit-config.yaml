@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -9,7 +9,7 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.6
+    rev: v0.16.0
     hooks:
       - id: ruff
         args: [--fix]
@@ -18,14 +18,14 @@ repos:
         files: ^(app|backend)/.*\.py$
 
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.3
+    rev: 1.9.4
     hooks:
       - id: bandit
         args: ["-c", "app/pyproject.toml", "-r", "app/"]
         always_run: true
 
   - repo: https://github.com/pypa/pip-audit
-    rev: v2.7.3
+    rev: v2.10.1
     hooks:
       - id: pip-audit
-        args: [--strict, --requirement, app/requirements.txt]
+        args: [--strict, --require-hashes, --disable-pip, --requirement, app/requirements/remote.txt]

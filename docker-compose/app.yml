@@ -3,7 +3,7 @@ services:
     build:
       context: ../app
       dockerfile: Dockerfile
-      target: base
+      target: ${BUILD_TARGET:-development}
     image: argussbomguard:${APP_ENV:-development}
     expose:
       - "50051"
@@ -23,7 +23,7 @@ services:
     build:
       context: ../app
       dockerfile: Dockerfile
-      target: base
+      target: ${BUILD_TARGET:-development}
     image: argussbomguard:${APP_ENV:-development}
     command: celery -A celery_app worker --loglevel=info --concurrency=4
     depends_on:
@@ -48,7 +48,7 @@ services:
     build:
       context: ../app
       dockerfile: Dockerfile
-      target: base
+      target: ${BUILD_TARGET:-development}
     image: argussbomguard:${APP_ENV:-development}
     command: celery -A celery_app beat --loglevel=info
     depends_on:
