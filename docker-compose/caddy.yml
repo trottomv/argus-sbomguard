@@ -1,0 +1,32 @@
+services:
+  proxy:
+    build:
+      context: ../caddy
+      dockerfile: Dockerfile
+    image: ${PROXY_IMAGE:-argussbomguard:proxy}
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-admin@argus.local}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: ${PROXY_MEM_LIMIT:-128M}
+          cpus: ${PROXY_CPU_LIMIT:-0.5}
+    logging:
+      driver: local
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-3}
+
+volumes:
+  caddy_data:
+  caddy_config:

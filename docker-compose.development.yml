@@ -3,6 +3,7 @@ include:
   - docker-compose/rabbitmq.yml
   - docker-compose/mailpit.yml
   - docker-compose/app.yml
+  - docker-compose/caddy.yml
 
 services:
   app:

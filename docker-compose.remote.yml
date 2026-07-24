@@ -2,13 +2,12 @@ include:
   - docker-compose/postgresql.yml
   - docker-compose/rabbitmq.yml
   - docker-compose/app.yml
+  - docker-compose/caddy.yml
 
 services:
   app:
     env_file:
       - .env
-    ports:
-      - 127.0.0.1:8000:8000
     restart: unless-stopped
     deploy:
       resources:
