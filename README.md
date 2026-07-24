@@ -34,7 +34,7 @@ Open http://localhost:8000 → login with email (admin@argus.local by default), 
 
 ## API
 
-OpenAPI docs at http://localhost:8000/docs.
+OpenAPI docs at http://localhost:8000/api/docs.
 
 Key endpoints:
 - `POST /api/v1/projects` — Create project
@@ -89,6 +89,11 @@ users → api_keys / login_tokens
 - **Database**: PostgreSQL 18
 - **Vuln Scanner**: Grype (via Celery task) + OSV API
 - **gRPC**: SBOM upload via `sbom.proto` on port 50051
+
+## Documentation
+
+Full documentation: [https://trottomv.github.io/argus-sbomguard](https://trottomv.github.io/argus-sbomguard)
+or run locally with `mkdocs serve`.
 
 ## License
 

@@ -36,6 +36,11 @@ dev = [
     "pip-audit~=2.10.0",
     "pre-commit~=4.6.0",
 ]
+docs = [
+    "mkdocs~=1.7.0",
+    "mkdocs-material~=9.6.0",
+    "mkdocstrings[python]~=0.29.0",
+]
 
 [tool.coverage.run]
 source = ["app"]

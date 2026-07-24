@@ -1,0 +1,63 @@
+site_name: Argus SBOM Guard
+site_description: Centralized SBOM management platform — on-prem, deploy anywhere
+site_url: https://trottomv.github.io/argus-sbomguard/
+repo_url: https://github.com/trottomv/argus-sbomguard
+repo_name: trottomv/argus-sbomguard
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: indigo
+    accent: indigo
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [app]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_signature_annotations: true
+            separate_signature: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Setup & Configuration: setup.md
+  - User Guide:
+      - Projects: guide/projects.md
+      - SBOMs: guide/sboms.md
+      - Vulnerabilities: guide/vulnerabilities.md
+      - Alerts & Notifications: guide/alerts.md
+  - Development:
+      - Contributing: development/contributing.md
+      - Architecture: development/architecture.md
+      - Testing: development/testing.md
+  - API Reference: api/reference.md

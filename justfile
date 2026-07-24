@@ -95,6 +95,18 @@ proto:
 css:
     cd app && npm ci && npm run build:css
 
+# serve docs locally
+docs-serve:
+    mkdocs serve -a localhost:8001
+
+# build docs static site
+docs-build:
+    mkdocs build
+
+# deploy docs to GitHub Pages
+docs-deploy:
+    mkdocs gh-deploy --force
+
 # clean
 clean:
-    rm -rf app/__pycache__ app/**/__pycache__ app/.pytest_cache .ruff_cache
+    rm -rf app/__pycache__ app/**/__pycache__ app/.pytest_cache .ruff_cache site

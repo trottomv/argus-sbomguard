@@ -33,6 +33,8 @@ app = FastAPI(
     title="Argus SBOM Guard",
     version=settings.app_version,
     lifespan=lifespan,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
 )
 
 app.add_middleware(AuthMiddleware)
