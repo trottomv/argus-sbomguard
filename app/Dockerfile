@@ -48,7 +48,7 @@ RUN python3 -m grpc_tools.protoc -Iprotos --python_out=/app/protos/generated --g
 COPY --from=css-builder /build/static/css/dist.css /app/static/css/dist.css
 COPY --from=grype /usr/bin/grype /usr/local/bin/grype
 
-RUN chown -R ${APP_USER}:${APP_USER} /app 
+RUN chown -R ${APP_USER}:${APP_USER} /app
 
 EXPOSE 8000
 ENTRYPOINT ["/app/entrypoint.sh"]
