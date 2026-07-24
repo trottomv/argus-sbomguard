@@ -1,4 +1,4 @@
-from pydantic import computed_field
+from pydantic import computed_field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -55,6 +55,18 @@ class Settings(BaseSettings):
 
     # gRPC
     grpc_port: int = 50051
+
+    # Display
+    display_timezone: str = "UTC"
+
+    @field_validator("display_timezone")
+    @classmethod
+    def validate_timezone(cls, v: str) -> str:
+        from zoneinfo import available_timezones
+
+        if v not in available_timezones():
+            raise ValueError(f"Invalid timezone: {v}")
+        return v
 
     # Auth
     admin_email: str = "admin@argus.local"

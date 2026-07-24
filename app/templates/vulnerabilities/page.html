@@ -91,7 +91,7 @@
                             'cvss': (vuln.cvss_score or ''),
                             'cvss_vector': cvss_vec,
                             'summary': (vuln.summary or ''),
-                            'published': (vuln.published_at.strftime('%Y-%m-%d') if vuln.published_at else ''),
+                            'published': (vuln.published_at | format_dt('%Y-%m-%d', '')),
                             'urls': urls,
                             'affected': (vuln.affected_packages or []),
                             'fixed': fix_versions
@@ -130,7 +130,7 @@
                             </td>
                             <td class="max-w-md truncate text-sm">{{ vuln.summary or "-" }}</td>
                             <td><span class="badge badge-outline badge-sm">{{ vuln.source or "unknown" }}</span></td>
-                            <td class="text-sm">{{ vuln.published_at.strftime('%Y-%m-%d') if vuln.published_at else "-" }}</td>
+                            <td class="text-sm">{{ vuln.published_at | format_dt('%Y-%m-%d') }}</td>
                         </tr>
                         {% else %}
                         <tr>

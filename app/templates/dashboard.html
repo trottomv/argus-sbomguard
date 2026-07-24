@@ -186,7 +186,7 @@
                             </td>
                             <td class="py-2.5 px-2 text-ctp-subtext0">{{ sbom.version or "-" }}</td>
                             <td class="py-2.5 px-2 text-right text-ctp-subtext0">{{ sbom.dependency_count or 0 }}</td>
-                            <td class="py-2.5 px-2 text-right text-ctp-subtext0">{{ sbom.created_at.strftime('%Y-%m-%d') if sbom.created_at else "-" }}</td>
+                            <td class="py-2.5 px-2 text-right text-ctp-subtext0">{{ sbom.created_at | format_dt('%Y-%m-%d') }}</td>
                         </tr>
                         {% else %}
                         <tr>

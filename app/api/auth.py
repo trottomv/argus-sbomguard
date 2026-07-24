@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.templating import Jinja2Templates
 
 from database import get_db
 from middleware import clear_session_cookie, set_session_cookie
@@ -12,9 +11,9 @@ from services.auth import (
     send_login_email,
     verify_login_token,
 )
+from templating import templates
 
 router = APIRouter(tags=["auth"])
-templates = Jinja2Templates(directory="templates")
 
 
 @router.get("/login", response_class=HTMLResponse)

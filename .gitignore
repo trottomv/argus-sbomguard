@@ -223,7 +223,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-sboms/
+/sboms/
 .tokensave
 
 # Generated protobuf
@@ -231,3 +231,4 @@ app/protos/generated/
 
 # Devcontainer
 .devcontainer/
+app/test.db
