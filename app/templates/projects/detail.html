@@ -19,7 +19,7 @@
         </div>
         <div class="flex gap-2">
             <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
-                    onclick="document.querySelector('#upload-form').reset(); upload_modal.showModal()">Upload SBOM</button>
+                    onclick="document.querySelector('#upload-form').reset(); document.getElementById('upload_modal').showModal()">+ Upload SBOM</button>
             <button class="btn btn-error" onclick="delete_project_modal.showModal()">
                 Delete
             </button>
@@ -57,8 +57,8 @@
     <dialog id="upload_modal" class="modal">
         <div class="modal-box">
             <h3 class="font-bold text-lg">Upload SBOM</h3>
-            <form id="upload-form" hx-post="/api/v1/sboms/upload" hx-target="#sbom-table" hx-swap="afterbegin"
-                  hx-on::after-request="if(event.detail.successful) { upload_modal.close(); location.reload() }"
+            <form id="upload-form" hx-post="/api/v1/sboms/upload" hx-target="#sbom-history-tbody" hx-swap="afterbegin"
+                  hx-on::after-request="if(event.detail.successful) { document.getElementById('upload_modal').close(); location.reload() }"
                   enctype="multipart/form-data" class="space-y-4 mt-4" autocomplete="off">
                 <input type="hidden" name="project_id" value="{{ project.id }}">
                 <fieldset class="fieldset">
@@ -80,7 +80,7 @@
                 </fieldset>
                 <div class="modal-action">
                     <button type="submit" class="btn btn-primary">Upload</button>
-                    <button type="button" class="btn btn-outline" onclick="upload_modal.close()">Cancel</button>
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('upload_modal').close()">Cancel</button>
                 </div>
             </form>
         </div>
