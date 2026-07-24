@@ -1,0 +1,68 @@
+{
+	email {$LETSENCRYPT_EMAIL}
+}
+
+(health) {
+	@health path /health
+	respond @health "OK" 200
+}
+
+(waf_rules) {
+	coraza_waf {
+		directives `
+			SecAction "id:900200,phase:1,nolog,pass,setvar:'tx.allowed_methods=GET HEAD POST OPTIONS PUT DELETE PATCH'"
+			Include /etc/caddy/crs/crs-setup.conf
+			Include /etc/caddy/crs/rules/REQUEST-901-INITIALIZATION.conf
+			Include /etc/caddy/crs/rules/REQUEST-905-COMMON-EXCEPTIONS.conf
+			Include /etc/caddy/crs/rules/REQUEST-911-METHOD-ENFORCEMENT.conf
+			Include /etc/caddy/crs/rules/REQUEST-913-SCANNER-DETECTION.conf
+			Include /etc/caddy/crs/rules/REQUEST-920-PROTOCOL-ENFORCEMENT.conf
+			Include /etc/caddy/crs/rules/REQUEST-921-PROTOCOL-ATTACK.conf
+			Include /etc/caddy/crs/rules/REQUEST-922-MULTIPART-ATTACK.conf
+			Include /etc/caddy/crs/rules/REQUEST-930-APPLICATION-ATTACK-LFI.conf
+			Include /etc/caddy/crs/rules/REQUEST-931-APPLICATION-ATTACK-RFI.conf
+			Include /etc/caddy/crs/rules/REQUEST-932-APPLICATION-ATTACK-RCE.conf
+			Include /etc/caddy/crs/rules/REQUEST-933-APPLICATION-ATTACK-PHP.conf
+			Include /etc/caddy/crs/rules/REQUEST-934-APPLICATION-ATTACK-GENERIC.conf
+			Include /etc/caddy/crs/rules/REQUEST-941-APPLICATION-ATTACK-XSS.conf
+			Include /etc/caddy/crs/rules/REQUEST-942-APPLICATION-ATTACK-SQLI.conf
+			Include /etc/caddy/crs/rules/REQUEST-943-APPLICATION-ATTACK-SESSION-FIXATION.conf
+			Include /etc/caddy/crs/rules/REQUEST-944-APPLICATION-ATTACK-JAVA.conf
+			Include /etc/caddy/crs/rules/REQUEST-949-BLOCKING-EVALUATION.conf
+			Include /etc/caddy/crs/rules/RESPONSE-950-DATA-LEAKAGES.conf
+			Include /etc/caddy/crs/rules/RESPONSE-951-DATA-LEAKAGES-SQL.conf
+			Include /etc/caddy/crs/rules/RESPONSE-952-DATA-LEAKAGES-JAVA.conf
+			Include /etc/caddy/crs/rules/RESPONSE-953-DATA-LEAKAGES-PHP.conf
+			Include /etc/caddy/crs/rules/RESPONSE-954-DATA-LEAKAGES-IIS.conf
+			Include /etc/caddy/crs/rules/RESPONSE-955-WEB-SHELLS.conf
+			Include /etc/caddy/crs/rules/RESPONSE-959-BLOCKING-EVALUATION.conf
+			Include /etc/caddy/crs/rules/RESPONSE-980-CORRELATION.conf
+
+			SecRuleEngine On
+			SecRequestBodyAccess On
+			SecRequestBodyLimitAction Reject
+			SecDebugLogLevel 9
+
+			SecRule REQUEST_URI|REQUEST_BODY|ARGS "@rx {{.*}}" "id:1001,phase:2,deny,status:403,log,msg:'Blocked SSTI attempt'"
+			SecRule REQUEST_URI|REQUEST_BODY|ARGS "@rx (?i)(\bOR\b|\bAND\b|\bSELECT\b|\bUNION\b|\bDROP\b).*(=|LIKE)" "id:1002,phase:2,deny,status:403,log,msg:'Blocked SQL Injection attempt'"
+			SecRule REQUEST_URI|REQUEST_BODY|ARGS "@rx (?i)<\s*script.*?>" "id:1003,phase:2,deny,status:403,log,msg:'Blocked XSS Injection'"
+			SecRule REQUEST_URI|REQUEST_BODY|ARGS "@rx (\.\./|\./)" "id:1004,phase:2,deny,status:403,log,msg:'Blocked Directory traversal attempt'"
+		`
+	}
+}
+
+{$DOMAIN:localhost} {
+	@grpc protocol grpc
+	route @grpc {
+		reverse_proxy h2c://app:50051
+	}
+	route {
+		import health
+		import waf_rules
+		reverse_proxy app:8000
+	}
+}
+
+:80 {
+	redir https://{host}{uri} permanent
+}
