@@ -1,0 +1,42 @@
+{% for sbom, proj_name, svc_name in items %}
+<tr>
+    <td>
+        <a href="/projects/{{ sbom.project_id }}" class="badge badge-outline badge-sm hover:badge-primary transition-colors whitespace-nowrap">
+            {{ proj_name }}
+        </a>
+    </td>
+    <td>
+        {% if svc_name %}
+        <span class="badge badge-ghost badge-sm">{{ svc_name }}</span>
+        {% else %}
+        <span class="text-xs opacity-40">-</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if sbom.version %}
+        <code class="text-xs">{{ sbom.version[:24] }}{% if sbom.version|length > 24 %}...{% endif %}</code>
+        {% else %}
+        <span class="text-xs opacity-40">-</span>
+        {% endif %}
+    </td>
+    <td><span class="badge badge-outline badge-sm">{{ sbom.format }}</span></td>
+    <td>{{ sbom.dependency_count or 0 }}</td>
+    <td>{{ vuln_counts.get(sbom.id, 0) }}</td>
+    <td><code class="text-xs">{{ sbom.sha256[:16] }}...</code></td>
+    <td class="text-sm whitespace-nowrap">{{ sbom.created_at | format_dt('%Y-%m-%d %H:%M') }}</td>
+    <td>
+        <div class="flex gap-1">
+            <a href="/api/v1/sboms/{{ sbom.id }}/download" class="btn btn-ghost btn-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            </a>
+            <button class="btn btn-ghost btn-sm text-error"
+                    @click="sbomDelId='{{ sbom.id }}'; sbomDelVer='{{ sbom.version or 'N/A' }}'; delete_sbom_modal.showModal()">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+        </div>
+    </td>
+</tr>
+{% endfor %}
+<div id="load-more-sbom-section" hx-swap-oob="true">
+{% include 'partials/load_more.html' with context %}
+</div>

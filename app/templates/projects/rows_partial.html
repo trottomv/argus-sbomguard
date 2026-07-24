@@ -9,7 +9,7 @@
             {% if project.repo_url %}
             <span>{{ project.repo_url }}</span>
             {% endif %}
-            <span>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else "" }}</span>
+            <span>{{ project.created_at | format_dt('%Y-%m-%d', '') }}</span>
         </div>
     </a>
     <button class="btn btn-ghost btn-sm text-error absolute top-2 right-2 opacity-0 group-hover:opacity-100"

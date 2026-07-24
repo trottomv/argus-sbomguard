@@ -2,7 +2,6 @@ import uuid
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +21,7 @@ from services.pagination import (
     Page,
     paginate,
 )
+from templating import format_dt, templates
 
 SEVERITY_ORDER = {
     "critical": 0,
@@ -121,7 +121,7 @@ async def _get_project_vulns(
                 "dependency_purl": row.dependency_purl,
                 "dependency_name": _dep_name(row.name, row.version, row.dependency_purl),
                 "cvss_vector": cvss_vec,
-                "published": row.published_at.strftime("%Y-%m-%d") if row.published_at else "",
+                "published": format_dt(row.published_at, "%Y-%m-%d", ""),
                 "urls": urls,
                 "fix_versions": fix_versions,
             }
@@ -130,7 +130,6 @@ async def _get_project_vulns(
 
 
 router = APIRouter(tags=["dashboard"])
-templates = Jinja2Templates(directory="templates")
 
 
 @router.get("/projects/{project_id}/edit-name", response_class=HTMLResponse)
