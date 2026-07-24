@@ -49,12 +49,18 @@ format:
 format-check:
     docker compose exec app ruff format --check
 
+# compile requirements with hashes (requires pip-tools on host: pip install pip-tools)
+compile-requirements:
+    @command -v pip-compile >/dev/null 2>&1 || { echo "pip-tools required. Install with: pip install pip-tools"; exit 1; }
+    pip-compile --generate-hashes --no-header --resolver=backtracking --upgrade --allow-unsafe -o app/requirements/remote.txt app/pyproject.toml
+    pip-compile --generate-hashes --no-header --resolver=backtracking --upgrade --extra dev --allow-unsafe -o app/requirements/dev.txt app/pyproject.toml
+
 # security
 bandit:
     docker compose exec app bandit -c pyproject.toml -r .
 
 audit:
-    docker compose exec app pip-audit --strict -r requirements.txt
+    docker compose exec app pip-audit --require-hashes --disable-pip -r requirements/remote.txt
 
 # pre-commit
 pre-commit:

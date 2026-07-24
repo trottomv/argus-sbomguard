@@ -28,6 +28,7 @@ services:
   worker:
     env_file:
       - .env
+    user: "0:0"
     volumes:
       - ./app:/app
 

@@ -41,11 +41,13 @@ argus-sbomguard/
 ├── app/
 │   ├── Dockerfile
 │   ├── .dockerignore
-│   ├── requirements.txt
+│   ├── requirements/
+│   │   ├── remote.txt            # compiled runtime deps with hashes
+│   │   └── dev.txt               # compiled dev deps with hashes
 │   ├── entrypoint.sh
 │   ├── alembic.ini              # points to migrations/
 │   ├── migrations/              # DB migrations (single 0001_initial_schema)
-│   ├── pyproject.toml
+│   ├── pyproject.toml           # single source of truth for dependencies
 │   ├── main.py                  # FastAPI entrypoint + lifespan
 │   ├── config.py                # pydantic-settings (reads .env)
 │   ├── database.py              # async engine + session factory
@@ -86,7 +88,10 @@ docker compose exec app ruff format app/ --check
 docker compose exec app bandit -c pyproject.toml -r app/
 
 # SCA (pip-audit)
-docker compose exec app pip-audit --strict -r requirements.txt
+docker compose exec app pip-audit --require-hashes --disable-pip -r requirements/remote.txt
+
+# Compile requirements with hashes (run after changing deps in pyproject.toml)
+just compile-requirements
 
 # Scan compose images with syft
 just scan-all
