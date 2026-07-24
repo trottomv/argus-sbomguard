@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/trottomv/argus-sbomguard/main/app/static/img/argus-sbomguard.svg" alt="Argus SBOM Guard" width="200">
+  <img src="app/static/img/argus-sbomguard.png" alt="Argus SBOM Guard" width="200">
 </p>
 
 # Argus SBOM Guard
