@@ -54,7 +54,7 @@
             <p class="text-sm text-ctp-subtext0">Use these keys to authenticate REST API and gRPC requests via the <code class="text-xs">X-API-Key</code> header.</p>
 
             <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
-                    @click="newKeyLabel=''; gen_key_modal.showModal()">Generate Key</button>
+                    @click="newKeyLabel=''; gen_key_modal.showModal()">+ Generate Key</button>
 
             <dialog id="gen_key_modal" class="modal">
                 <div class="modal-box">
@@ -122,7 +122,7 @@
         <div>
             <h2 class="text-lg font-bold text-ctp-text">Alert Configurations</h2>
             <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
-                    @click="editAlertId=null; alertProject=''; alertSeverity='high'; alertType='slack'; alertEnabled=true; alert_modal.showModal()">New Alert Rule</button>
+                    @click="editAlertId=null; alertProject=''; alertSeverity='high'; alertType='slack'; alertEnabled=true; alert_modal.showModal()">+ New Alert Rule</button>
 
             <dialog id="alert_modal" class="modal">
                 <div class="modal-box">
