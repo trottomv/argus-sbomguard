@@ -161,11 +161,10 @@ async def vulnerability_summary(db: AsyncSession = Depends(get_db)):
     }
 
     affected = await db.execute(
-        select(func.count(SBOM.project_id.distinct())).select_from(
-            select(SBOM.project_id)
+        select(func.count()).select_from(
+            select(SBOM.project_id.distinct())
             .join(SBOMVulnerability)
             .where(SBOMVulnerability.status == "open")
-            .distinct()
             .subquery()
         )
     )
