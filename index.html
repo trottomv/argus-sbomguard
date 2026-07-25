@@ -303,21 +303,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#core-features" class="md-nav__link">
+  <a href="#features" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Core Features
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#architecture-at-a-glance" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Architecture at a Glance
+        Features
       
     </span>
   </a>
@@ -329,6 +318,17 @@
     <span class="md-ellipsis">
       
         Who Is This For?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-at-a-glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture at a Glance
       
     </span>
   </a>
@@ -753,21 +753,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#core-features" class="md-nav__link">
+  <a href="#features" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Core Features
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#architecture-at-a-glance" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Architecture at a Glance
+        Features
       
     </span>
   </a>
@@ -779,6 +768,17 @@
     <span class="md-ellipsis">
       
         Who Is This For?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-at-a-glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture at a Glance
       
     </span>
   </a>
@@ -806,8 +806,9 @@
 
 
 <h1 id="argus-sbom-guard">Argus SBOM Guard<a class="headerlink" href="#argus-sbom-guard" title="Permanent link">&para;</a></h1>
-<p>Centralized SBOM management platform for tracking software supply chain security.
-On-prem, deploy anywhere.</p>
+<p><strong>Open-source SBOM-based vulnerability management platform.</strong></p>
+<p>Import CycloneDX/SPDX SBOMs, scan dependencies with Grype and OSV, track vulnerabilities over time, and monitor your software supply chain risk.</p>
+<p><em>Centralized SBOM management. On-prem, deploy anywhere.</em></p>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cp<span class="w"> </span>.env.example<span class="w"> </span>.env
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
@@ -815,13 +816,23 @@ On-prem, deploy anywhere.</p>
 </code></pre></div>
 <p>Open <a href="http://localhost:8000">http://localhost:8000</a>, log in with <code>admin@argus.local</code>,
 and grab the one-time code from <a href="http://localhost:8025">Mailpit</a> (dev only).</p>
-<h2 id="core-features">Core Features<a class="headerlink" href="#core-features" title="Permanent link">&para;</a></h2>
+<h2 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>SBOM Management</strong> — Upload, store, and diff CycloneDX &amp; SPDX SBOMs</li>
-<li><strong>Vulnerability Scanning</strong> — Automatic scanning via Grype + OSV API</li>
-<li><strong>Alerting</strong> — Slack and email alerts for new vulnerabilities</li>
+<li><strong>Vulnerability Scanning</strong> — Automatic analysis via Grype + OSV API</li>
+<li><strong>Vulnerability Tracking</strong> — CVE status, severity, open/fixed reconciliation, historical trends</li>
+<li><strong>Alerting</strong> — Slack and email notifications for new vulnerabilities</li>
+<li><strong>Supply Chain Visibility</strong> — Projects, services, dependencies, version history</li>
 <li><strong>REST API + gRPC</strong> — Full API with key-based authentication</li>
-<li><strong>Dashboard</strong> — Real-time vulnerability trends and per-project metrics</li>
+<li><strong>Dashboard</strong> — Real-time trends and per-project vulnerability metrics</li>
+</ul>
+<h2 id="who-is-this-for">Who Is This For?<a class="headerlink" href="#who-is-this-for" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Platform / SRE teams</strong> tracking dependencies across microservices</li>
+<li><strong>Security engineers</strong> monitoring vulnerability exposure over time</li>
+<li><strong>DevSecOps teams</strong> integrating SBOM management into CI/CD</li>
+<li><strong>Open source maintainers</strong> generating and managing SBOMs</li>
+<li><strong>Compliance teams</strong> that need SBOM history and audit trails</li>
 </ul>
 <h2 id="architecture-at-a-glance">Architecture at a Glance<a class="headerlink" href="#architecture-at-a-glance" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>projects → services → sboms → dependencies
@@ -860,13 +871,8 @@ and grab the one-time code from <a href="http://localhost:8025">Mailpit</a> (dev
 </tr>
 </tbody>
 </table>
-<h2 id="who-is-this-for">Who Is This For?<a class="headerlink" href="#who-is-this-for" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>Platform / SRE teams</strong> tracking dependencies across microservices</li>
-<li><strong>Security engineers</strong> monitoring vulnerability exposure over time</li>
-<li><strong>Open source maintainers</strong> generating and managing SBOMs</li>
-<li><strong>Compliance teams</strong> that need SBOM history and audit trails</li>
-</ul>
+<hr />
+<p><strong>Ready to get started?</strong> <a href="setup/">Setup →</a> · <a href="guide/projects/">User Guide →</a> · <a href="api/reference/">API Reference →</a></p>
 
 
 
