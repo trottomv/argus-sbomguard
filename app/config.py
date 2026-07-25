@@ -1,7 +1,7 @@
 from pydantic import computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
-_INSECURE_SECRET_KEY = "change-me-to-a-random-secret"
+_INSECURE_SECRET_KEY = "change-me-to-a-random-secret"  # nosec
 
 
 class Settings(BaseSettings):
