@@ -43,7 +43,7 @@ jobs:
         run: |
           mkdir -p protos/generated
           touch protos/generated/__init__.py
-          uv run python -m grpc_tools.protoc \
+          uv run --no-sync python -m grpc_tools.protoc \
             -Iprotos \
             --python_out=protos/generated \
             --grpc_python_out=protos/generated \
@@ -52,8 +52,8 @@ jobs:
       - name: Lint (ruff)
         working-directory: app
         run: |
-          uv run ruff check .
-          uv run ruff format --check .
+          uv run --no-sync ruff check .
+          uv run --no-sync ruff format --check .
 
       - name: Run tests
         working-directory: app
@@ -62,4 +62,4 @@ jobs:
           RABBITMQ_HOST: localhost
           RABBITMQ_USER: argus
           RABBITMQ_PASSWORD: argus
-        run: uv run pytest -v
+        run: uv run --no-sync pytest -v
