@@ -30,9 +30,8 @@ From the dashboard, click any project to see:
 - **Services** — Microservices/containers in this project
 - **SBOM History** — All uploaded SBOMs with dependency counts and timestamps
 - **Vulnerability Summary** — Open vulnerabilities by severity
-- **Trend Chart** — Daily vulnerability snapshots over time
 
-![Project detail — services, SBOM versions, vulnerabilities, and trend chart](../img/project-detail.png)
+![Project detail — services, SBOM versions, and vulnerabilities](../img/project-detail.png)
 
 ## Updating a Project
 
