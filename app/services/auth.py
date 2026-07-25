@@ -63,15 +63,18 @@ async def create_login_token(db: AsyncSession, user_id: uuid.UUID) -> str:
     return raw_code
 
 
-async def verify_login_token(db: AsyncSession, raw_token: str) -> User | None:
+async def verify_login_token(db: AsyncSession, raw_token: str, email: str) -> User | None:
     token_hash = _hash_token(raw_token)
     now = datetime.now(UTC)
 
     result = await db.execute(
-        select(LoginToken).where(
+        select(LoginToken)
+        .join(User, LoginToken.user_id == User.id)
+        .where(
             LoginToken.token_hash == token_hash,
             LoginToken.used == False,  # noqa: E712
             LoginToken.expires_at > now,
+            User.email == email.strip().lower(),
         )
     )
     lt = result.scalar_one_or_none()
@@ -84,8 +87,8 @@ async def verify_login_token(db: AsyncSession, raw_token: str) -> User | None:
     return user
 
 
-async def send_login_email(email: str, code: str) -> bool:
-    logger.info("Login code for %s: %s", email, code)
+async def send_login_email(email: str, code: str) -> bool | str:
+    logger.debug("Generated login code for %s", email)
 
     if not HAS_SMTP or not settings.smtp_host:
         return f"Login code: {code}"
