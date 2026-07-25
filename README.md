@@ -4,7 +4,33 @@
 
 # Argus SBOM Guard
 
-Centralized SBOM management platform. On-prem, deploy anywhere.
+**Open-source SBOM-based vulnerability management platform.**
+
+Import CycloneDX/SPDX SBOMs, scan dependencies with Grype and OSV, track vulnerabilities over time, and monitor your software supply chain risk.
+
+*Centralized SBOM management. On-prem, deploy anywhere.*
+
+## Why Argus?
+
+Software teams generate thousands of SBOMs, but an SBOM alone does not tell you:
+
+- Which vulnerabilities affect your projects
+- Whether your security posture is improving
+- Which services are at risk
+- When new vulnerabilities appear
+
+Argus turns SBOMs into actionable security intelligence.
+
+## Features
+
+- **SBOM ingestion** — Upload and store CycloneDX JSON and SPDX JSON
+- **Vulnerability scanning** — Automatic analysis via Grype and OSV API
+- **Vulnerability tracking** — CVE status, severity, open/fixed, historical trends
+- **Supply chain visibility** — Projects, services, dependencies, version history
+- **SBOM diffing** — Compare dependency changes between versions
+- **Alerting** — Slack and email notifications for new vulnerabilities
+- **Integrations** — REST API and gRPC for programmatic SBOM upload
+- **Dashboard** — Real-time trends and per-project vulnerability metrics
 
 ## Quick Start
 
@@ -14,65 +40,22 @@ docker compose up -d
 docker compose exec app alembic upgrade head
 ```
 
-Open http://localhost:8000 → login with email (admin@argus.local by default), code sent to Mailpit at http://localhost:8025.
+Open [http://localhost:8000](http://localhost:8000) → login with `admin@argus.local` (default), one-time code sent to [Mailpit](http://localhost:8025).
 
-## Authentication
+## Who Is Argus For?
 
-- **Web UI**: passwordless login via email code (Mailpit in dev, SMTP in prod)
-- **REST API / gRPC**: API keys managed from Settings page, passed via `X-API-Key` header
-- **Session**: signed cookie, 24h expiry by default
+**Teams that need self-hosted SBOM-based vulnerability management.**
 
-## Services
+- DevSecOps teams managing supply chain risk
+- Organizations integrating SBOM generation into CI/CD
+- Security engineers tracking vulnerability exposure over time
+- SRE / Platform teams monitoring dependencies across services
 
-| Service | Port | URL |
-|---------|------|-----|
-| App | 8000 | http://localhost:8000 |
-| gRPC | 50051 | — |
-| RabbitMQ | 15672 | http://localhost:15672 |
-| Mailpit (dev) | 8025 | http://localhost:8025 |
-| Postgres | 5432 | — |
+**Argus is not:**
 
-## API
-
-OpenAPI docs at http://localhost:8000/api/docs.
-
-Key endpoints:
-- `POST /api/v1/projects` — Create project
-- `PATCH /api/v1/projects/{id}` — Update project
-- `POST /api/v1/sboms/upload` — Upload SBOM (CycloneDX / SPDX JSON)
-- `GET /api/v1/sboms/{id}/download` — Download raw SBOM
-- `GET /api/v1/sboms/{id}/diff/{other_id}` — Diff two SBOM versions
-- `POST /api/v1/api-keys` — Generate API key
-- `POST /api/v1/alerts` — Configure alert rules
-
-## Development
-
-```bash
-# Install pre-commit hooks
-pip install pre-commit && pre-commit install
-
-# Run all checks
-pre-commit run --all-files
-
-# Lint / Format
-docker compose exec app ruff check app/
-docker compose exec app ruff format app/
-
-# SAST (security scan)
-docker compose exec app bandit -c pyproject.toml -r app/
-
-# SCA (dependency audit)
-docker compose exec app pip-audit --require-hashes --disable-pip -r requirements/remote.txt
-
-# Tests
-docker compose exec app pytest -v
-
-# Single test
-docker compose exec app pytest tests/test_api.py -v
-
-# Scan all compose images with syft
-just scan-all
-```
+- A replacement for SBOM generators (use [Syft](https://github.com/anchore/syft))
+- A container image scanner
+- A vulnerability database
 
 ## Architecture
 
@@ -84,16 +67,62 @@ alert_configs → notifications
 users → api_keys / login_tokens
 ```
 
-- **Backend**: Python FastAPI + asyncpg + Celery + RabbitMQ
-- **Frontend**: HTMX + Jinja2 + Alpine.js + DaisyUI 5 + Tailwind CSS v4 (SSR)
-- **Database**: PostgreSQL 18
-- **Vuln Scanner**: Grype (via Celery task) + OSV API
-- **gRPC**: SBOM upload via `sbom.proto` on port 50051
+| Layer | Technology |
+|-------|------------|
+| Backend | Python + FastAPI + Celery + RabbitMQ |
+| Frontend | HTMX + Jinja2 + Alpine.js + DaisyUI 5 + Tailwind CSS v4 |
+| Database | PostgreSQL 18 |
+| Scanning | Grype CLI + OSV API |
+| Auth | Passwordless email + API keys |
+
+## Services
+
+| Service | Port | URL |
+|---------|------|-----|
+| App (FastAPI) | 8000 | http://localhost:8000 |
+| gRPC | 50051 | — |
+| PostgreSQL | 5432 | — |
+| RabbitMQ | 5672, 15672 | http://localhost:15672 |
+| Mailpit (dev) | 1025, 8025 | http://localhost:8025 |
+
+## API
+
+OpenAPI docs at [http://localhost:8000/api/docs](http://localhost:8000/api/docs).
+
+Key endpoints:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v1/projects` | Create project |
+| `POST` | `/api/v1/sboms/upload` | Upload SBOM (CycloneDX / SPDX) |
+| `GET` | `/api/v1/sboms/{id}/diff/{other_id}` | Diff two SBOM versions |
+| `GET` | `/api/v1/vulnerabilities/active` | List open vulnerabilities |
+| `POST` | `/api/v1/api-keys` | Generate API key |
+| `POST` | `/api/v1/alerts` | Configure alert rules |
+
+Authentication via `X-API-Key` header (REST) or `api-key` metadata (gRPC).
+
+## Roadmap
+
+- CI/CD integration examples
+- Kubernetes deployment guides
+- Advanced vulnerability workflows
+- Additional notification integrations
+
+## Development
+
+```bash
+cp .env.example .env
+docker compose up -d
+docker compose exec app alembic upgrade head
+docker compose exec app pytest -v
+```
+
+Full contributing guide at [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation
 
-Full documentation: [https://trottomv.github.io/argus-sbomguard](https://trottomv.github.io/argus-sbomguard)
-or run locally with `mkdocs serve`.
+Full documentation is available at [https://trottomv.github.io/argus-sbomguard](https://trottomv.github.io/argus-sbomguard) or locally via `mkdocs serve`.
 
 ## License
 

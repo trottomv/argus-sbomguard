@@ -1,7 +1,10 @@
 # Argus SBOM Guard
 
-Centralized SBOM management platform for tracking software supply chain security.
-On-prem, deploy anywhere.
+**Open-source SBOM-based vulnerability management platform.**
+
+Import CycloneDX/SPDX SBOMs, scan dependencies with Grype and OSV, track vulnerabilities over time, and monitor your software supply chain risk.
+
+*Centralized SBOM management. On-prem, deploy anywhere.*
 
 ## Quick Start
 
@@ -14,13 +17,23 @@ docker compose exec app alembic upgrade head
 Open [http://localhost:8000](http://localhost:8000), log in with `admin@argus.local`,
 and grab the one-time code from [Mailpit](http://localhost:8025) (dev only).
 
-## Core Features
+## Features
 
 - **SBOM Management** — Upload, store, and diff CycloneDX & SPDX SBOMs
-- **Vulnerability Scanning** — Automatic scanning via Grype + OSV API
-- **Alerting** — Slack and email alerts for new vulnerabilities
+- **Vulnerability Scanning** — Automatic analysis via Grype + OSV API
+- **Vulnerability Tracking** — CVE status, severity, open/fixed reconciliation, historical trends
+- **Alerting** — Slack and email notifications for new vulnerabilities
+- **Supply Chain Visibility** — Projects, services, dependencies, version history
 - **REST API + gRPC** — Full API with key-based authentication
-- **Dashboard** — Real-time vulnerability trends and per-project metrics
+- **Dashboard** — Real-time trends and per-project vulnerability metrics
+
+## Who Is This For?
+
+- **Platform / SRE teams** tracking dependencies across microservices
+- **Security engineers** monitoring vulnerability exposure over time
+- **DevSecOps teams** integrating SBOM management into CI/CD
+- **Open source maintainers** generating and managing SBOMs
+- **Compliance teams** that need SBOM history and audit trails
 
 ## Architecture at a Glance
 
@@ -40,9 +53,6 @@ users → api_keys / login_tokens
 | Vuln Scanner | Grype + OSV API |
 | Auth | Passwordless email login + API keys |
 
-## Who Is This For?
+---
 
-- **Platform / SRE teams** tracking dependencies across microservices
-- **Security engineers** monitoring vulnerability exposure over time
-- **Open source maintainers** generating and managing SBOMs
-- **Compliance teams** that need SBOM history and audit trails
+**Ready to get started?** [Setup →](setup.md) · [User Guide →](guide/projects.md) · [API Reference →](api/reference.md)
