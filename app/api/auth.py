@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config import settings
 from database import get_db
 from middleware import clear_session_cookie, set_session_cookie
 from services.auth import (
     create_login_token,
     get_user_by_email,
-    seed_admin_user,
     send_login_email,
     verify_login_token,
 )
@@ -30,23 +30,24 @@ async def login_request(
     email = email.strip().lower()
     user = await get_user_by_email(db, email)
 
-    if not user:
-        user = await seed_admin_user(db)
+    # Only mint a login token for an existing user. We never fall back to the
+    # admin account for an unknown address (that would let anyone request an
+    # admin code), and we always render the same "code" step regardless of
+    # whether the user exists, to avoid account enumeration.
+    dev_code = None
+    if user:
+        code = await create_login_token(db, user.id)
         await db.commit()
-
-    code = await create_login_token(db, user.id)
-    await db.commit()
-
-    result = await send_login_email(email, code)
+        result = await send_login_email(email, code)
+        # The raw code is only ever surfaced in the response in development,
+        # when SMTP is not configured; never in other environments.
+        if settings.app_env == "development" and isinstance(result, str):
+            dev_code = result
 
     return templates.TemplateResponse(
         request,
         "login.html",
-        {
-            "step": "code",
-            "email": email,
-            "dev_code": result if isinstance(result, str) else None,
-        },
+        {"step": "code", "email": email, "dev_code": dev_code},
     )
 
 
@@ -57,8 +58,9 @@ async def login_verify(
     code: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
+    email = email.strip().lower()
     code = code.strip().upper()
-    user = await verify_login_token(db, code)
+    user = await verify_login_token(db, code, email)
     await db.commit()
 
     if not user:
