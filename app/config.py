@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # App
     secret_key: str = "change-me-to-a-random-secret"
     app_env: str = "development"
-    app_version: str = "0.0.1"
+    app_version: str = "0.0.1-beta"
     log_level: str = "info"
 
     # SMTP

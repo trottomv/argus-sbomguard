@@ -2,6 +2,11 @@
   <img src="app/static/img/argus-sbomguard.png" alt="Argus SBOM Guard" width="200">
 </p>
 
+<p align="center">
+  <a href="https://github.com/trottomv/argus-sbomguard/releases"><img alt="Version" src="https://img.shields.io/badge/version-0.0.1--beta-orange?style=flat-square"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPLv3-blue?style=flat-square"></a>
+</p>
+
 # Argus SBOM Guard
 
 **Open-source SBOM-based vulnerability management platform.**
@@ -9,6 +14,8 @@
 Import CycloneDX/SPDX SBOMs, scan dependencies with Grype and OSV, track vulnerabilities over time, and monitor your software supply chain risk.
 
 *Centralized SBOM management. On-prem, deploy anywhere.*
+
+> **Beta** — Argus SBOM Guard is in active development. APIs and features may change.
 
 ## Why Argus?
 
