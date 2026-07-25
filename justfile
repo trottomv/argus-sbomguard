@@ -4,6 +4,9 @@
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 set dotenv-load := false
 
+# read version from pyproject.toml
+_version := `grep '^version = ' app/pyproject.toml | sed 's/.*= "\(.*\)"/\1/'`
+
 help:
     @just --list
 
@@ -95,18 +98,34 @@ proto:
 css:
     cd app && npm ci && npm run build:css
 
+# install docs dependencies into a local venv
+docs-deps:
+    test -d .docs-venv || python3 -m venv .docs-venv
+    .docs-venv/bin/pip install -q "mike~=2.2" "mkdocs-material~=9.6" "mkdocstrings[python]~=0.29"
+
+_docs-venv-bin := ".docs-venv/bin"
+
 # serve docs locally
-docs-serve:
-    mkdocs serve -a localhost:8001
+docs-serve: docs-deps
+    PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mkdocs serve -a localhost:8001
 
-# build docs static site
-docs-build:
-    mkdocs build
+# build docs static site (in site/)
+docs-build: docs-deps
+    PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mkdocs build
 
-# deploy docs to GitHub Pages
-docs-deploy:
-    mkdocs gh-deploy --force
+# deploy a versioned docs release (reads version from pyproject.toml)
+docs-release: docs-deps
+    PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mike deploy --push --update-aliases {{_version}} latest
+    PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mike set-default --push latest
+
+# set default docs version (usually latest)
+docs-default: docs-deps
+    PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mike set-default --push latest
+
+# list published docs versions
+docs-list: docs-deps
+    PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mike list
 
 # clean
 clean:
-    rm -rf app/__pycache__ app/**/__pycache__ app/.pytest_cache .ruff_cache site
+    rm -rf app/__pycache__ app/**/__pycache__ app/.pytest_cache .ruff_cache site .docs-venv

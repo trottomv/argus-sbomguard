@@ -20,8 +20,13 @@ theme:
     - content.code.copy
     - content.code.annotate
 
+extra:
+  version:
+    provider: mike
+
 plugins:
   - search
+  - mike
   - mkdocstrings:
       handlers:
         python:
