@@ -130,7 +130,3 @@ Full contributing guide at [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Documentation
 
 Full documentation is available at [https://trottomv.github.io/argus-sbomguard](https://trottomv.github.io/argus-sbomguard) or locally via `mkdocs serve`.
-
-## License
-
-AGPL v3
