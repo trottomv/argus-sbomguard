@@ -40,7 +40,7 @@ def set_session_cookie(response, user_id: str, email: str = ""):
         "argus_session",
         cookie,
         httponly=True,
-        secure=False,
+        secure=settings.session_cookie_secure,
         samesite="lax",
         max_age=_SESSION_MAX_AGE,
     )

@@ -1,5 +1,7 @@
-from pydantic import computed_field, field_validator
+from pydantic import computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings
+
+_INSECURE_SECRET_KEY = "change-me-to-a-random-secret"
 
 
 class Settings(BaseSettings):
@@ -38,7 +40,7 @@ class Settings(BaseSettings):
     celery_result_backend: str = "rpc://"
 
     # App
-    secret_key: str = "change-me-to-a-random-secret"
+    secret_key: str = _INSECURE_SECRET_KEY
     app_env: str = "development"
     app_version: str = "0.0.1-beta"
     log_level: str = "info"
@@ -72,6 +74,22 @@ class Settings(BaseSettings):
     admin_email: str = "admin@argus.local"
     login_token_expire_minutes: int = 15
     session_max_age_hours: int = 24
+
+    @computed_field
+    @property
+    def session_cookie_secure(self) -> bool:
+        """Mark the session cookie ``Secure`` outside local development."""
+        return self.app_env != "development"
+
+    @model_validator(mode="after")
+    def _reject_insecure_secret_key(self) -> "Settings":
+        if self.app_env != "development" and self.secret_key == _INSECURE_SECRET_KEY:
+            raise ValueError(
+                "secret_key must be set to a strong random value when app_env is "
+                "not 'development' (generate one with "
+                '`python -c "import secrets; print(secrets.token_urlsafe(48))"`)'
+            )
+        return self
 
 
 settings = Settings()
