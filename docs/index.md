@@ -27,10 +27,7 @@ and grab the one-time code from [Mailpit](http://localhost:8025) (dev only).
 - **REST API + gRPC** — Full API with key-based authentication
 - **Dashboard** — Real-time trends and per-project vulnerability metrics
 
-<figure>
-  <img src="img/dashboard.png" alt="Dashboard showing vulnerability trends, project overview, and recent SBOMs" style="border-radius: 0.5rem; border: 1px solid var(--md-default-fg-color--lighter);">
-  <figcaption>Dashboard — vulnerability trends, project overview, and recent SBOM uploads</figcaption>
-</figure>
+![Dashboard — vulnerability trends, project overview, and recent SBOM uploads](img/dashboard.png)
 
 ## Who Is This For?
 
