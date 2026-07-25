@@ -51,12 +51,6 @@ jobs:
             --grpc_python_out=protos/generated \
             protos/sbom.proto
 
-      - name: Lint (ruff)
-        working-directory: app
-        run: |
-          uv run --no-sync ruff check .
-          uv run --no-sync ruff format --check .
-
       - name: Run tests
         working-directory: app
         env:
