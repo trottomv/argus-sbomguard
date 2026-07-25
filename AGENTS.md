@@ -37,6 +37,14 @@ argus-sbomguard/
 ├── AGENTS.md
 ├── justfile                      # shortcut commands
 ├── rabbitmq.conf
+├── mkdocs.yml                  # docs config (MkDocs + Material + mike)
+├── docs/                        # documentation site source
+│   ├── index.md
+│   ├── setup.md
+│   ├── guide/
+│   ├── development/
+│   ├── api/
+│   └── img/
 ├── scripts/                      # utility scripts
 ├── app/
 │   ├── Dockerfile
@@ -98,7 +106,26 @@ just scan-all
 
 # Pre-commit (install once)
 pip install pre-commit && pre-commit install
+
+# Docs — serve locally
+mkdocs serve
+
+# Docs — publish versioned release (after git tag)
+pip install mike
+mike deploy --push --update-aliases v0.0.1-beta latest
+mike set-default --push latest
+
+# Docs — list published versions
+mike list
 ```
+
+## Documentation
+- Built with **MkDocs** + **Material theme** + **mkdocstrings** (auto API docs from Google-style docstrings).
+- Versioned via **mike**: each release gets a versioned deploy + `latest` alias.
+- Config in `mkdocs.yml`. Source in `docs/`.
+- After changing docs content, run `mike deploy --push --update-aliases <version> latest` (not `mkdocs build`).
+- Served locally with `mkdocs serve`.
+- **Version selector only appears after deploy** (`mike deploy`), not during `mkdocs serve` in local dev — this is expected.
 
 ## Key conventions
 - **SBOM formats**: CycloneDX (JSON) primary; SPDX secondary.

@@ -120,13 +120,19 @@ This runs `pip-compile` with hashes for both `requirements/remote.txt` and `requ
 
 ```bash
 # Install docs dependencies
-pip install mkdocs mkdocs-material "mkdocstrings[python]"
+pip install mkdocs mkdocs-material "mkdocstrings[python]" mike
 
 # Serve locally
 mkdocs serve
 
-# Build static site
-mkdocs build
+# Publish a new version (after each release)
+mike deploy --push --update-aliases v0.0.1-beta latest
+
+# Set default version
+mike set-default --push latest
+
+# List published versions
+mike list
 ```
 
 ## gRPC
