@@ -138,6 +138,13 @@ async def validate_api_key(db: AsyncSession, raw_key: str) -> User | None:
     if not key:
         return None
 
+    if key.expires_at is not None:
+        expires_at = key.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        if expires_at <= datetime.now(UTC):
+            return None
+
     key.last_used_at = datetime.now(UTC)
     return await get_user_by_id(db, key.user_id)
 
