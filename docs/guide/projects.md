@@ -32,10 +32,7 @@ From the dashboard, click any project to see:
 - **Vulnerability Summary** — Open vulnerabilities by severity
 - **Trend Chart** — Daily vulnerability snapshots over time
 
-<figure>
-  <img src="/img/project-detail.png" alt="Project detail page showing services, SBOM history, vulnerability summary, and trends" style="border-radius: 0.5rem; border: 1px solid var(--md-default-fg-color--lighter);">
-  <figcaption>Project detail — services, SBOM versions, vulnerabilities, and trend chart</figcaption>
-</figure>
+![Project detail — services, SBOM versions, vulnerabilities, and trend chart](../img/project-detail.png)
 
 ## Updating a Project
 
