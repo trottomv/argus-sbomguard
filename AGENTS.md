@@ -5,6 +5,7 @@
 - **Frontend**: HTMX + Jinja2 + Alpine.js + DaisyUI 5 + Tailwind CSS v4 (SSR)
 - **Database**: PostgreSQL 18 + JSONB
 - **Deploy**: Docker Compose
+- **Reverse Proxy**: Caddy + Coraza WAF (OWASP CRS v4.4.0)
 - **Vuln Scanner**: Grype (via Celery) + OSV API
 - **Email (dev)**: Mailpit on port 8025
 - **Auth**: Passwordless email login + API keys for REST/gRPC
@@ -30,6 +31,7 @@ argus-sbomguard/
 ├── docker-compose.remote.yml        # remote entry point
 ├── docker-compose/
 │   ├── app.yml                      # app + worker + scheduler
+│   ├── caddy.yml                    # Caddy + Coraza WAF
 │   ├── mailpit.yml                  # mailpit (dev only)
 │   ├── postgresql.yml               # postgres
 │   └── rabbitmq.yml                 # rabbitmq
@@ -46,6 +48,7 @@ argus-sbomguard/
 │   ├── api/
 │   └── img/
 ├── scripts/                      # utility scripts
+├── caddy/                        # Caddy + Coraza WAF (Caddyfile, Dockerfile)
 ├── app/
 │   ├── Dockerfile
 │   ├── .dockerignore
@@ -119,6 +122,32 @@ mike set-default --push latest
 mike list
 ```
 
+## Git workflow
+
+```bash
+# Create a branch
+git checkout -b fix/my-fix        # or feat/my-feature
+
+# Stage and commit
+git add <file>
+git commit -m "type: short description
+
+optional longer body"
+
+# Push and open PR
+git push -u origin fix/my-fix
+# Option A — with GitHub CLI
+gh pr create --fill
+# Option B — with curl (reads GITHUB_TOKEN from .env)
+source .env 2>/dev/null
+curl -s -X POST https://api.github.com/repos/trottomv/argus-sbomguard/pulls \
+  -H "Authorization: Bearer $GITHUB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"fix: short description","head":"fix/my-fix","base":"main","body":"optional body"}'
+# Option C — manually: use the URL printed after pushing, or open via browser
+
+After pushing, the URL to open a PR is shown in the terminal output.
+
 ## Documentation
 - Built with **MkDocs** + **Material theme** + **mkdocstrings** (auto API docs from Google-style docstrings).
 - Versioned via **mike**: each release gets a versioned deploy + `latest` alias.
@@ -155,6 +184,7 @@ alert_configs → notifications / pull_requests
 | postgres | 5432 | Database |
 | rabbitmq | 5672, 15672 | Celery broker |
 | mailpit | 1025, 8025 | Dev SMTP + UI |
+| proxy | 80, 443 | Caddy + Coraza WAF |
 | worker | — | Celery worker |
 | scheduler | — | Celery beat |
 
@@ -162,7 +192,7 @@ alert_configs → notifications / pull_requests
 - `pytest` + `httpx.AsyncClient` in `tests/test_api.py`
 - `pytest-asyncio` for async tests
 - SQLite in-memory for tests (via `conftest.py`)
-- 61 tests, all must pass before committing
+- All tests must pass before committing
 
 ## Gotchas
 - `.env` required (copy from `.env.example`).
