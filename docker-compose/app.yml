@@ -25,6 +25,7 @@ services:
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
     image: argussbomguard:${APP_ENV:-development}
+    user: appuser
     command: celery -A celery_app worker --loglevel=info --concurrency=4
     depends_on:
       postgres:
@@ -50,6 +51,7 @@ services:
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
     image: argussbomguard:${APP_ENV:-development}
+    user: appuser
     command: celery -A celery_app beat --loglevel=info
     depends_on:
       - rabbitmq
