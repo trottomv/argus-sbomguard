@@ -59,6 +59,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           source app/.venv/bin/activate
+          mike delete latest 2>/dev/null || true
           mike deploy --push latest
           mike set-default --push latest
 
