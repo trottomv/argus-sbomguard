@@ -72,7 +72,7 @@ async def verify_login_token(db: AsyncSession, raw_token: str, email: str) -> Us
         .join(User, LoginToken.user_id == User.id)
         .where(
             LoginToken.token_hash == token_hash,
-            LoginToken.used == False,  # noqa: E712
+            LoginToken.used.is_(False),
             LoginToken.expires_at > now,
             User.email == email.strip().lower(),
         )
