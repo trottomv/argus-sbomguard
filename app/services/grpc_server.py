@@ -54,7 +54,7 @@ class SBOMServiceServicer(BaseServicer):
                 engine, class_=AsyncSession, expire_on_commit=False
             )
 
-    async def UploadSBOM(  # noqa: N802
+    async def upload_sbom(
         self, request: UploadRequest, context: grpc.aio.ServicerContext
     ) -> UploadResponse:
         try:
@@ -87,6 +87,8 @@ class SBOMServiceServicer(BaseServicer):
                 dependency_count=sbom.dependency_count or 0,
                 sha256=sbom.sha256,
             )
+
+    UploadSBOM = upload_sbom
 
 
 async def start_grpc_server():
