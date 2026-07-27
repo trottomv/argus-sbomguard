@@ -59,7 +59,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           source app/.venv/bin/activate
-          mike deploy --push --update-aliases main latest
+          mike deploy --push latest
           mike set-default --push latest
 
       - name: Deploy docs (manual dispatch)
