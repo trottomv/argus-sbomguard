@@ -76,6 +76,7 @@ users → api_keys / login_tokens
 
 | Layer | Technology |
 |-------|------------|
+| Proxy | Caddy + Coraza WAF (OWASP CRS v4.4.0) |
 | Backend | Python + FastAPI + Celery + RabbitMQ |
 | Frontend | HTMX + Jinja2 + Alpine.js + DaisyUI 5 + Tailwind CSS v4 |
 | Database | PostgreSQL 18 |
@@ -91,6 +92,7 @@ users → api_keys / login_tokens
 | PostgreSQL | 5432 | — |
 | RabbitMQ | 5672, 15672 | http://localhost:15672 |
 | Mailpit (dev) | 1025, 8025 | http://localhost:8025 |
+| Proxy (Caddy + WAF) | 80, 443 | http://localhost |
 
 ## API
 
