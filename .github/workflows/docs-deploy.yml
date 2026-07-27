@@ -53,13 +53,13 @@ jobs:
         run: |
           source app/.venv/bin/activate
           VERSION=${GITHUB_REF#refs/tags/}
-          mike deploy --push --rebase "$VERSION"
+          mike deploy --push "$VERSION"
 
       - name: Deploy docs (main branch — latest)
         if: github.ref == 'refs/heads/main'
         run: |
           source app/.venv/bin/activate
-          mike deploy --push --rebase --update-aliases latest latest
+          mike deploy --push --update-aliases latest latest
           mike set-default --push latest
 
       - name: Deploy docs (manual dispatch)
@@ -68,7 +68,7 @@ jobs:
           source app/.venv/bin/activate
           ALIAS="${{ inputs.alias }}"
           if [ -n "$ALIAS" ]; then
-            mike deploy --push --rebase --update-aliases "${{ inputs.version }}" "$ALIAS"
+            mike deploy --push --update-aliases "${{ inputs.version }}" "$ALIAS"
           else
-            mike deploy --push --rebase "${{ inputs.version }}"
+            mike deploy --push "${{ inputs.version }}"
           fi
