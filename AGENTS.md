@@ -122,6 +122,9 @@ mike set-default --push latest
 mike list
 ```
 
+## Pull requests
+- Only open a PR when explicitly requested by the user. Never open one proactively.
+
 ## Git workflow
 
 ```bash
@@ -155,6 +158,10 @@ After pushing, the URL to open a PR is shown in the terminal output.
 - After changing docs content, run `mike deploy --push --update-aliases <version> latest` (not `mkdocs build`).
 - Served locally with `mkdocs serve`.
 - **Version selector only appears after deploy** (`mike deploy`), not during `mkdocs serve` in local dev — this is expected.
+
+## Language
+- **All communication must be in English**: code comments, docstrings, commit messages, PR titles/descriptions, variable names, and this agent's responses. This repository is English-only.
+- The agent (opencode) will respond in English unless the user explicitly writes in another language for a specific request.
 
 ## Key conventions
 - **SBOM formats**: CycloneDX (JSON) primary; SPDX secondary.
