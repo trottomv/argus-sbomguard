@@ -65,7 +65,7 @@ nav:
       - SBOMs: guide/sboms.md
       - Vulnerabilities: guide/vulnerabilities.md
       - Alerts & Notifications: guide/alerts.md
-      - Reverse Proxy (Caddy + WAF): guide/proxy.md
+      - Reverse Proxy + WAF: guide/proxy.md
   - Development:
       - Contributing: development/contributing.md
       - Architecture: development/architecture.md
