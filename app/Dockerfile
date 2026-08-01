@@ -1,17 +1,16 @@
 # syntax=docker/dockerfile:1
 
-ARG NODE_VERSION=24
-ARG ALPINE_VERSION=3.23
+ARG BUN_VERSION=1
 ARG PYTHON_VERSION=3.13
 
-FROM dhi.io/node:${NODE_VERSION}-alpine${ALPINE_VERSION}-dev AS css-builder
+FROM dhi.io/bun:${BUN_VERSION}-alpine-dev AS css-builder
 
 WORKDIR /build
-COPY package.json package-lock.json* ./
-RUN npm clean-install
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 COPY static/ static/
 COPY templates/ templates/
-RUN npm run build:css
+RUN bun run build:css
 
 
 FROM dhi.io/grype:0-alpine AS grype

@@ -96,7 +96,7 @@ proto:
 
 # build tailwind CSS
 css:
-    cd app && npm ci && npm run build:css
+    cd app && bun install && bun run build:css
 
 # install docs dependencies into a local venv
 docs-deps:
