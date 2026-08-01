@@ -148,5 +148,5 @@ and auth parameters.
 
 - **All DB access is async** via `AsyncSession` and `asyncpg`
 - **Blocking operations** (Grype scanning, vulnerability processing) run in Celery workers
-- **Periodic tasks** (alert checking, snapshot creation) run via Celery Beat
+- **Periodic tasks** (alert checking, snapshot creation, vulnerability rescan of the latest SBOMs) run via Celery Beat
 - Workers use `NullPool` to avoid connection pinning across greenlets
