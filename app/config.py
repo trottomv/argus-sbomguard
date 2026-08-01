@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     # Slack
     slack_webhook_url: str = ""
 
+    # Vulnerabilities
+    vuln_rescan_interval_seconds: int = 43200  # every 12 hours
+
     # gRPC
     grpc_port: int = 50051
 

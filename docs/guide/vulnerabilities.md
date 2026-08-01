@@ -12,6 +12,17 @@ Each uploaded SBOM is automatically scanned for vulnerabilities using
 5. Reconciliation runs: vulnerabilities not found in the latest scan are marked `fixed`
 6. Alert rules are checked and notifications sent
 
+## Periodic Rescan
+
+New vulnerabilities are published daily, so the latest SBOM of **every service of
+every project** is automatically rescanned by Celery Beat on a configurable interval
+(`VULN_RESCAN_INTERVAL_SECONDS` in `.env`, default 12h). Each rescan:
+
+- Adds any newly published CVEs to the SBOM
+- Refreshes severity/summary/CVSS metadata from the latest Grype data
+- Retires findings Grype no longer reports (marked `fixed`), so counts stay current
+  even without uploading a new SBOM
+
 ## Viewing Vulnerabilities
 
 **UI**: Dashboard → Vulnerabilities

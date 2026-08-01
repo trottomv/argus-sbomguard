@@ -24,6 +24,7 @@ Key settings in `.env`:
 | `RABBITMQ_HOST` | `rabbitmq` | Celery broker hostname |
 | `SMTP_HOST` | — | SMTP server (Mailpit in dev) |
 | `SLACK_WEBHOOK_URL` | — | Slack incoming webhook |
+| `VULN_RESCAN_INTERVAL_SECONDS` | `43200` | Seconds between automatic vulnerability rescans of the latest SBOMs (12h default; 6h = `21600`, 24h = `86400`) |
 | `DISPLAY_TIMEZONE` | `UTC` | Timezone for UI dates |
 | `SESSION_MAX_AGE_HOURS` | `1` | Session cookie lifetime |
 | `LOGIN_TOKEN_EXPIRE_MINUTES` | `15` | Email code validity |
