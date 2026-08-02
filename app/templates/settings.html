@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Settings - Argus SBOM Guard{% endblock %}
-{% block breadcrumb %}<span class="text-ctp-text font-medium">Settings</span>{% endblock %}
+{% block title %}Settings - Argus SBOM Guard{% endblock title %}
+{% block breadcrumb %}{% endblock breadcrumb %}
 {% block content %}
 <div class="space-y-6" x-data="{ keyId: null, keyLabel: '', editAlertId: null, alertProject: '', alertSeverity: 'high', alertType: 'slack', alertEnabled: true, delAlertId: null, createdKey: '', showCreatedKey: false, newKeyLabel: '' }">
     <h1 class="text-2xl font-bold">Settings</h1>
@@ -220,4 +220,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
+{% endblock content %}
