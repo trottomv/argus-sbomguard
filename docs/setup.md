@@ -19,6 +19,7 @@ Key settings in `.env`:
 |----------|---------|-------------|
 | `SECRET_KEY` | — | **Change this.** Used for session signing |
 | `ADMIN_EMAIL` | `admin@argus.local` | Admin user created on first start |
+| `PULL_POLICY` | `always` | Image pull policy for compose services: `always` pulls on every `up`, `missing` pulls only if the image is absent locally |
 | `POSTGRES_HOST` | `postgres` | Database hostname |
 | `POSTGRES_PASSWORD` | `argus` | Database password |
 | `RABBITMQ_HOST` | `rabbitmq` | Celery broker hostname |

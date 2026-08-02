@@ -1,6 +1,7 @@
 services:
   rabbitmq:
     image: dhi.io/rabbitmq:4
+    pull_policy: ${PULL_POLICY:-always}
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-argus}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-argus}
