@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,7 @@ from services.pagination import (
     Page,
     paginate,
 )
+from services.tasks import snapshot_metrics
 from templating import format_dt, templates
 
 SEVERITY_ORDER = {
@@ -275,6 +276,12 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
             "chart_fixed": chart_fixed,
         },
     )
+
+
+@router.post("/refresh-snapshots", status_code=202)
+async def refresh_snapshots():
+    snapshot_metrics.delay()
+    return Response(status_code=202)
 
 
 @router.get("/projects", response_class=HTMLResponse)
