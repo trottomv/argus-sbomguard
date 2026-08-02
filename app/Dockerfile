@@ -40,7 +40,8 @@ RUN python3 -m pip install --no-cache-dir --require-hashes -r requirements/remot
 COPY alembic.ini ./
 COPY migrations/ migrations/
 COPY . /app/
-RUN python3 -m grpc_tools.protoc -Iprotos --python_out=/app/protos/generated --grpc_python_out=/app/protos/generated protos/sbom.proto
+RUN mkdir -p /app/protos/generated \
+    && python3 -m grpc_tools.protoc -Iprotos --python_out=/app/protos/generated --grpc_python_out=/app/protos/generated protos/sbom.proto
 
 COPY --from=css-builder /build/static/css/dist.css /app/static/css/dist.css
 COPY --from=grype /usr/bin/grype /usr/local/bin/grype
