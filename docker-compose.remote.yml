@@ -6,9 +6,6 @@ include:
 
 services:
   app:
-    env_file:
-      - .env
-    restart: unless-stopped
     build:
       target: remote
     deploy:
@@ -16,11 +13,11 @@ services:
         limits:
           memory: ${APP_MEM_LIMIT:-512M}
           cpus: ${APP_CPU_LIMIT:-1.0}
-
-  worker:
     env_file:
       - .env
     restart: unless-stopped
+
+  worker:
     build:
       target: remote
     deploy:
@@ -28,11 +25,11 @@ services:
         limits:
           memory: ${WORKER_MEM_LIMIT:-512M}
           cpus: ${WORKER_CPU_LIMIT:-1.0}
-
-  scheduler:
     env_file:
       - .env
     restart: unless-stopped
+
+  scheduler:
     build:
       target: remote
     deploy:
@@ -40,3 +37,6 @@ services:
         limits:
           memory: ${SCHEDULER_MEM_LIMIT:-128M}
           cpus: ${SCHEDULER_CPU_LIMIT:-0.5}
+    env_file:
+      - .env
+    restart: unless-stopped

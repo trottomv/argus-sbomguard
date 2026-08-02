@@ -4,21 +4,21 @@ services:
       context: ../app
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
-    container_name: argussbomguard_app
     image: argussbomguard:${APP_ENV:-development}
-    expose:
-      - "50051"
+    container_name: argussbomguard_app
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    restart: on-failure
+    expose:
+      - "50051"
     logging:
       driver: local
       options:
         max-size: ${LOG_MAX_SIZE:-10m}
         max-file: ${LOG_MAX_FILE:-3}
+    restart: on-failure
 
   worker:
     build:
@@ -26,7 +26,6 @@ services:
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
     image: argussbomguard:${APP_ENV:-development}
-    user: appuser
     command: celery -A celery_app worker --loglevel=info --concurrency=4
     depends_on:
       postgres:
@@ -39,12 +38,13 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    restart: on-failure
     logging:
       driver: local
       options:
         max-size: ${LOG_MAX_SIZE:-10m}
         max-file: ${LOG_MAX_FILE:-3}
+    restart: on-failure
+    user: appuser
 
   scheduler:
     build:
@@ -52,13 +52,13 @@ services:
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
     image: argussbomguard:${APP_ENV:-development}
-    user: appuser
     command: celery -A celery_app beat --loglevel=info
     depends_on:
       - rabbitmq
-    restart: on-failure
     logging:
       driver: local
       options:
         max-size: ${LOG_MAX_SIZE:-10m}
         max-file: ${LOG_MAX_FILE:-3}
+    restart: on-failure
+    user: appuser
