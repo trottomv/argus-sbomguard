@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -479,6 +480,14 @@ async def test_dashboard_page(client):
     resp = await client.get("/")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_snapshots(client):
+    with patch("api.dashboard.snapshot_metrics") as mock_task:
+        resp = await client.post("/refresh-snapshots")
+    assert resp.status_code == 202
+    mock_task.delay.assert_called_once_with()
 
 
 @pytest.mark.asyncio
