@@ -6,8 +6,7 @@ include:
 
 services:
   app:
-    build:
-      target: remote
+    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.2-beta}
     deploy:
       resources:
         limits:
@@ -18,8 +17,7 @@ services:
     restart: unless-stopped
 
   worker:
-    build:
-      target: remote
+    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.2-beta}
     deploy:
       resources:
         limits:
@@ -30,8 +28,7 @@ services:
     restart: unless-stopped
 
   scheduler:
-    build:
-      target: remote
+    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.2-beta}
     deploy:
       resources:
         limits:

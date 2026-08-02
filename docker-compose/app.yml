@@ -1,9 +1,5 @@
 services:
   app:
-    build:
-      context: ../app
-      dockerfile: Dockerfile
-      target: ${BUILD_TARGET:-development}
     image: argussbomguard:${APP_ENV:-development}
     container_name: argussbomguard_app
     depends_on:
@@ -21,11 +17,8 @@ services:
     restart: on-failure
 
   worker:
-    build:
-      context: ../app
-      dockerfile: Dockerfile
-      target: ${BUILD_TARGET:-development}
     image: argussbomguard:${APP_ENV:-development}
+    container_name: argussbomguard_worker
     command: celery -A celery_app worker --loglevel=info --concurrency=4
     depends_on:
       postgres:
@@ -47,11 +40,8 @@ services:
     user: appuser
 
   scheduler:
-    build:
-      context: ../app
-      dockerfile: Dockerfile
-      target: ${BUILD_TARGET:-development}
     image: argussbomguard:${APP_ENV:-development}
+    container_name: argussbomguard_scheduler
     command: celery -A celery_app beat --loglevel=info
     depends_on:
       - rabbitmq
