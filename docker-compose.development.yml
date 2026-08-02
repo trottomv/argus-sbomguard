@@ -8,7 +8,7 @@ include:
 services:
   app:
     build:
-      context: ../app
+      context: ./app
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
     env_file:
@@ -30,7 +30,7 @@ services:
 
   worker:
     build:
-      context: ../app
+      context: ./app
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
     env_file:
@@ -41,7 +41,7 @@ services:
 
   scheduler:
     build:
-      context: ../app
+      context: ./app
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
     env_file:
