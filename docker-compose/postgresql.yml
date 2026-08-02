@@ -1,6 +1,7 @@
 services:
   postgres:
     image: dhi.io/postgres:18-alpine3.23
+    pull_policy: ${PULL_POLICY:-always}
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-argus}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-argus}
