@@ -68,5 +68,4 @@ jobs:
           IMAGE: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
         run: |
           cosign sign --yes \
-            --upload-bundle \
             "${IMAGE}"
