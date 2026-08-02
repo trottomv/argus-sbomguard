@@ -4,6 +4,7 @@ services:
       context: ../app
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
+    container_name: argussbomguard_app
     image: argussbomguard:${APP_ENV:-development}
     expose:
       - "50051"
@@ -33,7 +34,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "celery -A celery_app inspect ping -d celery@$$HOSTNAME || exit 1"]
+      test: ["CMD", "celery", "-A", "celery_app", "inspect", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
