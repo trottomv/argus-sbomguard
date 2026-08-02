@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     # App
     secret_key: str = _INSECURE_SECRET_KEY
     app_env: str = "development"
-    app_version: str = "0.0.1-beta"
+    app_version: str = "0.0.2-beta"
     log_level: str = "info"
 
     # SMTP

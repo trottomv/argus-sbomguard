@@ -113,12 +113,10 @@ pip install pre-commit && pre-commit install
 # Docs — serve locally
 mkdocs serve
 
-# Docs — publish versioned release (after git tag)
-pip install mike
-mike deploy --push --update-aliases v0.0.1-beta latest
-mike set-default --push latest
+# Docs — published automatically via CI on tag (v*) and main branch
 
 # Docs — list published versions
+pip install mike
 mike list
 ```
 
