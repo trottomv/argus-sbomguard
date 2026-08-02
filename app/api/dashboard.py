@@ -619,10 +619,14 @@ async def vulnerabilities_page(
                 (SBOMVulnerability.sbom_id == Dependency.sbom_id)
                 & (SBOMVulnerability.dependency_purl == Dependency.purl),
             )
-            .where(SBOMVulnerability.vulnerability_id.in_(vuln_ids))
+            .where(
+                SBOMVulnerability.vulnerability_id.in_(vuln_ids),
+                SBOMVulnerability.status == "open",
+            )
         )
         for v_id, d_name, d_ver, d_purl in dep_rows:
             dep_map.setdefault(v_id, set()).add(_dep_name(d_name, d_ver, d_purl))
+        dep_map = {v: sorted(names) for v, names in dep_map.items()}
 
     # Dropdown data: only on first page
     projects: list = []
