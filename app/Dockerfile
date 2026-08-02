@@ -3,7 +3,7 @@
 ARG BUN_VERSION=1
 ARG PYTHON_VERSION=3.13
 
-FROM dhi.io/bun:${BUN_VERSION}-alpine-dev AS css-builder
+FROM dhi.io/bun:${BUN_VERSION}-alpine-dev@sha256:d364f4eb6d20f8e906bdb9d12726995f8335878f46e0c1c69c910df9d92df5d8 AS css-builder
 
 WORKDIR /build
 COPY package.json bun.lock ./
@@ -13,10 +13,10 @@ COPY templates/ templates/
 RUN bun run build:css
 
 
-FROM dhi.io/grype:0-alpine AS grype
+FROM dhi.io/grype:0-alpine@sha256:d19bddcf5064184f5a833303dc68e2b1a65a2c712aabd52278f4748d385006e2 AS grype
 
 
-FROM dhi.io/python:${PYTHON_VERSION}-alpine-dev AS base
+FROM dhi.io/python:${PYTHON_VERSION}-alpine-dev@sha256:8c3820102033dff6a1e5de0fad001747c7b0979c372d6ffc1ac95dd0e03eed82 AS base
 
 ARG APP_USER=appuser
 ENV LANG=C.UTF-8 \
@@ -30,7 +30,6 @@ WORKDIR /app
 RUN apk add --no-cache build-base \
     && addgroup -S ${APP_USER} \
     && adduser -S ${APP_USER} -G ${APP_USER}
-
 
 
 FROM base AS build
