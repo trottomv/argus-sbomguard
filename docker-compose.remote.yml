@@ -6,7 +6,6 @@ include:
 
 services:
   app:
-    build: !reset null
     image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.2-beta}
     deploy:
       resources:
@@ -18,7 +17,6 @@ services:
     restart: unless-stopped
 
   worker:
-    build: !reset null
     image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.2-beta}
     deploy:
       resources:
@@ -30,7 +28,6 @@ services:
     restart: unless-stopped
 
   scheduler:
-    build: !reset null
     image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.2-beta}
     deploy:
       resources:
