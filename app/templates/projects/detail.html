@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ project.name }} - Argus SBOM Guard{% endblock %}
+{% block title %}{{ project.name }} - Argus SBOM Guard{% endblock title %}
 {% block content %}
 <div class="space-y-6" x-data="{
     sbomDelId: null,
@@ -140,7 +140,7 @@
                         {{ svc.name }}
                     </a>
                     <button class="btn btn-ghost btn-xs text-error hover:text-error-content"
-                            @click="svcDelId='{{ svc.id }}'; svcDelName='{{ svc.name }}'; delete_service_modal.showModal()""
+                            @click="svcDelId='{{ svc.id }}'; svcDelName='{{ svc.name }}'; delete_service_modal.showModal()"
                             title="Delete service">&#x2715;</button>
                 </span>
                 {% endfor %}
@@ -297,4 +297,4 @@
 
 
 </div>
-{% endblock %}
+{% endblock content %}
