@@ -19,19 +19,18 @@ FROM dhi.io/grype:0-alpine AS grype
 FROM dhi.io/python:${PYTHON_VERSION}-alpine-dev AS base
 
 ARG APP_USER=appuser
-
-WORKDIR /app
-
-RUN apk add --no-cache build-base \
-    && addgroup -S ${APP_USER} \
-    && adduser -S ${APP_USER} -G ${APP_USER}
-
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/protos/generated \
     APP_USER=${APP_USER}
+WORKDIR /app
+
+RUN apk add --no-cache build-base \
+    && addgroup -S ${APP_USER} \
+    && adduser -S ${APP_USER} -G ${APP_USER}
+
 
 
 FROM base AS build
@@ -50,18 +49,24 @@ COPY --from=grype /usr/bin/grype /usr/local/bin/grype
 RUN chown -R ${APP_USER}:${APP_USER} /app
 
 EXPOSE 8000
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.py"]
 
 
-FROM build AS remote
+FROM build AS remote-debug
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD ["python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
 
 USER ${APP_USER}
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
-
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
+
+FROM remote-debug AS remote
+
+USER root
+RUN rm -f /bin/sh /bin/bash
+USER ${APP_USER}
 
 FROM build AS development
 
