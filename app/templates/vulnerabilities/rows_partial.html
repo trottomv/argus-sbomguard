@@ -12,6 +12,7 @@
     'cvss_vector': cvss_vec,
     'summary': (vuln.summary or ''),
     'published': (vuln.published_at | format_dt('%Y-%m-%d', '')),
+    'dependency': (dep_map.get(vuln.id, []) | join(', ')),
     'urls': urls,
     'affected': (vuln.affected_packages or []),
     'fixed': fix_versions
@@ -34,6 +35,8 @@
 {% endif %}
     </td>
     <td>{{ vuln.cvss_score or "-" }}</td>
+    <td class="max-w-xs truncate font-mono text-xs">{{ dep_map.get(vuln.id, []) | join(', ') or "-" }}</td>
+    <td class="text-sm">{{ fix_versions | join(', ') or "-" }}</td>
     <td>
         <div class="flex flex-wrap gap-1">
             {% for pname in project_map.get(vuln.id, []) %}
@@ -48,7 +51,6 @@
             {% endfor %}
             </div>
     </td>
-    <td class="max-w-md truncate text-sm">{{ vuln.summary or "-" }}</td>
     <td><span class="badge badge-outline badge-sm">{{ vuln.source or "unknown" }}</span></td>
     <td class="text-sm">{{ vuln.published_at | format_dt('%Y-%m-%d') }}</td>
 </tr>

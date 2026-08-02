@@ -1,7 +1,12 @@
 import json
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
+
+from models.project import Project
+from models.sbom import SBOM, Dependency
+from models.vulnerability import SBOMVulnerability, Vulnerability
 
 SAMPLE_CYCLONEDX = {
     "bomFormat": "CycloneDX",
@@ -516,6 +521,85 @@ async def test_vulnerabilities_page_pagination(client):
     resp = await client.get("/vulnerabilities?page=1&per_page=10&sort=cvss_score&order=desc")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
+
+
+@pytest.mark.asyncio
+async def test_vulnerabilities_page_shows_library_and_fixed_version(client, db_session):
+    project = Project(name="lib-fix-test")
+    db_session.add(project)
+    await db_session.flush()
+
+    sbom = SBOM(
+        project_id=project.id,
+        version="v1",
+        format="CycloneDX",
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="a" * 64,
+    )
+    db_session.add(sbom)
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            Dependency(
+                sbom_id=sbom.id, name="lodash", version="4.17.20", purl="pkg:npm/lodash@4.17.20"
+            ),
+            Dependency(
+                sbom_id=sbom.id, name="react", version="18.2.0", purl="pkg:npm/react@18.2.0"
+            ),
+            Dependency(sbom_id=sbom.id, name="axios", version="1.7.0", purl="pkg:npm/axios@1.7.0"),
+        ]
+    )
+    await db_session.flush()
+
+    vuln = Vulnerability(
+        cve_id="CVE-2026-0001",
+        source="grype",
+        severity="HIGH",
+        cvss_score=8.1,
+        summary="Lodash RCE",
+        affected_packages=["pkg:npm/lodash@4.17.20"],
+        extra_data={"fix": {"versions": ["4.17.21"], "state": "fixed"}},
+    )
+    db_session.add(vuln)
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            SBOMVulnerability(
+                sbom_id=sbom.id,
+                dependency_purl="pkg:npm/lodash@4.17.20",
+                vulnerability_id=vuln.id,
+                status="open",
+                detected_at=datetime.now(UTC),
+            ),
+            SBOMVulnerability(
+                sbom_id=sbom.id,
+                dependency_purl="pkg:npm/react@18.2.0",
+                vulnerability_id=vuln.id,
+                status="open",
+                detected_at=datetime.now(UTC),
+            ),
+            SBOMVulnerability(
+                sbom_id=sbom.id,
+                dependency_purl="pkg:npm/axios@1.7.0",
+                vulnerability_id=vuln.id,
+                status="fixed",
+                detected_at=datetime.now(UTC),
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    resp = await client.get("/vulnerabilities")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "CVE-2026-0001" in html
+    assert "lodash 4.17.20" in html
+    assert "react 18.2.0" in html
+    assert "4.17.21" in html
+    assert "axios 1.7.0" not in html
+    assert html.index("lodash 4.17.20") < html.index("react 18.2.0")
 
 
 @pytest.mark.asyncio
