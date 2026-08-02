@@ -125,11 +125,7 @@ pip install mkdocs mkdocs-material "mkdocstrings[python]" mike
 # Serve locally
 mkdocs serve
 
-# Publish a new version (after each release)
-mike deploy --push --update-aliases v0.0.1-beta latest
-
-# Set default version
-mike set-default --push latest
+# Docs deploy is automatic via CI on tag (v*) and main branch — no manual steps needed.
 
 # List published versions
 mike list
