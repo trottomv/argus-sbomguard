@@ -606,6 +606,24 @@ async def vulnerabilities_page(
             if svc_name:
                 service_map.setdefault(v_id, set()).add(svc_name)
 
+        dep_map: dict = {}
+        dep_rows = await db.execute(
+            select(
+                SBOMVulnerability.vulnerability_id,
+                Dependency.name,
+                Dependency.version,
+                SBOMVulnerability.dependency_purl,
+            )
+            .outerjoin(
+                Dependency,
+                (SBOMVulnerability.sbom_id == Dependency.sbom_id)
+                & (SBOMVulnerability.dependency_purl == Dependency.purl),
+            )
+            .where(SBOMVulnerability.vulnerability_id.in_(vuln_ids))
+        )
+        for v_id, d_name, d_ver, d_purl in dep_rows:
+            dep_map.setdefault(v_id, set()).add(_dep_name(d_name, d_ver, d_purl))
+
     # Dropdown data: only on first page
     projects: list = []
     services: list = []
@@ -632,6 +650,7 @@ async def vulnerabilities_page(
         "items": vulns,
         "project_map": project_map,
         "service_map": service_map,
+        "dep_map": dep_map if vulns else {},
         "projects": projects,
         "services": services,
         "active_severity": severity or "",

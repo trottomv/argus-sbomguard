@@ -27,6 +27,8 @@
 {% endif %}
     </td>
     <td>{{ vuln.cvss_score or "-" }}</td>
+    <td class="max-w-xs truncate text-xs font-mono">{{ vuln.dependency_name or "-" }}</td>
+    <td class="text-sm">{{ vuln.fix_versions | join(', ') or "-" }}</td>
     <td>
         {% if vuln.service_name %}
         <span class="badge badge-ghost badge-sm">{{ vuln.service_name }}</span>
@@ -34,8 +36,6 @@
         <span class="text-xs opacity-40">-</span>
         {% endif %}
     </td>
-    <td class="max-w-xs truncate text-xs font-mono">{{ vuln.dependency_name or "-" }}</td>
-    <td class="max-w-md truncate text-sm">{{ vuln.summary or "-" }}</td>
 </tr>
 {% endfor %}
 <div id="load-more-project-vuln-section" hx-swap-oob="true">
