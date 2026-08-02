@@ -53,8 +53,7 @@ jobs:
         if: github.event_name == 'release'
         run: |
           source app/.venv/bin/activate
-          VERSION="${TAG_NAME#v}"
-          mike deploy --push "$VERSION"
+          mike deploy --push "$TAG_NAME"
         env:
           TAG_NAME: ${{ github.event.release.tag_name }}
 
