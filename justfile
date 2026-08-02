@@ -1,54 +1,66 @@
-# --------------------
-# justfile
-# --------------------
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 set dotenv-load := false
 
 # read version from pyproject.toml
 _version := `grep '^version = ' app/pyproject.toml | sed 's/.*= "\(.*\)"/\1/'`
 
+# show available recipes
 help:
     @just --list
 
-# start everything
+# ---- Build & Run ----
+
+# start all services
 up:
     docker compose up -d --build
 
-# stop everything
+# stop all services
 down:
     docker compose down
 
-# restart
+# restart all services
 restart:
     docker compose restart
 
-# logs
+# ---- Logs ----
+
+# tail app logs
 logs:
     docker compose logs -f app
 
+# tail worker logs
 logs-worker:
     docker compose logs -f worker
 
-# tests
+# ---- Testing ----
+
+# run tests
 test:
     docker compose exec app pytest -v
 
+# run tests with coverage
 test-cov:
     docker compose exec app pytest -v --cov=. --cov-report=term-missing
 
+# run tests in watch mode
 test-watch:
     docker compose exec app ptw -- -v
 
-# lint
+# ---- Lint & Format ----
+
+# check linting
 lint:
     docker compose exec app ruff check .
 
+# fix linting issues
 lint-fix:
     docker compose exec app ruff check --fix .
 
+# format code
 format:
     docker compose exec app ruff format .
 
+# check formatting
 format-check:
     docker compose exec app ruff format --check
 
@@ -58,45 +70,63 @@ compile-requirements:
     pip-compile --generate-hashes --no-header --resolver=backtracking --upgrade --allow-unsafe -o app/requirements/remote.txt app/pyproject.toml
     pip-compile --generate-hashes --no-header --resolver=backtracking --upgrade --extra dev --allow-unsafe -o app/requirements/dev.txt app/pyproject.toml
 
-# security
+# ---- Security ----
+
+# run bandit SAST
 bandit:
     docker compose exec app bandit -c pyproject.toml -r .
 
+# audit dependencies for known vulnerabilities
 audit:
     docker compose exec app pip-audit --require-hashes --disable-pip -r requirements/remote.txt
 
-# pre-commit
+# ---- Git ----
+
+# run all pre-commit checks
 pre-commit:
     pre-commit run --all-files
 
-# database
+# ---- Database ----
+
+# run pending migrations
 db-upgrade:
     docker compose exec app alembic upgrade head
 
+# create a new migration
 db-make msg:
     docker compose exec app alembic revision --autogenerate -m "{{msg}}"
 
+# show migration history
 db-history:
     docker compose exec app alembic history
 
-# shell
+# ---- Shell ----
+
+# open a shell in the app container
 shell:
     docker compose exec app sh
 
+# open a psql session
 shell-db:
     docker compose exec postgres psql -U argus
 
-# scan all images with syft
+# ---- Images & Proto ----
+
+# scan all container images with syft
 scan-all:
     @bash scripts/scan-all.sh
 
-# regenerate protobuf stubs
+# regenerate gRPC protobuf stubs
 proto:
     docker compose run --rm --no-deps --entrypoint python app -m grpc_tools.protoc -Iprotos --python_out=/app/protos/generated --grpc_python_out=/app/protos/generated protos/sbom.proto
 
-# build tailwind CSS
+# ---- Frontend ----
+
+# build Tailwind CSS
 css:
     cd app && bun install --frozen-lockfile && bun run build:css
+
+# ---- Docs ----
 
 # install docs dependencies into a local venv
 docs-deps:
@@ -105,11 +135,11 @@ docs-deps:
 
 _docs-venv-bin := ".docs-venv/bin"
 
-# serve docs locally
+# serve docs locally on :8001
 docs-serve: docs-deps
     PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mkdocs serve -a localhost:8001
 
-# build docs static site (in site/)
+# build docs static site (output: site/)
 docs-build: docs-deps
     PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mkdocs build
 
@@ -118,7 +148,7 @@ docs-release: docs-deps
     PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mike deploy --push --update-aliases {{_version}} latest
     PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mike set-default --push latest
 
-# set default docs version (usually latest)
+# set default docs version to latest
 docs-default: docs-deps
     PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mike set-default --push latest
 
@@ -126,6 +156,8 @@ docs-default: docs-deps
 docs-list: docs-deps
     PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mike list
 
-# clean
+# ---- Utils ----
+
+# remove build artifacts and caches
 clean:
     rm -rf app/__pycache__ app/**/__pycache__ app/.pytest_cache .ruff_cache site .docs-venv
