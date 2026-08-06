@@ -18,6 +18,10 @@ Open [http://localhost:8000](http://localhost:8000), log in with `admin@argus.lo
 and grab the one-time code from [Mailpit](http://localhost:8025) (dev only) — or set
 `SHOW_LOGIN_CODE_IN_RESPONSE=true` to display it directly on the login page.
 
+> Running this on a server? Follow the [Deployment Guide](deployment.md) for a
+> copy-paste walkthrough covering hardware requirements, TLS, and production
+> configuration.
+
 ## Features
 
 - **SBOM Management** — Upload, store, and diff CycloneDX & SPDX SBOMs
@@ -58,4 +62,4 @@ users → api_keys / login_tokens
 
 ---
 
-**Ready to get started?** [Setup →](setup.md) · [User Guide →](guide/projects.md) · [API Reference →](api/reference.md)
+**Ready to get started?** [Deployment Guide →](deployment.md) · [Setup →](setup.md) · [User Guide →](guide/projects.md) · [API Reference →](api/reference.md)

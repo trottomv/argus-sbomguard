@@ -60,6 +60,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Setup & Configuration: setup.md
+  - Deployment: deployment.md
   - User Guide:
       - Projects: guide/projects.md
       - SBOMs: guide/sboms.md
