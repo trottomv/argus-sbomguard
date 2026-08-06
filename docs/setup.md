@@ -18,6 +18,7 @@ Key settings in `.env`:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SECRET_KEY` | — | **Change this.** Used for session signing |
+| `APP_ENV` | `development` | `development` / `demo` / `production` (also used as the Docker image tag). Non-development requires a strong `SECRET_KEY` |
 | `ADMIN_EMAIL` | `admin@argus.local` | Admin user created on first start |
 | `PULL_POLICY` | `always` | Image pull policy for compose services: `always` pulls on every `up`, `missing` pulls only if the image is absent locally |
 | `POSTGRES_HOST` | `postgres` | Database hostname |
@@ -29,6 +30,7 @@ Key settings in `.env`:
 | `DISPLAY_TIMEZONE` | `UTC` | Timezone for UI dates |
 | `SESSION_MAX_AGE_HOURS` | `1` | Session cookie lifetime |
 | `LOGIN_TOKEN_EXPIRE_MINUTES` | `15` | Email code validity |
+| `SHOW_LOGIN_CODE_IN_RESPONSE` | `false` | Show the one-time login code directly on the login page (dev/demo without SMTP). **Rejected when `APP_ENV=production`** |
 
 ## Starting the Application
 
@@ -73,7 +75,7 @@ The remote stack includes Caddy as a reverse proxy with Coraza WAF.
 
 1. Open [http://localhost:8000](http://localhost:8000)
 2. Enter `admin@argus.local` (or your `ADMIN_EMAIL`)
-3. Check [Mailpit](http://localhost:8025) for the one-time code (or your email inbox in production)
+3. Check [Mailpit](http://localhost:8025) for the one-time code (or your email inbox in production). With `SHOW_LOGIN_CODE_IN_RESPONSE=true` (dev/demo only) the code is also shown directly on the login page
 4. Enter the code to sign in
 
 ## API Authentication

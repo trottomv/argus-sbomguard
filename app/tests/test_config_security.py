@@ -29,3 +29,38 @@ def test_session_cookie_secure_follows_environment():
         Settings(app_env="production", secret_key="a-strong-random-value").session_cookie_secure
         is True
     )
+
+
+def test_show_login_code_defaults_to_false():
+    assert (
+        Settings(app_env="development", secret_key=_PLACEHOLDER).show_login_code_in_response
+        is False
+    )
+
+
+def test_show_login_code_allowed_in_development_and_demo():
+    assert (
+        Settings(
+            app_env="development",
+            secret_key=_PLACEHOLDER,
+            show_login_code_in_response=True,
+        ).show_login_code_in_response
+        is True
+    )
+    assert (
+        Settings(
+            app_env="demo",
+            secret_key="a-strong-random-value",
+            show_login_code_in_response=True,
+        ).show_login_code_in_response
+        is True
+    )
+
+
+def test_show_login_code_rejected_in_production():
+    with pytest.raises(ValidationError):
+        Settings(
+            app_env="production",
+            secret_key="a-strong-random-value",
+            show_login_code_in_response=True,
+        )

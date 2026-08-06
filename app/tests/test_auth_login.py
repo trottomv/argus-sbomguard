@@ -2,6 +2,7 @@
 
 from sqlalchemy import select
 
+from config import settings
 from models.user import LoginToken, User
 from services.auth import create_login_token, verify_login_token
 
@@ -47,3 +48,20 @@ async def test_login_unknown_email_mints_no_token_and_leaks_no_code(client, db_s
 
     tokens = (await db_session.execute(select(LoginToken))).scalars().all()
     assert tokens == []
+
+
+async def test_login_existing_user_hides_code_by_default(client):
+    # The `client` fixture seeds admin@argus.local. With the default
+    # configuration the one-time code must NOT be rendered in the response.
+    resp = await client.post("/login", data={"email": "admin@argus.local"})
+    assert resp.status_code == 200
+    assert "Login code:" not in resp.text
+
+
+async def test_login_existing_user_shows_code_when_enabled(client, monkeypatch):
+    # Explicitly enabling SHOW_LOGIN_CODE_IN_RESPONSE (e.g. APP_ENV=demo without
+    # SMTP) surfaces the one-time code in the login page response.
+    monkeypatch.setattr(settings, "show_login_code_in_response", True)
+    resp = await client.post("/login", data={"email": "admin@argus.local"})
+    assert resp.status_code == 200
+    assert "Login code:" in resp.text
