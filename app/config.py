@@ -41,9 +41,14 @@ class Settings(BaseSettings):
 
     # App
     secret_key: str = _INSECURE_SECRET_KEY
+    # Valid values: development | demo | production. Also used as the Docker
+    # image tag (argussbomguard:${APP_ENV}).
     app_env: str = "development"
     app_version: str = "0.0.2-beta"
     log_level: str = "info"
+    # Surface the one-time login code directly in the login page response.
+    # Only for dev/demo setups without SMTP; rejected when app_env is production.
+    show_login_code_in_response: bool = False
 
     # SMTP
     smtp_host: str = ""
@@ -91,6 +96,12 @@ class Settings(BaseSettings):
                 "secret_key must be set to a strong random value when app_env is "
                 "not 'development' (generate one with "
                 '`python -c "import secrets; print(secrets.token_urlsafe(48))"`)'
+            )
+        if self.app_env == "production" and self.show_login_code_in_response:
+            raise ValueError(
+                "show_login_code_in_response must be disabled when app_env is "
+                "'production' (the one-time login code must never be surfaced "
+                "to the response in production)"
             )
         return self
 

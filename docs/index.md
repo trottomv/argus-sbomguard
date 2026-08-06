@@ -15,7 +15,8 @@ docker compose exec app alembic upgrade head
 ```
 
 Open [http://localhost:8000](http://localhost:8000), log in with `admin@argus.local`,
-and grab the one-time code from [Mailpit](http://localhost:8025) (dev only).
+and grab the one-time code from [Mailpit](http://localhost:8025) (dev only) — or set
+`SHOW_LOGIN_CODE_IN_RESPONSE=true` to display it directly on the login page.
 
 ## Features
 
