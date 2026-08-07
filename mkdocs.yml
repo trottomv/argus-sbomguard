@@ -64,6 +64,7 @@ nav:
   - User Guide:
       - Projects: guide/projects.md
       - SBOMs: guide/sboms.md
+      - CI/CD Integration: guide/ci.md
       - Vulnerabilities: guide/vulnerabilities.md
       - Alerts & Notifications: guide/alerts.md
       - Reverse Proxy + WAF: guide/proxy.md

@@ -113,7 +113,7 @@ Authentication via `X-API-Key` header (REST) or `api-key` metadata (gRPC).
 
 ## Roadmap
 
-- CI/CD integration examples
+- ~~CI/CD integration examples~~
 - Kubernetes deployment guides
 - Advanced vulnerability workflows
 - Additional notification integrations

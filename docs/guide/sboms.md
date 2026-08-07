@@ -96,7 +96,8 @@ for that service, reverting fixed vulnerabilities if needed.
 ## Generating SBOMs
 
 Use [Syft](https://github.com/anchore/syft) to generate CycloneDX SBOMs from
-your project:
+your project. To automate this in your CI/CD, see the
+[CI/CD Integration](ci.md) guide:
 
 ```bash
 syft scan dir:. -o cyclonedx-json > sbom.json
