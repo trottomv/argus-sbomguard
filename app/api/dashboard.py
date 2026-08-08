@@ -61,11 +61,11 @@ async def _get_project_vulns(
     all_ids_q = await db.execute(id_q)
     latest_map: dict[str, tuple] = {}
     sbom_to_svc: dict = {}
-    for s_id, s_svc_id, s_created_at in all_ids_q:
-        key = str(s_svc_id) if s_svc_id else "__no_service__"
-        if key not in latest_map or s_created_at > latest_map[key][1]:
-            latest_map[key] = (s_id, s_created_at)
-    latest_sbom_ids = {v[0] for v in latest_map.values()}
+    for sbom_id, svc_id, created_at in all_ids_q:
+        key = str(svc_id) if svc_id else "__no_service__"
+        if key not in latest_map or created_at > latest_map[key][1]:
+            latest_map[key] = (sbom_id, created_at)
+    latest_sbom_ids = {latest[0] for latest in latest_map.values()}
 
     if not latest_sbom_ids:
         return []
@@ -75,9 +75,9 @@ async def _get_project_vulns(
         .outerjoin(Service, SBOM.service_id == Service.id)
         .where(SBOM.id.in_(latest_sbom_ids))
     )
-    for s_id, svc_name in svc_rows:
-        if svc_name:
-            sbom_to_svc[s_id] = svc_name
+    for sbom_id, service_name in svc_rows:
+        if service_name:
+            sbom_to_svc[sbom_id] = service_name
 
     vuln_rows = await db.execute(
         select(
@@ -178,7 +178,7 @@ async def update_project_name(
 ):
     form = await request.form()
     name = form.get("name", "").strip()
-    if not any(c.isalnum() for c in name):
+    if not any(char.isalnum() for char in name):
         return HTMLResponse("", status_code=422)
 
     result = await db.execute(select(Project).where(Project.id == project_id))
@@ -268,12 +268,12 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     )
     snap_rows = snapshots.all()
 
-    chart_labels = [r.snapshot_date.strftime("%b %d") for r in snap_rows]
-    chart_critical = [r.critical or 0 for r in snap_rows]
-    chart_high = [r.high or 0 for r in snap_rows]
-    chart_medium = [r.medium or 0 for r in snap_rows]
-    chart_low = [r.low or 0 for r in snap_rows]
-    chart_fixed = [r.fixed or 0 for r in snap_rows]
+    chart_labels = [snap.snapshot_date.strftime("%b %d") for snap in snap_rows]
+    chart_critical = [snap.critical or 0 for snap in snap_rows]
+    chart_high = [snap.high or 0 for snap in snap_rows]
+    chart_medium = [snap.medium or 0 for snap in snap_rows]
+    chart_low = [snap.low or 0 for snap in snap_rows]
+    chart_fixed = [snap.fixed or 0 for snap in snap_rows]
 
     return templates.TemplateResponse(
         request,
@@ -372,8 +372,8 @@ async def project_detail_page(
     sboms_query = sboms_query.order_by(SBOM.created_at.desc()).limit(sbom_history_per_page)
 
     sbom_rows = (await db.execute(sboms_query)).all()
-    sboms_with_svc = [(r[0], r[1]) for r in sbom_rows]
-    shown_ids = [r[0].id for r in sbom_rows]
+    sboms_with_svc = [(row[0], row[1]) for row in sbom_rows]
+    shown_ids = [row[0].id for row in sbom_rows]
 
     vulns_by_sbom: dict = {}
     fixed_by_sbom: dict = {}
@@ -387,11 +387,11 @@ async def project_detail_page(
             .where(SBOMVulnerability.sbom_id.in_(shown_ids))
             .group_by(SBOMVulnerability.sbom_id, SBOMVulnerability.status)
         )
-        for s_id, status, cnt in vc_rows:
+        for sbom_id, status, count in vc_rows:
             if status == VulnerabilityStatus.OPEN:
-                vulns_by_sbom[s_id] = cnt
+                vulns_by_sbom[sbom_id] = count
             elif status == VulnerabilityStatus.FIXED:
-                fixed_by_sbom[s_id] = cnt
+                fixed_by_sbom[sbom_id] = count
 
     project_vulns_all = await _get_project_vulns(db, project_id, service_id)
     project_vuln_per_page = PROJECT_VULN_PER_PAGE
@@ -456,7 +456,7 @@ async def project_sboms_page(
     sboms_query = sboms_query.order_by(SBOM.created_at.desc())
 
     pg: Page = await paginate(db, sboms_query, page=page, per_page=per_page, scalar=False)
-    sbom_ids = [r[0].id for r in pg.items]
+    sbom_ids = [row[0].id for row in pg.items]
 
     vulns_by_sbom: dict = {}
     fixed_by_sbom: dict = {}
@@ -470,11 +470,11 @@ async def project_sboms_page(
             .where(SBOMVulnerability.sbom_id.in_(sbom_ids))
             .group_by(SBOMVulnerability.sbom_id, SBOMVulnerability.status)
         )
-        for s_id, status, cnt in vuln_rows:
+        for sbom_id, status, count in vuln_rows:
             if status == VulnerabilityStatus.OPEN:
-                vulns_by_sbom[s_id] = cnt
+                vulns_by_sbom[sbom_id] = count
             elif status == VulnerabilityStatus.FIXED:
-                fixed_by_sbom[s_id] = cnt
+                fixed_by_sbom[sbom_id] = count
 
     load_url = f"/projects/{project_id}/sboms?per_page={per_page}"
     if service_id:
@@ -607,15 +607,15 @@ async def vulnerabilities_page(
     project_map: dict = {}
     service_map: dict = {}
     if vulns:
-        vuln_ids = [v.id for v in vulns]
+        vuln_ids = [vuln.id for vuln in vulns]
         proj_rows = await db.execute(
             select(SBOMVulnerability.vulnerability_id, Project.name)
             .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
             .join(Project, SBOM.project_id == Project.id)
             .where(SBOMVulnerability.vulnerability_id.in_(vuln_ids))
         )
-        for v_id, proj_name in proj_rows:
-            project_map.setdefault(v_id, set()).add(proj_name)
+        for vuln_id, project_name in proj_rows:
+            project_map.setdefault(vuln_id, set()).add(project_name)
 
         svc_rows = await db.execute(
             select(SBOMVulnerability.vulnerability_id, Service.name)
@@ -623,9 +623,9 @@ async def vulnerabilities_page(
             .outerjoin(Service, SBOM.service_id == Service.id)
             .where(SBOMVulnerability.vulnerability_id.in_(vuln_ids))
         )
-        for v_id, svc_name in svc_rows:
-            if svc_name:
-                service_map.setdefault(v_id, set()).add(svc_name)
+        for vuln_id, service_name in svc_rows:
+            if service_name:
+                service_map.setdefault(vuln_id, set()).add(service_name)
 
         dep_map: dict = {}
         dep_rows = await db.execute(
@@ -645,9 +645,9 @@ async def vulnerabilities_page(
                 SBOMVulnerability.status == VulnerabilityStatus.OPEN,
             )
         )
-        for v_id, d_name, d_ver, d_purl in dep_rows:
-            dep_map.setdefault(v_id, set()).add(_dep_name(d_name, d_ver, d_purl))
-        dep_map = {v: sorted(names) for v, names in dep_map.items()}
+        for vuln_id, dep_name, dep_version, dep_purl in dep_rows:
+            dep_map.setdefault(vuln_id, set()).add(_dep_name(dep_name, dep_version, dep_purl))
+        dep_map = {vuln_id: sorted(names) for vuln_id, names in dep_map.items()}
 
     # Dropdown data: only on first page
     projects: list = []
@@ -710,7 +710,7 @@ async def settings_page(request: Request, db: AsyncSession = Depends(get_db)):
         .all()
     )
     api_keys = await list_api_keys(db)
-    project_names = {str(p.id): p.name for p in projects}
+    project_names = {str(project.id): project.name for project in projects}
     return templates.TemplateResponse(
         request,
         "settings.html",
@@ -798,7 +798,7 @@ async def sboms_page(
 
     pg: Page = await paginate(db, query, page=page, per_page=per_page, scalar=False)
 
-    sboms = [(sbom, proj_name, svc_name) for sbom, proj_name, svc_name in pg.items]
+    sboms = [(sbom, project_name, service_name) for sbom, project_name, service_name in pg.items]
     sbom_ids = [sbom.id for sbom, _, _ in pg.items]
 
     vuln_counts = {}
@@ -814,8 +814,8 @@ async def sboms_page(
             )
             .group_by(SBOMVulnerability.sbom_id)
         )
-        for s_id, cnt in vc_rows:
-            vuln_counts[s_id] = cnt
+        for sbom_id, count in vc_rows:
+            vuln_counts[sbom_id] = count
 
     # Dropdown data: only on first page
     projects_all: list = []

@@ -130,8 +130,8 @@ async def test_update_project_name_conflict(client):
 
 @pytest.mark.asyncio
 async def test_projects_page_second_page(client):
-    for i in range(3):
-        await client.post("/api/v1/projects", json={"name": f"proj-{i}"})
+    for idx in range(3):
+        await client.post("/api/v1/projects", json={"name": f"proj-{idx}"})
 
     resp = await client.get("/projects?page=2&per_page=2")
     assert resp.status_code == 200

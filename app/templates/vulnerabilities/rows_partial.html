@@ -39,15 +39,15 @@
     <td class="text-sm">{{ fix_versions | join(', ') or "-" }}</td>
     <td>
         <div class="flex flex-wrap gap-1">
-            {% for pname in project_map.get(vuln.id, []) %}
-            <span class="badge badge-outline badge-xs">{{ pname }}</span>
+            {% for project_name in project_map.get(vuln.id, []) %}
+            <span class="badge badge-outline badge-xs">{{ project_name }}</span>
             {% endfor %}
         </div>
     </td>
     <td>
         <div class="flex flex-wrap gap-1">
-            {% for sn in service_map.get(vuln.id, []) %}
-            <span class="badge badge-ghost badge-xs">{{ sn }}</span>
+            {% for service_name in service_map.get(vuln.id, []) %}
+            <span class="badge badge-ghost badge-xs">{{ service_name }}</span>
             {% endfor %}
             </div>
     </td>

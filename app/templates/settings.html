@@ -138,8 +138,8 @@
                             <legend class="fieldset-legend">Project</legend>
                             <select x-model="alertProject" class="select w-full" required>
                                 <option value="">Select project...</option>
-                                {% for p in projects %}
-                                <option value="{{ p.id }}">{{ p.name }}</option>
+                                {% for project in projects %}
+                                <option value="{{ project.id }}">{{ project.name }}</option>
                                 {% endfor %}
                             </select>
                         </fieldset>

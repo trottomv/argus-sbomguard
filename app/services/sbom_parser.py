@@ -42,17 +42,17 @@ def compute_sha256(data: dict) -> str:
 async def parse_cyclonedx(raw: dict) -> list[dict]:
     deps = []
     components = raw.get("components", [])
-    for comp in components:
-        purl = comp.get("purl", "")
+    for component in components:
+        purl = component.get("purl", "")
         deps.append(
             {
-                "name": comp.get("name", ""),
-                "version": comp.get("version", ""),
+                "name": component.get("name", ""),
+                "version": component.get("version", ""),
                 "purl": purl,
-                "dep_type": comp.get("type", "library"),
-                "license": _extract_license(comp),
+                "dep_type": component.get("type", "library"),
+                "license": _extract_license(component),
                 "is_direct": True,
-                "extra_data": comp,
+                "extra_data": component,
             }
         )
     return deps
@@ -61,16 +61,16 @@ async def parse_cyclonedx(raw: dict) -> list[dict]:
 async def parse_spdx(raw: dict) -> list[dict]:
     deps = []
     packages = raw.get("packages", [])
-    for pkg in packages:
+    for package in packages:
         deps.append(
             {
-                "name": pkg.get("name", ""),
-                "version": pkg.get("versionInfo", ""),
+                "name": package.get("name", ""),
+                "version": package.get("versionInfo", ""),
                 "purl": "",
                 "dep_type": "library",
-                "license": pkg.get("licenseDeclared", ""),
+                "license": package.get("licenseDeclared", ""),
                 "is_direct": True,
-                "extra_data": pkg,
+                "extra_data": package,
             }
         )
     return deps
@@ -78,9 +78,9 @@ async def parse_spdx(raw: dict) -> list[dict]:
 
 def _extract_license(component: dict) -> str:
     licenses = component.get("licenses", [])
-    for lic in licenses:
-        if "license" in lic:
-            return lic["license"].get("id", "")
+    for license_entry in licenses:
+        if "license" in license_entry:
+            return license_entry["license"].get("id", "")
     return ""
 
 
@@ -143,8 +143,8 @@ async def store_sbom(
     db.add(sbom)
     await db.flush()
 
-    for dep_data in deps_data:
-        dep = Dependency(sbom_id=sbom.id, **dep_data)
+    for dependency_data in deps_data:
+        dep = Dependency(sbom_id=sbom.id, **dependency_data)
         db.add(dep)
 
     return sbom

@@ -136,7 +136,7 @@ async def test_project_slug_in_list_and_get(client):
 
     list_resp = await client.get("/api/v1/projects")
     items = list_resp.json()["items"]
-    assert any(i["slug"] == "slug-lookup" for i in items)
+    assert any(item["slug"] == "slug-lookup" for item in items)
 
 
 @pytest.mark.asyncio
@@ -264,12 +264,12 @@ async def test_project_history_pagination(client):
         "components": [{"name": "lodash", "version": "4.17.20"}],
     }
 
-    for v in ["v1", "v2", "v3"]:
+    for version in ["v1", "v2", "v3"]:
         content = dict(base)
-        content["version"] = v  # different version field in SBOM -> different SHA256
+        content["version"] = version  # different version field in SBOM -> different SHA256
         await client.post(
             "/api/v1/sboms/upload",
-            data={"project_id": pid, "version": v},
+            data={"project_id": pid, "version": version},
             files={"file": ("sbom.json", json.dumps(content), "application/json")},
         )
 
@@ -474,7 +474,7 @@ async def test_sbom_diff_added_removed(client):
     assert resp.status_code == 200
     data = resp.json()
     assert len(data["added"]) == 2
-    added_names = {d["name"] for d in data["added"]}
+    added_names = {dep["name"] for dep in data["added"]}
     assert added_names == {"a", "b"}
     assert len(data["changed"]) == 1
     assert data["changed"][0]["name"] == "a"

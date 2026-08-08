@@ -34,7 +34,7 @@ async def list_projects(
     query = select(Project).order_by(Project.created_at.desc())
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
     return PageResponse[ProjectResponse](
-        items=[ProjectResponse.model_validate(p) for p in pg.items],
+        items=[ProjectResponse.model_validate(project) for project in pg.items],
         total=pg.total,
         page=pg.page,
         per_page=pg.per_page,
@@ -93,7 +93,7 @@ async def project_history(
     query = select(SBOM).where(SBOM.project_id == project_id).order_by(SBOM.created_at.desc())
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
     return PageResponse[ProjectSBOMHistoryItem](
-        items=[ProjectSBOMHistoryItem.model_validate(s) for s in pg.items],
+        items=[ProjectSBOMHistoryItem.model_validate(sbom) for sbom in pg.items],
         total=pg.total,
         page=pg.page,
         per_page=pg.per_page,
@@ -158,7 +158,7 @@ async def update_project(
 
 def _validate_sluggable_name(name: str) -> None:
     """Reject names that would slugify to an empty string (no alphanumeric)."""
-    if not any(c.isalnum() for c in name):
+    if not any(char.isalnum() for char in name):
         raise HTTPException(
             status_code=422,
             detail="Project name must contain at least one alphanumeric character",

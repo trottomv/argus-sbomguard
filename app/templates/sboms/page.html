@@ -36,15 +36,15 @@
             <select class="select select-bordered" x-model="project"
                     @change="service=''; reloadFilters()">
                 <option value="">All Projects</option>
-                {% for p in projects %}
-                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% for project in projects %}
+                <option value="{{ project.id }}">{{ project.name }}</option>
                 {% endfor %}
             </select>
             <select class="select select-bordered" x-model="service" :disabled="!project"
                     @change="reloadFilters()">
                 <option value="">All Services</option>
-                {% for s in services %}
-                <option value="{{ s.id }}">{{ s.name }}</option>
+                {% for service in services %}
+                <option value="{{ service.id }}">{{ service.name }}</option>
                 {% endfor %}
             </select>
         </div>

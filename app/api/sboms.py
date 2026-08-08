@@ -111,23 +111,23 @@ async def get_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
         created_at=sbom.created_at,
         dependencies=[
             DependencyResponse(
-                name=d.name,
-                version=d.version,
-                purl=d.purl,
-                type=d.dep_type,
-                license=d.license,
-                is_direct=d.is_direct,
+                name=dep.name,
+                version=dep.version,
+                purl=dep.purl,
+                type=dep.dep_type,
+                license=dep.license,
+                is_direct=dep.is_direct,
             )
-            for d in deps
+            for dep in deps
         ],
         vulnerabilities=[
             VulnerabilityBriefResponse(
-                id=v.id,
-                cve_id=v.cve_id,
-                severity=v.severity,
-                summary=v.summary,
+                id=vuln.id,
+                cve_id=vuln.cve_id,
+                severity=vuln.severity,
+                summary=vuln.summary,
             )
-            for v in vulns
+            for vuln in vulns
         ],
     )
 
@@ -139,18 +139,18 @@ async def diff_sboms(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Dependency).where(Dependency.sbom_id == sbom_id))
-    deps_a = {(d.name, d.version) for d in result.scalars().all()}
+    deps_a = {(dep.name, dep.version) for dep in result.scalars().all()}
 
     result = await db.execute(select(Dependency).where(Dependency.sbom_id == other_id))
-    deps_b = {(d.name, d.version) for d in result.scalars().all()}
+    deps_b = {(dep.name, dep.version) for dep in result.scalars().all()}
 
-    names_a = {n: v for n, v in deps_a}
-    names_b = {n: v for n, v in deps_b}
+    names_a = {name: version for name, version in deps_a}
+    names_b = {name: version for name, version in deps_b}
     common = set(names_a.keys()) & set(names_b.keys())
 
     return SBOMDiffResponse(
-        added=[DiffItemResponse(name=n, version=v) for n, v in deps_b - deps_a],
-        removed=[DiffItemResponse(name=n, version=v) for n, v in deps_a - deps_b],
+        added=[DiffItemResponse(name=name, version=version) for name, version in deps_b - deps_a],
+        removed=[DiffItemResponse(name=name, version=version) for name, version in deps_a - deps_b],
         changed=[
             VersionChangeResponse(
                 name=name,
