@@ -57,7 +57,7 @@ argus-sbomguard/
 │   │   └── dev.txt               # compiled dev deps with hashes
 │   ├── entrypoint.sh
 │   ├── alembic.ini              # points to migrations/
-│   ├── migrations/              # DB migrations (single 0001_initial_schema)
+│   ├── migrations/              # DB migrations (sequential 0001, 0002, …)
 │   ├── pyproject.toml           # single source of truth for dependencies
 │   ├── main.py                  # FastAPI entrypoint + lifespan
 │   ├── config.py                # pydantic-settings (reads .env)
@@ -166,7 +166,7 @@ After pushing, the URL to open a PR is shown in the terminal output.
 - **Auth**: Passwordless email login for HTML UI. API keys (`X-API-Key` header) for REST/gRPC. gRPC metadata `api-key`. Session via signed cookie (no Starlette SessionMiddleware).
 - **JSONB columns**: `sboms.raw_sbom`, `dependencies.metadata`.
 - **Async everywhere**: `asyncpg` + SQLAlchemy async session. No sync DB access.
-- **Migrations**: Single `0001_initial_schema.py`. Always via `alembic revision --autogenerate`.
+- **Migrations**: Sequential `NNNN_description.py` files (`0001_initial_schema.py`, `0002_...`, …). Always generate via `alembic revision --autogenerate`, then rename the file to `NNNN_<description>.py` and set `revision = "NNNN"` with `down_revision` = the previous revision (the first migration keeps its legacy hash `b316f0a5cd25` — never change it, or already-migrated DBs break). Migrations are frozen snapshots: generated/computed columns inline the literal expression. Note that autogenerate does **not** detect changes to a computed/generated column's expression — if you change one in the model, write the migration by hand (e.g. `op.alter_column(..., computed=...)` or drop/re-add the column).
 - **Celery tasks**: Defined in `services/tasks.py` with `@celery_app.task(name="tasks.*")`.
 - **HTMX routes**: Return `TemplateResponse` for pages. API under `/api/v1/`.
 - **Buttons**: Primary CTAs use `btn-primary btn-lg` + gradient (`bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white`). Destructive use `btn-error`. Modal buttons use solid colors (no gradient). Cancel buttons use `btn-outline`.
