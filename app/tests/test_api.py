@@ -658,7 +658,7 @@ async def test_vulnerabilities_page_shows_library_and_fixed_version(client, db_s
     sbom = SBOM(
         project_id=project.id,
         version="v1",
-        format="CycloneDX",
+        format="cyclonedx",
         raw_sbom={"bomFormat": "CycloneDX"},
         sha256="a" * 64,
     )

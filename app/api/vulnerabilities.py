@@ -11,7 +11,12 @@ from database import get_db
 from middleware.api_key import api_key_required
 from models.sbom import SBOM
 from models.service import Service
-from models.vulnerability import SBOMVulnerability, Vulnerability
+from models.vulnerability import (
+    SBOMVulnerability,
+    Vulnerability,
+    VulnerabilitySeverity,
+    VulnerabilityStatus,
+)
 from services.pagination import VULN_PER_PAGE, Page, paginate
 
 router = APIRouter(
@@ -33,7 +38,9 @@ async def active_vulnerabilities(
     order: str = Query("desc"),
 ):
     subq = (
-        select(Vulnerability.id).join(SBOMVulnerability).where(SBOMVulnerability.status == "open")
+        select(Vulnerability.id)
+        .join(SBOMVulnerability)
+        .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
     )
     if severity and severity != "":
         subq = subq.where(Vulnerability.severity.ilike(severity))
@@ -58,10 +65,10 @@ async def active_vulnerabilities(
         from sqlalchemy import case
 
         severity_case = case(
-            (Vulnerability.severity == "CRITICAL", 0),
-            (Vulnerability.severity == "HIGH", 1),
-            (Vulnerability.severity == "MEDIUM", 2),
-            (Vulnerability.severity == "LOW", 3),
+            (Vulnerability.severity == VulnerabilitySeverity.CRITICAL.value, 0),
+            (Vulnerability.severity == VulnerabilitySeverity.HIGH.value, 1),
+            (Vulnerability.severity == VulnerabilitySeverity.MEDIUM.value, 2),
+            (Vulnerability.severity == VulnerabilitySeverity.LOW.value, 3),
             else_=99,
         )
         if order == "asc":
@@ -146,16 +153,24 @@ async def vulnerability_summary(db: AsyncSession = Depends(get_db)):
     vuln_subq = (
         select(Vulnerability.id, Vulnerability.severity)
         .join(SBOMVulnerability)
-        .where(SBOMVulnerability.status == "open")
+        .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
         .distinct()
     ).subquery()
 
     vuln_counts = await db.execute(
         select(
-            func.count().filter(vuln_subq.c.severity.ilike("critical")).label("critical"),
-            func.count().filter(vuln_subq.c.severity.ilike("high")).label("high"),
-            func.count().filter(vuln_subq.c.severity.ilike("medium")).label("medium"),
-            func.count().filter(vuln_subq.c.severity.ilike("low")).label("low"),
+            func.count()
+            .filter(vuln_subq.c.severity.ilike(VulnerabilitySeverity.CRITICAL.value))
+            .label("critical"),
+            func.count()
+            .filter(vuln_subq.c.severity.ilike(VulnerabilitySeverity.HIGH.value))
+            .label("high"),
+            func.count()
+            .filter(vuln_subq.c.severity.ilike(VulnerabilitySeverity.MEDIUM.value))
+            .label("medium"),
+            func.count()
+            .filter(vuln_subq.c.severity.ilike(VulnerabilitySeverity.LOW.value))
+            .label("low"),
         ).select_from(vuln_subq)
     )
     row = vuln_counts.one()
@@ -172,7 +187,7 @@ async def vulnerability_summary(db: AsyncSession = Depends(get_db)):
         select(func.count()).select_from(
             select(SBOM.project_id.distinct())
             .join(SBOMVulnerability)
-            .where(SBOMVulnerability.status == "open")
+            .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
             .subquery()
         )
     )

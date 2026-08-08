@@ -35,3 +35,8 @@ class ValueLabelEnum(StrEnum):
     @property
     def label(self) -> str:
         return self._label
+
+
+def enum_db_values(cls: type[ValueLabelEnum]) -> list[str]:
+    """Return the enum members' persisted values for SQLAlchemy ``Enum``."""
+    return [member.value for member in cls]
