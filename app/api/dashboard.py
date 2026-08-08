@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
-from models.alert import AlertConfig
+from models.alert import AlertConfig, NotificationChannel, SeverityThreshold
 from models.project import Project
 from models.sbom import SBOM, Dependency
 from models.service import Service
@@ -703,6 +703,8 @@ async def settings_page(request: Request, db: AsyncSession = Depends(get_db)):
             "alerts": alerts,
             "api_keys": api_keys,
             "project_names": project_names,
+            "severity_thresholds": list(SeverityThreshold),
+            "notification_channels": list(NotificationChannel),
         },
     )
 
