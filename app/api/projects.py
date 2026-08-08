@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -34,14 +35,14 @@ class ProjectUpdate(BaseModel):
 
 
 class ProjectResponse(BaseModel):
-    id: str
+    id: uuid.UUID
     slug: str
     name: str
     description: str | None
     repo_url: str | None
     platform: str | None
-    created_at: str
-    sbom_count: int = 0
+    created_at: datetime
+    updated_at: datetime | None
 
     model_config = {"from_attributes": True}
 
@@ -55,7 +56,7 @@ async def list_projects(
     query = select(Project).order_by(Project.created_at.desc())
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
     return {
-        "items": [_project_to_dict(p) for p in pg.items],
+        "items": [ProjectResponse.model_validate(p) for p in pg.items],
         "total": pg.total,
         "page": pg.page,
         "per_page": pg.per_page,
@@ -91,7 +92,7 @@ async def create_project(data: ProjectCreate, db: AsyncSession = Depends(get_db)
             ),
         ) from None
     await db.refresh(project)
-    return _project_to_dict(project)
+    return ProjectResponse.model_validate(project)
 
 
 @router.get("/{project_id}")
@@ -100,7 +101,7 @@ async def get_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_db))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    return _project_to_dict(project)
+    return ProjectResponse.model_validate(project)
 
 
 @router.get("/{project_id}/history")
@@ -181,7 +182,7 @@ async def update_project(
             ),
         ) from None
     await db.refresh(project)
-    return _project_to_dict(project)
+    return ProjectResponse.model_validate(project)
 
 
 def _validate_sluggable_name(name: str) -> None:
@@ -199,16 +200,3 @@ def _is_slug_conflict(exc: IntegrityError) -> bool:
     if constraint:
         return "slug" in str(constraint)
     return "slug" in str(exc.orig)
-
-
-def _project_to_dict(p: Project) -> dict:
-    return {
-        "id": str(p.id),
-        "slug": p.slug,
-        "name": p.name,
-        "description": p.description,
-        "repo_url": p.repo_url,
-        "platform": p.platform,
-        "created_at": p.created_at.isoformat() if p.created_at else None,
-        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
-    }
