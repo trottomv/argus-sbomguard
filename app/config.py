@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # Valid values: development | demo | production. Also used as the Docker
     # image tag (argussbomguard:${APP_ENV}).
     app_env: str = "development"
-    app_version: str = "0.0.2-beta"
+    app_version: str = "0.0.3-beta"
     log_level: str = "info"
     # Surface the one-time login code directly in the login page response.
     # Only for dev/demo setups without SMTP; rejected when app_env is production.
