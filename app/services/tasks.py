@@ -147,8 +147,11 @@ async def _deliver(alert: AlertConfig, vuln: Vulnerability) -> tuple[str, bool]:
     if alert.notification_type == "slack" and settings.slack_webhook_url:
         return "slack", await send_slack(settings.slack_webhook_url, message)
     if alert.notification_type == "email":
+        recipients = alert.config.get("to") or ", ".join(settings.alert_email_recipients)
+        if not recipients:
+            return "email", False
         return "email", await send_email(
-            alert.config.get("to", ""),
+            recipients,
             f"Critical: {vuln.cve_id}",
             message,
         )

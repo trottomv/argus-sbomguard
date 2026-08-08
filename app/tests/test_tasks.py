@@ -211,7 +211,7 @@ async def test_do_scan_sbom_retires_stale_vulns_on_latest(db_session):
     assert stale_fresh.status == "fixed"
 
 
-async def _make_open_vuln_with_alert(db_session):
+async def _make_open_vuln_with_alert(db_session, notification_type="slack"):
     project = Project(name="alerts-project")
     db_session.add(project)
     await db_session.flush()
@@ -237,7 +237,7 @@ async def _make_open_vuln_with_alert(db_session):
     alert = AlertConfig(
         project_id=project.id,
         severity_threshold="high",
-        notification_type="slack",
+        notification_type=notification_type,
         enabled=True,
     )
     db_session.add(alert)
@@ -355,6 +355,48 @@ async def test_check_alerts_gives_up_after_max_attempts(db_session):
         mock_send.assert_not_called()
     finally:
         settings.slack_webhook_url = original
+
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].status == "failed"
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_delivers_email_to_env_recipients(db_session):
+    _, _ = await _make_open_vuln_with_alert(db_session, notification_type="email")
+
+    original = settings.alert_email_recipients
+    settings.alert_email_recipients = ["ops@example.com"]
+    try:
+        with patch(
+            "services.tasks.send_email", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_awaited_once()
+        assert mock_send.await_args.args[0] == "ops@example.com"
+    finally:
+        settings.alert_email_recipients = original
+
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].status == "sent"
+    assert notifications[0].channel == "email"
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_email_without_recipients_fails(db_session):
+    _, _ = await _make_open_vuln_with_alert(db_session, notification_type="email")
+
+    original = settings.alert_email_recipients
+    settings.alert_email_recipients = []
+    try:
+        with patch(
+            "services.tasks.send_email", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_not_called()
+    finally:
+        settings.alert_email_recipients = original
 
     notifications = (await db_session.execute(select(Notification))).scalars().all()
     assert len(notifications) == 1

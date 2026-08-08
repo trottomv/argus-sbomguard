@@ -46,7 +46,7 @@ class Notification(BaseModel):
     )
     channel: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="sent")
-    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, server_default="0", default=0, nullable=False)
 
     alert_config = relationship("AlertConfig", back_populates="notifications")
 
