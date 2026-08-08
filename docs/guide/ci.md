@@ -102,7 +102,7 @@ curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
                 -F "file=@sbom.json"
 
           - name: Attach SBOM to pipeline
-            uses: actions/upload-artifact@v4
+            uses: actions/upload-artifact@v7
             with:
               name: sbom
               path: sbom.json
@@ -115,6 +115,10 @@ curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
       and `format: cyclonedx-json`.
     - Replace `my-app` with your service name; for a multi-service repo, run
       one job per service and use its name as `service_name`.
+    - `version=${GITHUB_REF_NAME}` is the tag on a tag push (e.g. `v1.2.3`) but
+      `main` on a branch build. If you always want a real version, use a short
+      SHA instead:
+      `-F "version=$([ "$GITHUB_REF_TYPE" = tag ] && echo "$GITHUB_REF_NAME" || echo "${GITHUB_SHA::7}")"`.
 
 ## GitLab CI
 
