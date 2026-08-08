@@ -57,8 +57,20 @@ class SBOMServiceServicer(BaseServicer):
     async def upload_sbom(
         self, request: UploadRequest, context: grpc.aio.ServicerContext
     ) -> UploadResponse:
+        has_slug = request.HasField("slug") and bool(request.slug)
+        has_project_id = bool(request.project_id)
+
+        if has_slug and has_project_id:
+            await context.abort(
+                grpc.StatusCode.INVALID_ARGUMENT, "provide only one of project_id or slug"
+            )
+            return UploadResponse()
+        if not has_slug and not has_project_id:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "project_id or slug is required")
+            return UploadResponse()
+
         async with self._session_factory() as db:
-            if request.HasField("slug") and request.slug:
+            if has_slug:
                 result = await db.execute(select(Project).where(Project.slug == request.slug))
                 project = result.scalar_one_or_none()
             else:

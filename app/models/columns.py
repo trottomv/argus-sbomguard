@@ -3,9 +3,16 @@ from sqlalchemy.ext.compiler import compiles
 
 # PostgreSQL expression for the generated slug column (the only supported
 # runtime database). Non-alphanumeric runs are collapsed to a single hyphen,
-# trimmed and lowercased: "Argus SBOM Guard" -> "argus-sbom-guard".
-_SLUG_EXPR = (
-    "lower(regexp_replace(regexp_replace(trim(name), '[^a-zA-Z0-9]+', '-', 'g'), "
+# trimmed and lowercased. The POSIX class [:alnum:] is Unicode-aware in a
+# UTF-8 locale, so international names are preserved: "Argus SBOM Guard"
+# -> "argus-sbom-guard", "Mio Progetto" -> "mio-progetto".
+#
+# This is the single source of truth for the slug semantics: the model's
+# SlugComputed column and migration 0002 both reference it. Treat it as a
+# stable constant — changing it after deploy would alter existing slugs and
+# requires a new migration.
+SLUG_EXPR = (
+    "lower(regexp_replace(regexp_replace(trim(name), '[^[:alnum:]]+', '-', 'g'), "
     "'^-+|-+$', '', 'g'))"
 )
 # SQLite-compatible fallback, used only by the unit-test fixture (SQLite has no
@@ -23,7 +30,7 @@ class SlugComputed(Computed):
     """
 
     def __init__(self, sqlite_expr: str = _SQLITE_SLUG_EXPR, **kw):
-        super().__init__(_SLUG_EXPR, **kw)
+        super().__init__(SLUG_EXPR, **kw)
         self.sqlite_expr = sqlite_expr
 
 

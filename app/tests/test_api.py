@@ -139,6 +139,43 @@ async def test_project_slug_in_list_and_get(client):
 
 
 @pytest.mark.asyncio
+async def test_create_project_non_ascii_name(client):
+    resp = await client.post("/api/v1/projects", json={"name": "Mio Progetto"})
+    assert resp.status_code == 201
+    assert resp.json()["slug"] == "mio-progetto"
+
+
+@pytest.mark.asyncio
+async def test_create_project_requires_alphanumeric(client):
+    resp = await client.post("/api/v1/projects", json={"name": "!!!"})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_rename_project_requires_alphanumeric(client):
+    create_resp = await client.post("/api/v1/projects", json={"name": "renamable"})
+    pid = create_resp.json()["id"]
+
+    resp = await client.patch(f"/api/v1/projects/{pid}", json={"name": "###"})
+    assert resp.status_code == 422
+
+
+def test_is_slug_conflict_helper():
+    from sqlalchemy.exc import IntegrityError
+
+    from api.projects import _is_slug_conflict
+
+    class SlugOrig:
+        constraint_name = "ix_projects_slug"
+
+    class NameOrig:
+        constraint_name = "ix_projects_name"
+
+    assert _is_slug_conflict(IntegrityError("stmt", {}, SlugOrig()))
+    assert not _is_slug_conflict(IntegrityError("stmt", {}, NameOrig()))
+
+
+@pytest.mark.asyncio
 async def test_get_project(client):
     create_resp = await client.post("/api/v1/projects", json={"name": "get-me"})
     pid = create_resp.json()["id"]

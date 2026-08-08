@@ -132,3 +132,30 @@ class TestUploadSBOM:
                 )
             )
         assert exc.value.code() == grpc.StatusCode.NOT_FOUND
+
+    @pytest.mark.asyncio
+    async def test_upload_sbom_both_ids_rejected(self, db_session, grpc_client):
+        from models.project import Project
+
+        project = Project(name="grpc-both")
+        db_session.add(project)
+        await db_session.commit()
+        await db_session.refresh(project)
+
+        with pytest.raises(grpc.aio.AioRpcError) as exc:
+            await grpc_client.UploadSBOM(
+                UploadRequest(
+                    project_id=str(project.id),
+                    slug=project.slug,
+                    sbom_json=b'{"bomFormat":"CycloneDX","components":[]}',
+                )
+            )
+        assert exc.value.code() == grpc.StatusCode.INVALID_ARGUMENT
+
+    @pytest.mark.asyncio
+    async def test_upload_sbom_missing_ids_rejected(self, db_session, grpc_client):
+        with pytest.raises(grpc.aio.AioRpcError) as exc:
+            await grpc_client.UploadSBOM(
+                UploadRequest(project_id="", sbom_json=b'{"bomFormat":"CycloneDX","components":[]}')
+            )
+        assert exc.value.code() == grpc.StatusCode.INVALID_ARGUMENT

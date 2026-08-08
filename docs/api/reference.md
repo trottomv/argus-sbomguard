@@ -26,7 +26,7 @@ gRPC endpoints require the `api-key` metadata header.
 | `DELETE` | `/api/v1/projects/{id}` | Delete project and cascade |
 
 Project responses include a `slug` field — a stable, readable identifier
-generated from the project name (e.g. `Argus SBOM Guard` → `argus-sbomguard`).
+generated from the project name (e.g. `Argus SBOM Guard` → `argus-sbom-guard`).
 
 ### SBOMs
 

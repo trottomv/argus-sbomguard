@@ -25,6 +25,26 @@ async def test_slug_normalizes_separators(db_session):
 
 
 @pytest.mark.asyncio
+async def test_slug_preserves_unicode_letters(db_session):
+    project = Project(name="Mio Progetto")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    assert project.slug == "mio-progetto"
+
+
+@pytest.mark.asyncio
+async def test_slug_preserves_cjk_chars(db_session):
+    project = Project(name="日本語")
+    db_session.add(project)
+    await db_session.flush()
+    await db_session.refresh(project)
+
+    assert project.slug == "日本語"
+
+
+@pytest.mark.asyncio
 async def test_slug_is_read_only(db_session):
     project = Project(name="Read Only")
     db_session.add(project)
