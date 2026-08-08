@@ -1,5 +1,4 @@
 import uuid
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -8,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from middleware.api_key import api_key_required
-from models.alert import AlertConfig
+from models.alert import AlertConfig, NotificationChannel, SeverityThreshold
 from models.project import Project
 from services.pagination import ALERT_PER_PAGE, Page, paginate
 
@@ -16,14 +15,11 @@ router = APIRouter(
     prefix="/api/v1/alerts", tags=["alerts"], dependencies=[Depends(api_key_required)]
 )
 
-SeverityThreshold = Literal["critical", "high", "medium", "low"]
-NotificationChannel = Literal["slack", "email"]
-
 
 class AlertConfigCreate(BaseModel):
     project_id: str
-    severity_threshold: SeverityThreshold = "high"
-    notification_type: NotificationChannel = "email"
+    severity_threshold: SeverityThreshold = SeverityThreshold.HIGH
+    notification_type: NotificationChannel = NotificationChannel.EMAIL
     config: dict = {}
     enabled: bool = True
 

@@ -1,9 +1,43 @@
 import uuid
+from enum import StrEnum
 
 from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import BaseModel
+
+
+class SeverityThreshold(StrEnum):
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+    @property
+    def label(self) -> str:
+        return _SEVERITY_THRESHOLD_LABELS[self]
+
+
+class NotificationChannel(StrEnum):
+    EMAIL = "email"
+    SLACK = "slack"
+
+    @property
+    def label(self) -> str:
+        return _NOTIFICATION_CHANNEL_LABELS[self]
+
+
+_SEVERITY_THRESHOLD_LABELS = {
+    SeverityThreshold.CRITICAL: "Critical only",
+    SeverityThreshold.HIGH: "High and above",
+    SeverityThreshold.MEDIUM: "Medium and above",
+    SeverityThreshold.LOW: "All",
+}
+
+_NOTIFICATION_CHANNEL_LABELS = {
+    NotificationChannel.EMAIL: "Email",
+    NotificationChannel.SLACK: "Slack",
+}
 
 
 class AlertConfig(BaseModel):

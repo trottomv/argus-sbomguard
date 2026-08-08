@@ -146,17 +146,17 @@
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend">Severity Threshold</legend>
                             <select x-model="alertSeverity" class="select w-full">
-                                <option value="critical">Critical only</option>
-                                <option value="high">High and above</option>
-                                <option value="medium">Medium and above</option>
-                                <option value="low">All</option>
+                                {% for option in severity_thresholds %}
+                                <option value="{{ option.value }}">{{ option.label }}</option>
+                                {% endfor %}
                             </select>
                         </fieldset>
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend">Notification Type</legend>
                             <select x-model="alertType" class="select w-full">
-                                <option value="email">Email</option>
-                                <option value="slack">Slack</option>
+                                {% for option in notification_channels %}
+                                <option value="{{ option.value }}">{{ option.label }}</option>
+                                {% endfor %}
                             </select>
                         </fieldset>
                         <fieldset class="fieldset">
