@@ -19,15 +19,28 @@ router = APIRouter(prefix="/api/v1/sboms", tags=["sboms"], dependencies=[Depends
 
 @router.post("/upload", status_code=201)
 async def upload_sbom(
-    project_id: str = Form(...),
+    project_id: str = Form(None),
+    slug: str = Form(None),
     version: str = Form(None),
     service_name: str = Form(None),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
-    project_uuid = uuid.UUID(project_id)
-    result = await db.execute(select(Project).where(Project.id == project_uuid))
-    if not result.scalar_one_or_none():
+    if not project_id and not slug:
+        raise HTTPException(status_code=422, detail="project_id or slug is required")
+    if project_id and slug:
+        raise HTTPException(status_code=422, detail="Provide only one of project_id or slug")
+
+    if project_id:
+        try:
+            project_uuid = uuid.UUID(project_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Project not found") from None
+        result = await db.execute(select(Project).where(Project.id == project_uuid))
+    else:
+        result = await db.execute(select(Project).where(Project.slug == slug))
+    project = result.scalar_one_or_none()
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     content = await file.read()
@@ -36,7 +49,7 @@ async def upload_sbom(
     except json.JSONDecodeError:
         raise HTTPException(status_code=422, detail="Invalid JSON") from None
 
-    sbom = await store_sbom(db, project_uuid, raw, version, service_name=service_name or None)
+    sbom = await store_sbom(db, project.id, raw, version, service_name=service_name or None)
     await db.commit()
 
     scan_sbom.delay(str(sbom.id))

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -34,6 +35,7 @@ class ProjectUpdate(BaseModel):
 
 class ProjectResponse(BaseModel):
     id: str
+    slug: str
     name: str
     description: str | None
     repo_url: str | None
@@ -74,7 +76,11 @@ async def create_project(data: ProjectCreate, db: AsyncSession = Depends(get_db)
         platform=data.platform,
     )
     db.add(project)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Project slug already in use") from None
     await db.refresh(project)
     return _project_to_dict(project)
 
@@ -152,7 +158,11 @@ async def update_project(
     if data.platform is not None:
         project.platform = data.platform
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Project slug already in use") from None
     await db.refresh(project)
     return _project_to_dict(project)
 
@@ -160,6 +170,7 @@ async def update_project(
 def _project_to_dict(p: Project) -> dict:
     return {
         "id": str(p.id),
+        "slug": p.slug,
         "name": p.name,
         "description": p.description,
         "repo_url": p.repo_url,

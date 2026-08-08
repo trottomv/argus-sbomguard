@@ -25,15 +25,21 @@ gRPC endpoints require the `api-key` metadata header.
 | `PATCH` | `/api/v1/projects/{id}` | Update project |
 | `DELETE` | `/api/v1/projects/{id}` | Delete project and cascade |
 
+Project responses include a `slug` field — a stable, readable identifier
+generated from the project name (e.g. `Argus SBOM Guard` → `argus-sbomguard`).
+
 ### SBOMs
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/v1/sboms/upload` | Upload SBOM file (multipart) |
+| `POST` | `/api/v1/sboms/upload` | Upload SBOM file (multipart) — by project UUID or slug |
 | `GET` | `/api/v1/sboms/{id}` | Get SBOM with deps + vulns |
 | `GET` | `/api/v1/sboms/{id}/download` | Download raw SBOM JSON |
 | `GET` | `/api/v1/sboms/{id}/diff/{other_id}` | Diff two SBOM versions |
 | `DELETE` | `/api/v1/sboms/{id}` | Delete SBOM |
+
+`POST /api/v1/sboms/upload` targets a project by **exactly one** of
+`project_id` (UUID) or `slug`:
 
 ### Services
 

@@ -23,9 +23,21 @@ and it is what lets Argus track how dependencies change between versions.
 
 - An **Argus instance reachable from your CI runners** — the base URL, e.g.
   `https://argus.example.com`.
-- A **project UUID** from **Projects** → *your project*.
+- A **project**, identified by its **slug** (a stable, readable alias such as
+  `argus-sbomguard`) or its UUID. See
+  [Finding the project slug](#finding-the-project-slug).
 - An **API key** generated under **Settings** → **Generate Key** (see
   [API Authentication](../setup.md#api-authentication)).
+
+### Finding the project slug
+
+Open the project in the UI — the slug is shown as a copyable badge next to the
+name. Or list your projects via the API:
+
+```bash
+curl -H "X-API-Key: argus_xxx" "$ARGUS_URL/api/v1/projects" \
+  | jq -r '.items[] | "\(.name)\t\(.slug)"'
+```
 
 ## Configuration
 
@@ -36,15 +48,16 @@ directly in your pipeline file:
 | Variable | Example | Purpose |
 |----------|---------|---------|
 | `ARGUS_URL` | `https://argus.example.com` | Base URL of your Argus instance |
-| `ARGUS_PROJECT_ID` | `00000000-0000-0000-0000-000000000001` | UUID of the target project |
+| `ARGUS_PROJECT_ID` | `argus-sbomguard` | Slug (or UUID) of the target project |
 | `ARGUS_API_KEY` | `argus_xxxxxxxxxxxx` | API key sent in the `X-API-Key` header |
 
-The upload itself is a standard multipart request:
+The upload itself is a standard multipart request. You can target the project by
+`slug` (as shown) or by `project_id` (UUID) — provide exactly one:
 
 ```bash
 curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
   -H "X-API-Key: $ARGUS_API_KEY" \
-  -F "project_id=$ARGUS_PROJECT_ID" \
+  -F "slug=$ARGUS_PROJECT_ID" \
   -F "version=1.2.3" \
   -F "service_name=my-app" \
   -F "file=@sbom.json"
@@ -99,7 +112,7 @@ curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
             run: |
               curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
                 -H "X-API-Key: $ARGUS_API_KEY" \
-                -F "project_id=$ARGUS_PROJECT_ID" \
+                -F "slug=$ARGUS_PROJECT_ID" \
                 -F "version=${GITHUB_REF_NAME}" \
                 -F "service_name=my-app" \
                 -F "file=@sbom.json"
@@ -139,7 +152,7 @@ curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
 
     variables:
       ARGUS_URL: https://argus.example.com
-      ARGUS_PROJECT_ID: 00000000-0000-0000-0000-000000000001
+      ARGUS_PROJECT_ID: argus-sbomguard
 
     build:
       stage: build
@@ -169,7 +182,7 @@ curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
         - syft scan my-app:$CI_COMMIT_SHA -o cyclonedx-json > sbom.json
         - curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
             -H "X-API-Key: $ARGUS_API_KEY" \
-            -F "project_id=$ARGUS_PROJECT_ID" \
+            -F "slug=$ARGUS_PROJECT_ID" \
             -F "version=$CI_COMMIT_TAG" \
             -F "service_name=my-app" \
             -F "file=@sbom.json"

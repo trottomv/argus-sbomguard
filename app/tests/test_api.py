@@ -108,6 +108,37 @@ async def test_create_duplicate_project(client):
 
 
 @pytest.mark.asyncio
+async def test_create_project_slug_generated(client):
+    resp = await client.post("/api/v1/projects", json={"name": "My New Service"})
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["slug"] == "my-new-service"
+    assert data["id"] != data["slug"]
+
+
+@pytest.mark.asyncio
+async def test_create_project_slug_collision_409(client):
+    await client.post("/api/v1/projects", json={"name": "Foo Bar"})
+    resp = await client.post("/api/v1/projects", json={"name": "foo_bar"})
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_project_slug_in_list_and_get(client):
+    create_resp = await client.post("/api/v1/projects", json={"name": "slug-lookup"})
+    pid = create_resp.json()["id"]
+    assert create_resp.json()["slug"] == "slug-lookup"
+
+    get_resp = await client.get(f"/api/v1/projects/{pid}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["slug"] == "slug-lookup"
+
+    list_resp = await client.get("/api/v1/projects")
+    items = list_resp.json()["items"]
+    assert any(i["slug"] == "slug-lookup" for i in items)
+
+
+@pytest.mark.asyncio
 async def test_get_project(client):
     create_resp = await client.post("/api/v1/projects", json={"name": "get-me"})
     pid = create_resp.json()["id"]
@@ -277,6 +308,63 @@ async def test_upload_sbom_project_not_found(client):
         files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
     )
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_upload_sbom_by_slug(client):
+    proj = await client.post("/api/v1/projects", json={"name": "slug-upload"})
+    slug = proj.json()["slug"]
+
+    resp = await client.post(
+        "/api/v1/sboms/upload",
+        data={"slug": slug, "version": "v1.0.0"},
+        files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["format"] == "cyclonedx"
+
+
+@pytest.mark.asyncio
+async def test_upload_sbom_slug_not_found(client):
+    resp = await client.post(
+        "/api/v1/sboms/upload",
+        data={"slug": "does-not-exist"},
+        files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_upload_sbom_invalid_project_id_uuid(client):
+    resp = await client.post(
+        "/api/v1/sboms/upload",
+        data={"project_id": "not-a-uuid"},
+        files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_upload_sbom_requires_identifier(client):
+    resp = await client.post(
+        "/api/v1/sboms/upload",
+        data={},
+        files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_upload_sbom_id_and_slug_conflict(client):
+    proj = await client.post("/api/v1/projects", json={"name": "both-ids"})
+    pid = proj.json()["id"]
+    slug = proj.json()["slug"]
+    resp = await client.post(
+        "/api/v1/sboms/upload",
+        data={"project_id": pid, "slug": slug},
+        files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
+    )
+    assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
