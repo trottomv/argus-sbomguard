@@ -6,7 +6,6 @@ from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.projects import _validate_sluggable_name
 from database import get_db
 from models.alert import AlertConfig
 from models.project import Project
@@ -173,9 +172,8 @@ async def update_project_name(
 ):
     form = await request.form()
     name = form.get("name", "").strip()
-    if not name:
+    if not any(c.isalnum() for c in name):
         return HTMLResponse("", status_code=422)
-    _validate_sluggable_name(name)
 
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
