@@ -60,6 +60,16 @@ class Settings(BaseSettings):
     # Slack
     slack_webhook_url: str = ""
 
+    # Email recipients for alerts; comma-separated (or a JSON list) env value.
+    alert_email_recipients: list[str] = []
+
+    @field_validator("alert_email_recipients", mode="before")
+    @classmethod
+    def _split_email_recipients(cls, v: object) -> object:
+        if isinstance(v, str):
+            return [email.strip() for email in v.split(",") if email.strip()]
+        return v
+
     # Vulnerabilities
     vuln_rescan_interval_seconds: int = 43200  # every 12 hours
     alerts_check_interval_seconds: int = 3600  # every 1 hour
