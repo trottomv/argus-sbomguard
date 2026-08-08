@@ -169,30 +169,26 @@ async def _deliver(alert: AlertConfig, vuln: Vulnerability) -> tuple[str, bool]:
     return alert.notification_type, False
 
 
-def _already_delivered(notifications: list[Notification], open_link_ids: set[uuid.UUID]) -> bool:
-    """True when this pair was already delivered in the current episode.
+def _in_current_episode(n: Notification, open_ids: set[str]) -> bool:
+    """True when a notification belongs to the current open episode.
 
-    A notification without a link (legacy, pre-episode rows) counts as
-    delivered permanently; a linked notification counts while its link is
-    still open. When the vulnerability is fixed and reopens, the new episode
-    has new open links, so it re-alerts.
+    Rows without episode_link_ids are legacy (pre-episode) deliveries and are
+    treated as permanently current, preserving the old dedup for existing data.
     """
-    return any(
-        n.status != "failed"
-        and (n.sbom_vulnerability_id is None or n.sbom_vulnerability_id in open_link_ids)
-        for n in notifications
-    )
+    return not n.episode_link_ids or any(link_id in open_ids for link_id in n.episode_link_ids)
 
 
-def _episode_attempts(
-    notifications: list[Notification], open_link_ids: set[uuid.UUID]
-) -> list[int]:
+def _already_delivered(notifications: list[Notification], open_ids: set[str]) -> bool:
+    """True when this pair was already delivered in the current episode."""
+    return any(n.status != "failed" and _in_current_episode(n, open_ids) for n in notifications)
+
+
+def _episode_attempts(notifications: list[Notification], open_ids: set[str]) -> list[int]:
     """Retry counts belonging to the current episode (failed attempts only)."""
     return [
         n.attempts
         for n in notifications
-        if n.status == "failed"
-        and (n.sbom_vulnerability_id is None or n.sbom_vulnerability_id in open_link_ids)
+        if n.status == "failed" and _in_current_episode(n, open_ids)
     ]
 
 
@@ -222,32 +218,38 @@ async def _do_check_alerts(db: AsyncSession) -> None:
                 continue
 
             existing = by_pair.get((vuln_id, alert.id), [])
-            open_set = set(open_link_ids)
-            if _already_delivered(existing, open_set):
+            open_ids = {str(link_id) for link_id in open_link_ids}
+            if _already_delivered(existing, open_ids):
                 continue
-            episode_attempts = _episode_attempts(existing, open_set)
-            if episode_attempts and max(episode_attempts) >= MAX_ALERT_DELIVERY_ATTEMPTS:
+            current_episode_failed = [
+                n for n in existing if n.status == "failed" and _in_current_episode(n, open_ids)
+            ]
+            attempts_so_far = [n.attempts for n in current_episode_failed]
+            if attempts_so_far and max(attempts_so_far) >= MAX_ALERT_DELIVERY_ATTEMPTS:
                 # Give up retrying a permanently failing delivery for this episode.
                 continue
 
             channel, success = await _deliver(alert, vuln)
             status = "sent" if success else "failed"
-            attempts = 0 if success else max(episode_attempts, default=0) + 1
-            representative = min(open_link_ids)
-            if existing:
-                # Retry: flip the previous attempt(s) to the new outcome instead
-                # of accumulating rows, tagging them to the current episode.
-                for n in existing:
+            attempts = 0 if success else max(attempts_so_far, default=0) + 1
+            if current_episode_failed:
+                # Same-episode retry: flip the current episode's failed attempt(s)
+                # to the new outcome instead of accumulating rows.
+                for n in current_episode_failed:
                     n.status = status
                     n.channel = channel
                     n.attempts = attempts
-                    n.sbom_vulnerability_id = representative
+                    n.sbom_vulnerability_id = min(open_link_ids)
+                    n.episode_link_ids = list(open_ids)
             else:
+                # New episode (reopen) or first delivery: keep history by adding
+                # a fresh row tagged to this episode's open links.
                 db.add(
                     Notification(
                         alert_config_id=alert.id,
                         vulnerability_id=vuln_id,
-                        sbom_vulnerability_id=representative,
+                        sbom_vulnerability_id=min(open_link_ids),
+                        episode_link_ids=list(open_ids),
                         channel=channel,
                         status=status,
                         attempts=attempts,

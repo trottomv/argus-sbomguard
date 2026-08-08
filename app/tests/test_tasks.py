@@ -439,6 +439,7 @@ async def test_check_alerts_realerts_after_reopen(db_session):
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
             sbom_vulnerability_id=link.id,
+            episode_link_ids=[str(link.id)],
             channel="slack",
             status="sent",
         )
@@ -470,9 +471,10 @@ async def test_check_alerts_realerts_after_reopen(db_session):
     finally:
         settings.slack_webhook_url = original
 
+    # The previous episode's row is kept (history) and a new one is added.
     notifications = (await db_session.execute(select(Notification))).scalars().all()
-    assert len(notifications) == 1
-    assert notifications[0].status == "sent"
+    assert len(notifications) == 2
+    assert all(n.status == "sent" for n in notifications)
 
 
 @pytest.mark.asyncio
@@ -506,6 +508,7 @@ async def test_check_alerts_resets_attempts_on_new_episode(db_session):
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
             sbom_vulnerability_id=link.id,
+            episode_link_ids=[str(link.id)],
             channel="slack",
             status="failed",
             attempts=MAX_ALERT_DELIVERY_ATTEMPTS,
@@ -550,6 +553,50 @@ async def test_check_alerts_resets_attempts_on_new_episode(db_session):
         settings.slack_webhook_url = original
 
     notifications = (await db_session.execute(select(Notification))).scalars().all()
-    assert len(notifications) == 1
-    assert notifications[0].status == "sent"
-    assert notifications[0].attempts == 0
+    assert len(notifications) == 2
+    newest = max(notifications, key=lambda n: n.created_at)
+    assert newest.status == "sent"
+    assert newest.attempts == 0
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_does_not_realert_while_episode_still_open(db_session):
+    vuln, alert = await _make_open_vuln_with_alert(db_session)
+    link1 = (await db_session.execute(select(SBOMVulnerability))).scalar_one()
+    link2 = SBOMVulnerability(
+        sbom_id=link1.sbom_id,
+        dependency_purl="pkg:npm/y@1.0.0",
+        vulnerability_id=vuln.id,
+        status="open",
+        detected_at=datetime.now(UTC),
+    )
+    db_session.add(link2)
+    await db_session.flush()
+    db_session.add(
+        Notification(
+            alert_config_id=alert.id,
+            vulnerability_id=vuln.id,
+            sbom_vulnerability_id=link1.id,
+            episode_link_ids=[str(link1.id), str(link2.id)],
+            channel="slack",
+            status="sent",
+        )
+    )
+    await db_session.commit()
+
+    # One link closes but the vulnerability stays open via the other: the
+    # episode is still current, so no re-alert fires.
+    link1.status = "fixed"
+    link1.fixed_at = datetime.now(UTC)
+    await db_session.commit()
+
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_not_called()
+    finally:
+        settings.slack_webhook_url = original
