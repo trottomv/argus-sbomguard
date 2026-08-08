@@ -261,7 +261,7 @@ def snapshot_metrics(snapshot_date: str | None = None):
                             "fixed_count": fixed_val,
                             "total_dependencies": dep_count_val,
                             "metrics": {},
-                            "created_at": datetime.now(UTC),
+                            "updated_at": datetime.now(UTC),
                         },
                     )
                 )
