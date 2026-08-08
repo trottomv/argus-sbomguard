@@ -5,6 +5,7 @@ import uuid
 import pytest
 
 from models.project import Project
+from models.sbom import SBOMFormat
 from services.sbom_parser import (
     _extract_license,
     compute_sha256,
@@ -113,7 +114,7 @@ async def test_store_sbom_cyclonedx(db_session):
     db_session.add(Project(id=project_id, name="SBOM parser 1"))
     await db_session.flush()
     sbom = await store_sbom(db_session, project_id, CYCLONEDX_SAMPLE, version="v1")
-    assert sbom.format == "cyclonedx"
+    assert sbom.format == SBOMFormat.CYCLONEDX
     assert sbom.dependency_count == 2
     assert sbom.version == "v1"
     assert len(sbom.raw_sbom["components"]) == 2
@@ -125,7 +126,7 @@ async def test_store_sbom_spdx(db_session):
     db_session.add(Project(id=project_id, name="SBOM parser 2"))
     await db_session.flush()
     sbom = await store_sbom(db_session, project_id, SPDX_SAMPLE)
-    assert sbom.format == "spdx"
+    assert sbom.format == SBOMFormat.SPDX
     assert sbom.dependency_count == 1
 
 

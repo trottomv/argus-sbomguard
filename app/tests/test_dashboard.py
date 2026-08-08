@@ -7,7 +7,12 @@ from sqlalchemy import select
 
 from models.auth import ApiKey
 from models.sbom import Dependency
-from models.vulnerability import SBOMVulnerability, Vulnerability
+from models.vulnerability import (
+    SBOMVulnerability,
+    Vulnerability,
+    VulnerabilitySeverity,
+    VulnerabilityStatus,
+)
 
 
 def _sbom(name: str, version: str) -> dict:
@@ -42,11 +47,11 @@ async def _add_vuln(
     sbom_id: str,
     cve_id: str,
     *,
-    severity: str = "HIGH",
+    severity: VulnerabilitySeverity = VulnerabilitySeverity.HIGH,
     purl: str = "pkg:npm/lodash@4.17.20",
     dep_name: str | None = "lodash",
     dep_version: str | None = "4.17.20",
-    status: str = "open",
+    status: VulnerabilityStatus = VulnerabilityStatus.OPEN,
 ) -> None:
     vuln = Vulnerability(
         cve_id=cve_id,
@@ -67,7 +72,7 @@ async def _add_vuln(
             dependency_purl=purl,
             vulnerability_id=vuln.id,
             status=status,
-            fixed_at=datetime.now(UTC) if status == "fixed" else None,
+            fixed_at=datetime.now(UTC) if status == VulnerabilityStatus.FIXED else None,
             detected_at=datetime.now(UTC),
         )
     )
@@ -183,7 +188,9 @@ async def test_project_detail_with_vulns(client, db_session):
 
     await _add_vuln(db_session, sbom_svc, "CVE-2026-3001")
 
-    dup = Vulnerability(cve_id="CVE-2026-3010", source="grype", severity="HIGH", cvss_score=8.0)
+    dup = Vulnerability(
+        cve_id="CVE-2026-3010", source="grype", severity=VulnerabilitySeverity.HIGH, cvss_score=8.0
+    )
     db_session.add(dup)
     await db_session.flush()
     for purl in ("pkg:npm/dup@1.0.0", "pkg:npm/dup@2.0.0"):
@@ -192,7 +199,7 @@ async def test_project_detail_with_vulns(client, db_session):
                 sbom_id=uuid.UUID(sbom_svc),
                 dependency_purl=purl,
                 vulnerability_id=dup.id,
-                status="open",
+                status=VulnerabilityStatus.OPEN,
                 detected_at=datetime.now(UTC),
             )
         )
@@ -204,7 +211,11 @@ async def test_project_detail_with_vulns(client, db_session):
     await _add_vuln(db_session, sbom_no_svc, "CVE-2026-3003", purl="pkg:npm/simple", dep_name=None)
     await _add_vuln(db_session, sbom_no_svc, "CVE-2026-3004", purl="simplepkg", dep_name=None)
     await _add_vuln(
-        db_session, sbom_no_svc, "CVE-2026-3005", purl="pkg:npm/fixed@1.0.0", status="fixed"
+        db_session,
+        sbom_no_svc,
+        "CVE-2026-3005",
+        purl="pkg:npm/fixed@1.0.0",
+        status=VulnerabilityStatus.FIXED,
     )
 
     resp = await client.get(f"/projects/{pid}?service_id={svc_id}")
@@ -236,7 +247,7 @@ async def test_project_sboms_page_with_vulns(client, db_session):
         sbom_id,
         "CVE-2026-3004",
         purl="pkg:npm/react@18.2.0",
-        status="fixed",
+        status=VulnerabilityStatus.FIXED,
     )
     svc_id = await _service_id(client, pid)
 

@@ -6,9 +6,15 @@ import pytest
 from sqlalchemy import select
 
 from config import settings
-from models.alert import AlertConfig, Notification, NotificationChannel, NotificationStatus
+from models.alert import (
+    AlertConfig,
+    Notification,
+    NotificationChannel,
+    NotificationStatus,
+    SeverityThreshold,
+)
 from models.project import Project
-from models.sbom import SBOM
+from models.sbom import SBOM, SBOMFormat
 from models.service import Service
 from models.vulnerability import (
     SBOMVulnerability,
@@ -50,7 +56,7 @@ async def test_latest_sbom_ids_picks_latest_per_scope(db_session):
         SBOM(
             project_id=p1,
             service_id=s1,
-            format="cyclonedx",
+            format=SBOMFormat.CYCLONEDX,
             raw_sbom={"v": "1"},
             sha256="a" * 64,
             uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
@@ -58,7 +64,7 @@ async def test_latest_sbom_ids_picks_latest_per_scope(db_session):
         SBOM(
             project_id=p1,
             service_id=s1,
-            format="cyclonedx",
+            format=SBOMFormat.CYCLONEDX,
             raw_sbom={"v": "2"},
             sha256="b" * 64,
             uploaded_at=datetime(2026, 1, 2, tzinfo=UTC),
@@ -66,28 +72,28 @@ async def test_latest_sbom_ids_picks_latest_per_scope(db_session):
         SBOM(
             project_id=p1,
             service_id=s2,
-            format="cyclonedx",
+            format=SBOMFormat.CYCLONEDX,
             raw_sbom={"v": "1"},
             sha256="c" * 64,
             uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
         ),
         SBOM(
             project_id=p1,
-            format="cyclonedx",
+            format=SBOMFormat.CYCLONEDX,
             raw_sbom={"v": "1"},
             sha256="d" * 64,
             uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
         ),
         SBOM(
             project_id=p2,
-            format="cyclonedx",
+            format=SBOMFormat.CYCLONEDX,
             raw_sbom={"v": "1"},
             sha256="e" * 64,
             uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
         ),
         SBOM(
             project_id=p2,
-            format="cyclonedx",
+            format=SBOMFormat.CYCLONEDX,
             raw_sbom={"v": "2"},
             sha256="f" * 64,
             uploaded_at=datetime(2026, 1, 3, tzinfo=UTC),
@@ -107,14 +113,14 @@ async def _make_scope(db_session, project_id, older_uploaded, latest_uploaded):
     db_session.add(Project(id=project_id, name=f"Tasks project {project_id}"))
     older = SBOM(
         project_id=project_id,
-        format="cyclonedx",
+        format=SBOMFormat.CYCLONEDX,
         raw_sbom={"v": "1"},
         sha256=uuid.uuid4().hex,
         uploaded_at=older_uploaded,
     )
     latest = SBOM(
         project_id=project_id,
-        format="cyclonedx",
+        format=SBOMFormat.CYCLONEDX,
         raw_sbom={"v": "2"},
         sha256=uuid.uuid4().hex,
         uploaded_at=latest_uploaded,
@@ -122,7 +128,9 @@ async def _make_scope(db_session, project_id, older_uploaded, latest_uploaded):
     db_session.add_all([older, latest])
     await db_session.flush()
 
-    vuln = Vulnerability(cve_id="CVE-2026-0001", source="grype", severity="HIGH")
+    vuln = Vulnerability(
+        cve_id="CVE-2026-0001", source="grype", severity=VulnerabilitySeverity.HIGH
+    )
     db_session.add(vuln)
     await db_session.flush()
 
@@ -130,7 +138,7 @@ async def _make_scope(db_session, project_id, older_uploaded, latest_uploaded):
         sbom_id=older.id,
         dependency_purl="pkg:npm/example@1.0.0",
         vulnerability_id=vuln.id,
-        status="open",
+        status=VulnerabilityStatus.OPEN,
         detected_at=datetime.now(UTC),
     )
     db_session.add(link)
@@ -156,7 +164,7 @@ async def test_do_scan_sbom_skips_reconcile_when_scan_fails(db_session):
             select(SBOMVulnerability).where(SBOMVulnerability.sbom_id == older.id)
         )
     ).scalar_one()
-    assert fresh.status == "open"
+    assert fresh.status == VulnerabilityStatus.OPEN
 
 
 @pytest.mark.asyncio
@@ -177,7 +185,7 @@ async def test_do_scan_sbom_reconciles_on_success(db_session):
             select(SBOMVulnerability).where(SBOMVulnerability.sbom_id == older.id)
         )
     ).scalar_one()
-    assert fresh.status == "fixed"
+    assert fresh.status == VulnerabilityStatus.FIXED
 
 
 @pytest.mark.asyncio
@@ -190,14 +198,16 @@ async def test_do_scan_sbom_retires_stale_vulns_on_latest(db_session):
         datetime(2026, 1, 2, tzinfo=UTC),
     )
 
-    stale = Vulnerability(cve_id="CVE-2026-0009", source="grype", severity="LOW")
+    stale = Vulnerability(
+        cve_id="CVE-2026-0009", source="grype", severity=VulnerabilitySeverity.LOW
+    )
     db_session.add(stale)
     await db_session.flush()
     stale_link = SBOMVulnerability(
         sbom_id=latest.id,
         dependency_purl="pkg:npm/stale@2.0.0",
         vulnerability_id=stale.id,
-        status="open",
+        status=VulnerabilityStatus.OPEN,
         detected_at=datetime.now(UTC),
     )
     db_session.add(stale_link)
@@ -218,10 +228,12 @@ async def test_do_scan_sbom_retires_stale_vulns_on_latest(db_session):
             )
         )
     ).scalar_one()
-    assert stale_fresh.status == "fixed"
+    assert stale_fresh.status == VulnerabilityStatus.FIXED
 
 
-async def _make_open_vuln_with_alert(db_session, notification_type="slack"):
+async def _make_open_vuln_with_alert(
+    db_session, notification_type: NotificationChannel = NotificationChannel.SLACK
+):
     project = Project(name="alerts-project")
     db_session.add(project)
     await db_session.flush()
@@ -230,7 +242,9 @@ async def _make_open_vuln_with_alert(db_session, notification_type="slack"):
     db_session.add(sbom)
     await db_session.flush()
 
-    vuln = Vulnerability(cve_id="CVE-2026-0101", source="grype", severity="CRITICAL")
+    vuln = Vulnerability(
+        cve_id="CVE-2026-0101", source="grype", severity=VulnerabilitySeverity.CRITICAL
+    )
     db_session.add(vuln)
     await db_session.flush()
 
@@ -239,14 +253,14 @@ async def _make_open_vuln_with_alert(db_session, notification_type="slack"):
             sbom_id=sbom.id,
             dependency_purl="pkg:npm/x@1.0.0",
             vulnerability_id=vuln.id,
-            status="open",
+            status=VulnerabilityStatus.OPEN,
             detected_at=datetime.now(UTC),
         )
     )
 
     alert = AlertConfig(
         project_id=project.id,
-        severity_threshold="high",
+        severity_threshold=SeverityThreshold.HIGH,
         notification_type=notification_type,
         enabled=True,
     )
@@ -292,7 +306,7 @@ async def test_check_alerts_does_not_resend_sent_notification(db_session):
         Notification(
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
-            channel="slack",
+            channel=NotificationChannel.SLACK,
             status=NotificationStatus.SENT,
         )
     )
@@ -373,7 +387,7 @@ async def test_check_alerts_gives_up_after_max_attempts(db_session):
 
 @pytest.mark.asyncio
 async def test_check_alerts_delivers_email_to_env_recipients(db_session):
-    _, _ = await _make_open_vuln_with_alert(db_session, notification_type="email")
+    _, _ = await _make_open_vuln_with_alert(db_session, notification_type=NotificationChannel.EMAIL)
 
     original = settings.alert_email_recipients
     settings.alert_email_recipients = ["ops@example.com"]
@@ -395,7 +409,7 @@ async def test_check_alerts_delivers_email_to_env_recipients(db_session):
 
 @pytest.mark.asyncio
 async def test_check_alerts_email_without_recipients_fails(db_session):
-    _, _ = await _make_open_vuln_with_alert(db_session, notification_type="email")
+    _, _ = await _make_open_vuln_with_alert(db_session, notification_type=NotificationChannel.EMAIL)
 
     original = settings.alert_email_recipients
     settings.alert_email_recipients = []
@@ -464,7 +478,7 @@ async def test_check_alerts_realerts_after_reopen(db_session):
         settings.slack_webhook_url = original
 
     # Close the episode: the notification becomes resolved.
-    link.status = "fixed"
+    link.status = VulnerabilityStatus.FIXED
     link.fixed_at = datetime.now(UTC)
     await db_session.commit()
 
@@ -483,7 +497,7 @@ async def test_check_alerts_realerts_after_reopen(db_session):
             sbom_id=link.sbom_id,
             dependency_purl="pkg:npm/y@1.0.0",
             vulnerability_id=vuln.id,
-            status="open",
+            status=VulnerabilityStatus.OPEN,
             detected_at=datetime.now(UTC),
         )
     )
@@ -558,7 +572,7 @@ async def test_check_alerts_resets_attempts_on_new_episode(db_session):
         settings.slack_webhook_url = original
 
     # Close the episode: the exhausted failed row is resolved.
-    link.status = "fixed"
+    link.status = VulnerabilityStatus.FIXED
     link.fixed_at = datetime.now(UTC)
     await db_session.commit()
 
@@ -577,7 +591,7 @@ async def test_check_alerts_resets_attempts_on_new_episode(db_session):
             sbom_id=link.sbom_id,
             dependency_purl="pkg:npm/y@1.0.0",
             vulnerability_id=vuln.id,
-            status="open",
+            status=VulnerabilityStatus.OPEN,
             detected_at=datetime.now(UTC),
         )
     )
@@ -608,7 +622,7 @@ async def test_check_alerts_does_not_realert_while_episode_still_open(db_session
         sbom_id=link1.sbom_id,
         dependency_purl="pkg:npm/y@1.0.0",
         vulnerability_id=vuln.id,
-        status="open",
+        status=VulnerabilityStatus.OPEN,
         detected_at=datetime.now(UTC),
     )
     db_session.add(link2)
@@ -625,7 +639,7 @@ async def test_check_alerts_does_not_realert_while_episode_still_open(db_session
 
     # One link closes but the vulnerability stays open via the other: the
     # episode is still current, so no re-alert fires.
-    link1.status = "fixed"
+    link1.status = VulnerabilityStatus.FIXED
     link1.fixed_at = datetime.now(UTC)
     await db_session.commit()
 
@@ -656,21 +670,23 @@ async def test_check_alerts_resends_when_affected_services_change(db_session):
     db_session.add_all([sbom1, sbom2])
     await db_session.flush()
 
-    vuln = Vulnerability(cve_id="CVE-2026-0202", source="grype", severity="CRITICAL")
+    vuln = Vulnerability(
+        cve_id="CVE-2026-0202", source="grype", severity=VulnerabilitySeverity.CRITICAL
+    )
     db_session.add(vuln)
     await db_session.flush()
     link1 = SBOMVulnerability(
         sbom_id=sbom1.id,
         dependency_purl="pkg:npm/x@1.0.0",
         vulnerability_id=vuln.id,
-        status="open",
+        status=VulnerabilityStatus.OPEN,
         detected_at=datetime.now(UTC),
     )
     link2 = SBOMVulnerability(
         sbom_id=sbom2.id,
         dependency_purl="pkg:npm/x@1.0.0",
         vulnerability_id=vuln.id,
-        status="open",
+        status=VulnerabilityStatus.OPEN,
         detected_at=datetime.now(UTC),
     )
     db_session.add_all([link1, link2])
@@ -678,8 +694,8 @@ async def test_check_alerts_resends_when_affected_services_change(db_session):
 
     alert = AlertConfig(
         project_id=project.id,
-        severity_threshold="high",
-        notification_type="slack",
+        severity_threshold=SeverityThreshold.HIGH,
+        notification_type=NotificationChannel.SLACK,
         enabled=True,
     )
     db_session.add(alert)
@@ -708,7 +724,7 @@ async def test_check_alerts_resends_when_affected_services_change(db_session):
 
     # service-a is fixed but the vulnerability stays open in service-b: the
     # affected services changed, so the notification is re-sent for service-b.
-    link1.status = "fixed"
+    link1.status = VulnerabilityStatus.FIXED
     link1.fixed_at = datetime.now(UTC)
     await db_session.commit()
 
@@ -818,7 +834,7 @@ async def test_snapshot_metrics_counts_open_severities(db_session):
     sbom = SBOM(
         project_id=project.id,
         version="v1",
-        format="cyclonedx",
+        format=SBOMFormat.CYCLONEDX,
         raw_sbom={"bomFormat": "CycloneDX"},
         sha256="9" * 64,
     )
