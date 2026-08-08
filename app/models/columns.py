@@ -7,10 +7,9 @@ from sqlalchemy.ext.compiler import compiles
 # UTF-8 locale, so international names are preserved: "Argus SBOM Guard"
 # -> "argus-sbom-guard", "Mio Progetto" -> "mio-progetto".
 #
-# This is the single source of truth for the slug semantics: the model's
-# SlugComputed column and migration 0002 both reference it. Treat it as a
-# stable constant — changing it after deploy would alter existing slugs and
-# requires a new migration.
+# Used by the SlugComputed column below. Alembic migrations inline the literal
+# at generation time as frozen snapshots, so keep them in sync via
+# ``alembic revision --autogenerate`` when this changes.
 SLUG_EXPR = (
     "lower(regexp_replace(regexp_replace(trim(name), '[^[:alnum:]]+', '-', 'g'), "
     "'^-+|-+$', '', 'g'))"

@@ -7,8 +7,9 @@ Create Date: 2026-08-08 06:40:27.813714
 NOTE: this migration adds a UNIQUE index on the generated slug column. If
 existing projects slugify to the same value (e.g. "Foo Bar" vs "foo_bar",
 both "foo-bar"), the upgrade aborts. Check for collisions before deploying:
-SELECT name, SLUG_EXPR AS slug FROM projects GROUP BY slug HAVING count(*)
-> 1;  (substitute the slug expression from models.columns.SLUG_EXPR)
+SELECT name, lower(regexp_replace(regexp_replace(trim(name), '[^[:alnum:]]+',
+'-', 'g'), '^-+|-+$', '', 'g')) AS slug FROM projects GROUP BY slug HAVING
+count(*) > 1;
 
 """
 
@@ -16,8 +17,6 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
-
-from models.columns import SLUG_EXPR
 
 # revision identifiers, used by Alembic.
 revision: str = "0002"
@@ -33,7 +32,9 @@ def upgrade() -> None:
         sa.Column(
             "slug",
             sa.String(length=255),
-            sa.Computed(SLUG_EXPR),
+            sa.Computed(
+                "lower(regexp_replace(regexp_replace(trim(name), '[^[:alnum:]]+', '-', 'g'), '^-+|-+$', '', 'g'))",
+            ),
             nullable=False,
         ),
     )
