@@ -104,7 +104,7 @@ docker compose exec app bandit -c pyproject.toml -r app/
 # SCA (pip-audit)
 docker compose exec app pip-audit --require-hashes --disable-pip -r requirements/remote.txt
 
-# Compile requirements with hashes (run after changing deps in pyproject.toml)
+# Compile requirements with hashes (requires uv on host: pipx install uv; run after changing deps in pyproject.toml)
 just compile-requirements
 
 # Scan compose images with syft
