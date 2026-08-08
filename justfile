@@ -34,11 +34,11 @@ logs-worker:
 
 # ---- Testing ----
 
-# run tests (full stack running)
+# run tests via the standalone test stack (never in the dev app container)
 test:
-    docker compose exec app pytest -v
+    COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v
 
-# run tests standalone (postgres + rabbitmq only, no host port bindings)
+# build the test image and run the full suite in a fresh standalone stack
 test-stack:
     COMPOSE_FILE=docker-compose.test.yml docker compose build app
     COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v
@@ -46,7 +46,12 @@ test-stack:
 
 # run tests with coverage
 test-cov:
-    docker compose exec app pytest -v --cov=. --cov-report=term-missing
+    COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v --cov=. --cov-report=term-missing
+
+# run tests writing coverage annotate output into cov_annotate/ (gitignored).
+# cleanup happens inside the container because the files are root-owned there.
+cov-annotate:
+    COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app sh -c "rm -rf /app/cov_annotate && pytest -q --cov=api --cov-report=annotate:cov_annotate"
 
 # run tests in watch mode
 test-watch:
@@ -171,6 +176,8 @@ docs-list: docs-deps
 
 # ---- Utils ----
 
-# remove build artifacts and caches
+# remove build artifacts and caches. Files under app/ are container-generated
+# and root-owned, so they are cleaned inside the test container (runs as root).
 clean:
-    rm -rf app/__pycache__ app/**/__pycache__ app/.pytest_cache .ruff_cache site .docs-venv
+    COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app sh -c "find /app -name __pycache__ -type d -prune -exec rm -rf {} + && rm -rf /app/.pytest_cache /app/.ruff_cache /app/cov_annotate && find /app -name '*,cover' -delete"
+    rm -rf site .docs-venv
