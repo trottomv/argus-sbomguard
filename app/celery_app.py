@@ -26,6 +26,10 @@ celery_app.conf.update(
             "task": "tasks.rescan_vulnerabilities",
             "schedule": settings.vuln_rescan_interval_seconds,  # every 12h by default
         },
+        "check-alerts": {
+            "task": "tasks.check_alerts",
+            "schedule": settings.alerts_check_interval_seconds,  # every 1h by default
+        },
     },
 )
 

@@ -62,6 +62,7 @@ class Settings(BaseSettings):
 
     # Vulnerabilities
     vuln_rescan_interval_seconds: int = 43200  # every 12 hours
+    alerts_check_interval_seconds: int = 3600  # every 1 hour
 
     # gRPC
     grpc_port: int = 50051
