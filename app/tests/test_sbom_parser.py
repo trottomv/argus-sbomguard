@@ -146,5 +146,5 @@ async def test_store_sbom_unknown_format(db_session):
     await db_session.flush()
     raw = {"unknown": True}
     sbom = await store_sbom(db_session, project_id, raw)
-    assert sbom.format == ""
+    assert sbom.format is None
     assert sbom.dependency_count == 0

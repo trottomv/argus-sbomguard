@@ -100,7 +100,7 @@ class SBOMServiceServicer(BaseServicer):
 
             return UploadResponse(
                 sbom_id=str(sbom.id),
-                format=sbom.format or "",
+                format=sbom.format.value if sbom.format else "",
                 dependency_count=sbom.dependency_count or 0,
                 sha256=sbom.sha256,
             )

@@ -19,7 +19,7 @@ from database import get_db
 from middleware.api_key import api_key_required
 from models.project import Project
 from models.sbom import SBOM, Dependency
-from models.vulnerability import SBOMVulnerability, Vulnerability
+from models.vulnerability import SBOMVulnerability, Vulnerability, VulnerabilityStatus
 from services.sbom_parser import store_sbom
 from services.tasks import scan_sbom
 
@@ -200,8 +200,11 @@ async def delete_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     for (oid,) in older_ids:
         await db.execute(
             update(SBOMVulnerability)
-            .where(SBOMVulnerability.sbom_id == oid, SBOMVulnerability.status == "fixed")
-            .values(status="open", fixed_at=None)
+            .where(
+                SBOMVulnerability.sbom_id == oid,
+                SBOMVulnerability.status == VulnerabilityStatus.FIXED,
+            )
+            .values(status=VulnerabilityStatus.OPEN, fixed_at=None)
         )
 
     if latest_sbom:

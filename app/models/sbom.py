@@ -1,10 +1,24 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Uuid, func
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Uuid,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from models.base import BaseModel
+from models.base import BaseModel, ValueLabelEnum, enum_db_values
+
+
+class SBOMFormat(ValueLabelEnum):
+    CYCLONEDX = "cyclonedx", "CycloneDX"
+    SPDX = "spdx", "SPDX"
 
 
 class SBOM(BaseModel):
@@ -14,7 +28,15 @@ class SBOM(BaseModel):
         Uuid(as_uuid=True), ForeignKey("projects.id"), nullable=False, index=True
     )
     version: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    format: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    format: Mapped[SBOMFormat | None] = mapped_column(
+        Enum(
+            SBOMFormat,
+            name="sbom_format",
+            values_callable=enum_db_values,
+            native_enum=False,
+        ),
+        nullable=True,
+    )
     raw_sbom: Mapped[dict] = mapped_column(JSON, nullable=False)
     sha256: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     dependency_count: Mapped[int | None] = mapped_column(Integer, nullable=True)

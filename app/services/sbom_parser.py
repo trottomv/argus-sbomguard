@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.sbom import SBOM, Dependency
+from models.sbom import SBOM, Dependency, SBOMFormat
 from models.service import Service
 
 
@@ -102,14 +102,15 @@ async def store_sbom(
     service_name: str | None = None,
 ) -> SBOM:
     fmt = raw.get("bomFormat", "").lower()
-    if fmt == "cyclonedx":
+    if fmt == SBOMFormat.CYCLONEDX.value:
         deps_data = await parse_cyclonedx(raw)
-        fmt = "cyclonedx"
+        fmt = SBOMFormat.CYCLONEDX
     elif raw.get("spdxVersion"):
         deps_data = await parse_spdx(raw)
-        fmt = "spdx"
+        fmt = SBOMFormat.SPDX
     else:
         deps_data = []
+        fmt = None
 
     sha = compute_sha256(raw)
     version = version or _extract_component_version(raw) or sha

@@ -11,7 +11,13 @@ from models.alert import AlertConfig, NotificationChannel, SeverityThreshold
 from models.project import Project
 from models.sbom import SBOM, Dependency
 from models.service import Service
-from models.vulnerability import SBOMVulnerability, Vulnerability, VulnerabilitySnapshot
+from models.vulnerability import (
+    SBOMVulnerability,
+    Vulnerability,
+    VulnerabilitySeverity,
+    VulnerabilitySnapshot,
+    VulnerabilityStatus,
+)
 from services.auth import create_api_key, list_api_keys, revoke_api_key
 from services.pagination import (
     PROJECT_PER_PAGE,
@@ -94,7 +100,7 @@ async def _get_project_vulns(
         )
         .where(
             SBOMVulnerability.sbom_id.in_(latest_sbom_ids),
-            SBOMVulnerability.status == "open",
+            SBOMVulnerability.status == VulnerabilityStatus.OPEN,
         )
         .order_by(Vulnerability.cvss_score.desc().nullslast())
     )
@@ -208,16 +214,24 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     vuln_subq = (
         select(Vulnerability.id, Vulnerability.severity)
         .join(SBOMVulnerability)
-        .where(SBOMVulnerability.status == "open")
+        .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
         .distinct()
     ).subquery()
 
     vuln_counts = await db.execute(
         select(
-            func.count().filter(vuln_subq.c.severity.ilike("critical")).label("critical"),
-            func.count().filter(vuln_subq.c.severity.ilike("high")).label("high"),
-            func.count().filter(vuln_subq.c.severity.ilike("medium")).label("medium"),
-            func.count().filter(vuln_subq.c.severity.ilike("low")).label("low"),
+            func.count()
+            .filter(vuln_subq.c.severity.ilike(VulnerabilitySeverity.CRITICAL.value))
+            .label("critical"),
+            func.count()
+            .filter(vuln_subq.c.severity.ilike(VulnerabilitySeverity.HIGH.value))
+            .label("high"),
+            func.count()
+            .filter(vuln_subq.c.severity.ilike(VulnerabilitySeverity.MEDIUM.value))
+            .label("medium"),
+            func.count()
+            .filter(vuln_subq.c.severity.ilike(VulnerabilitySeverity.LOW.value))
+            .label("low"),
         ).select_from(vuln_subq)
     )
     row = vuln_counts.one()
@@ -225,7 +239,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     fixed_count = (
         await db.execute(
             select(func.count(SBOMVulnerability.vulnerability_id)).where(
-                SBOMVulnerability.status == "fixed"
+                SBOMVulnerability.status == VulnerabilityStatus.FIXED
             )
         )
     ).scalar() or 0
@@ -374,9 +388,9 @@ async def project_detail_page(
             .group_by(SBOMVulnerability.sbom_id, SBOMVulnerability.status)
         )
         for s_id, status, cnt in vc_rows:
-            if status == "open":
+            if status == VulnerabilityStatus.OPEN:
                 vulns_by_sbom[s_id] = cnt
-            elif status == "fixed":
+            elif status == VulnerabilityStatus.FIXED:
                 fixed_by_sbom[s_id] = cnt
 
     project_vulns_all = await _get_project_vulns(db, project_id, service_id)
@@ -457,9 +471,9 @@ async def project_sboms_page(
             .group_by(SBOMVulnerability.sbom_id, SBOMVulnerability.status)
         )
         for s_id, status, cnt in vuln_rows:
-            if status == "open":
+            if status == VulnerabilityStatus.OPEN:
                 vulns_by_sbom[s_id] = cnt
-            elif status == "fixed":
+            elif status == VulnerabilityStatus.FIXED:
                 fixed_by_sbom[s_id] = cnt
 
     load_url = f"/projects/{project_id}/sboms?per_page={per_page}"
@@ -534,7 +548,9 @@ async def vulnerabilities_page(
     per_page: int = Query(VULN_PER_PAGE, ge=1, le=200),
 ):
     subq = (
-        select(Vulnerability.id).join(SBOMVulnerability).where(SBOMVulnerability.status == "open")
+        select(Vulnerability.id)
+        .join(SBOMVulnerability)
+        .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
     )
     if severity and severity != "":
         subq = subq.where(Vulnerability.severity.ilike(severity))
@@ -557,10 +573,10 @@ async def vulnerabilities_page(
     if order == "asc":
         if sort == "severity":
             severity_case = case(
-                (Vulnerability.severity == "CRITICAL", 0),
-                (Vulnerability.severity == "HIGH", 1),
-                (Vulnerability.severity == "MEDIUM", 2),
-                (Vulnerability.severity == "LOW", 3),
+                (Vulnerability.severity == VulnerabilitySeverity.CRITICAL.value, 0),
+                (Vulnerability.severity == VulnerabilitySeverity.HIGH.value, 1),
+                (Vulnerability.severity == VulnerabilitySeverity.MEDIUM.value, 2),
+                (Vulnerability.severity == VulnerabilitySeverity.LOW.value, 3),
                 else_=99,
             )
             query = query.order_by(severity_case.asc(), Vulnerability.cvss_score.desc().nullslast())
@@ -571,10 +587,10 @@ async def vulnerabilities_page(
     else:
         if sort == "severity":
             severity_case = case(
-                (Vulnerability.severity == "CRITICAL", 0),
-                (Vulnerability.severity == "HIGH", 1),
-                (Vulnerability.severity == "MEDIUM", 2),
-                (Vulnerability.severity == "LOW", 3),
+                (Vulnerability.severity == VulnerabilitySeverity.CRITICAL.value, 0),
+                (Vulnerability.severity == VulnerabilitySeverity.HIGH.value, 1),
+                (Vulnerability.severity == VulnerabilitySeverity.MEDIUM.value, 2),
+                (Vulnerability.severity == VulnerabilitySeverity.LOW.value, 3),
                 else_=99,
             )
             query = query.order_by(
@@ -626,7 +642,7 @@ async def vulnerabilities_page(
             )
             .where(
                 SBOMVulnerability.vulnerability_id.in_(vuln_ids),
-                SBOMVulnerability.status == "open",
+                SBOMVulnerability.status == VulnerabilityStatus.OPEN,
             )
         )
         for v_id, d_name, d_ver, d_purl in dep_rows:
@@ -794,7 +810,7 @@ async def sboms_page(
             )
             .where(
                 SBOMVulnerability.sbom_id.in_(sbom_ids),
-                SBOMVulnerability.status == "open",
+                SBOMVulnerability.status == VulnerabilityStatus.OPEN,
             )
             .group_by(SBOMVulnerability.sbom_id)
         )

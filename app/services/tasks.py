@@ -10,10 +10,16 @@ from sqlalchemy.pool import NullPool
 
 from celery_app import celery_app
 from config import settings
-from models.alert import AlertConfig, Notification
+from models.alert import AlertConfig, Notification, NotificationChannel, NotificationStatus
 from models.project import Project
 from models.sbom import SBOM, Dependency
-from models.vulnerability import SBOMVulnerability, Vulnerability, VulnerabilitySnapshot
+from models.vulnerability import (
+    SBOMVulnerability,
+    Vulnerability,
+    VulnerabilitySeverity,
+    VulnerabilitySnapshot,
+    VulnerabilityStatus,
+)
 from services.notifications import send_email, send_slack
 from services.vulnerability_scanner import (
     reconcile_vulnerabilities,
@@ -138,7 +144,7 @@ async def _open_vulnerabilities(
     rows = await db.execute(
         select(SBOMVulnerability.vulnerability_id, SBOM.project_id, SBOM.service_id)
         .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
-        .where(SBOMVulnerability.status == "open")
+        .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
     )
     vuln_ids: set[uuid.UUID] = set()
     open_pairs: set[tuple[uuid.UUID, uuid.UUID]] = set()
@@ -167,16 +173,16 @@ async def _enabled_alerts(db: AsyncSession) -> list[AlertConfig]:
     return list(result.scalars().all())
 
 
-async def _deliver(alert: AlertConfig, vuln: Vulnerability) -> tuple[str, bool]:
+async def _deliver(alert: AlertConfig, vuln: Vulnerability) -> tuple[NotificationChannel, bool]:
     """Send the alert, returning ``(channel, success)``."""
     message = f"🔴 *{vuln.cve_id}* ({vuln.severity})\n{vuln.summary}"
-    if alert.notification_type == "slack" and settings.slack_webhook_url:
-        return "slack", await send_slack(settings.slack_webhook_url, message)
-    if alert.notification_type == "email":
+    if alert.notification_type == NotificationChannel.SLACK and settings.slack_webhook_url:
+        return NotificationChannel.SLACK, await send_slack(settings.slack_webhook_url, message)
+    if alert.notification_type == NotificationChannel.EMAIL:
         recipients = alert.config.get("to") or ", ".join(settings.alert_email_recipients)
         if not recipients:
-            return "email", False
-        return "email", await send_email(
+            return NotificationChannel.EMAIL, False
+        return NotificationChannel.EMAIL, await send_email(
             recipients,
             f"Critical: {vuln.cve_id}",
             message,
@@ -200,14 +206,14 @@ def _delivery_action(existing: list[Notification], current_services: list[str]) 
     fresh delivery (RESEND), even when the previous attempt failed, so the
     retry budget is reset on scope change.
     """
-    active = [n for n in existing if n.status != "resolved"]
-    sent = [n for n in active if n.status == "sent"]
+    active = [n for n in existing if n.status != NotificationStatus.RESOLVED]
+    sent = [n for n in active if n.status == NotificationStatus.SENT]
     if sent:
         if set(sent[-1].service_ids or []) == set(current_services):
             return _DeliveryAction.SKIP
         return _DeliveryAction.RESEND
 
-    failed = [n for n in existing if n.status == "failed"]
+    failed = [n for n in existing if n.status == NotificationStatus.FAILED]
     if failed:
         if set(failed[-1].service_ids or []) != set(current_services):
             return _DeliveryAction.RESEND
@@ -237,7 +243,7 @@ def _resolve_closed_episodes(
     for n in notifications:
         alert = alert_by_id.get(n.alert_config_id)
         if alert is not None and (alert.project_id, n.vulnerability_id) not in open_pairs:
-            n.status = "resolved"
+            n.status = NotificationStatus.RESOLVED
 
 
 def _index_by_pair(
@@ -255,7 +261,7 @@ def _record_delivery(
     vuln_id: uuid.UUID,
     existing: list[Notification],
     action: _DeliveryAction,
-    channel: str,
+    channel: NotificationChannel,
     success: bool,
     current_services: list[str],
 ) -> None:
@@ -266,22 +272,22 @@ def _record_delivery(
     """
     if action == _DeliveryAction.RESEND:
         for n in existing:
-            if n.status != "resolved":
-                n.status = "resolved"
+            if n.status != NotificationStatus.RESOLVED:
+                n.status = NotificationStatus.RESOLVED
         db.add(
             Notification(
                 alert_config_id=alert.id,
                 vulnerability_id=vuln_id,
                 service_ids=current_services,
                 channel=channel,
-                status="sent" if success else "failed",
+                status=NotificationStatus.SENT if success else NotificationStatus.FAILED,
                 attempts=0 if success else 1,
             )
         )
         return
 
-    failed = [n for n in existing if n.status == "failed"]
-    status = "sent" if success else "failed"
+    failed = [n for n in existing if n.status == NotificationStatus.FAILED]
+    status = NotificationStatus.SENT if success else NotificationStatus.FAILED
     attempts = 0 if success else max((n.attempts for n in failed), default=0) + 1
 
     if failed:
@@ -351,7 +357,10 @@ def snapshot_metrics(snapshot_date: str | None = None):
                         select(Vulnerability.severity)
                         .join(SBOMVulnerability)
                         .join(SBOM)
-                        .where(SBOM.project_id == pid, SBOMVulnerability.status == "open")
+                        .where(
+                            SBOM.project_id == pid,
+                            SBOMVulnerability.status == VulnerabilityStatus.OPEN,
+                        )
                         .distinct(Vulnerability.id)
                     )
                     severities = [s.lower() for s in open_vulns.scalars().all()]
@@ -373,7 +382,7 @@ def snapshot_metrics(snapshot_date: str | None = None):
                         .join(SBOM)
                         .where(
                             SBOM.project_id == pid,
-                            SBOMVulnerability.status == "fixed",
+                            SBOMVulnerability.status == VulnerabilityStatus.FIXED,
                             SBOMVulnerability.fixed_at.isnot(None),
                             func.date(SBOMVulnerability.fixed_at) <= target_date,
                         )
@@ -382,17 +391,19 @@ def snapshot_metrics(snapshot_date: str | None = None):
                     fixed_ids = set(r[0] for r in fixed_before)
                     severities = [sev for vid, sev in total_dict.items() if vid not in fixed_ids]
 
-                critical_count = sum(1 for s in severities if s == "critical")
-                high_count = sum(1 for s in severities if s == "high")
-                medium_count = sum(1 for s in severities if s == "medium")
-                low_count = sum(1 for s in severities if s == "low")
+                critical_count = sum(
+                    1 for s in severities if s == VulnerabilitySeverity.CRITICAL.value
+                )
+                high_count = sum(1 for s in severities if s == VulnerabilitySeverity.HIGH.value)
+                medium_count = sum(1 for s in severities if s == VulnerabilitySeverity.MEDIUM.value)
+                low_count = sum(1 for s in severities if s == VulnerabilitySeverity.LOW.value)
 
                 fixed_result = await db.execute(
                     select(func.count(SBOMVulnerability.vulnerability_id))
                     .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
                     .where(
                         SBOM.project_id == pid,
-                        SBOMVulnerability.status == "fixed",
+                        SBOMVulnerability.status == VulnerabilityStatus.FIXED,
                         SBOMVulnerability.fixed_at.isnot(None),
                         func.date(SBOMVulnerability.fixed_at) <= target_date,
                     )
