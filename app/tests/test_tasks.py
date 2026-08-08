@@ -401,3 +401,155 @@ async def test_check_alerts_email_without_recipients_fails(db_session):
     notifications = (await db_session.execute(select(Notification))).scalars().all()
     assert len(notifications) == 1
     assert notifications[0].status == "failed"
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_does_not_resend_same_episode(db_session):
+    vuln, alert = await _make_open_vuln_with_alert(db_session)
+    link = (await db_session.execute(select(SBOMVulnerability))).scalar_one()
+    db_session.add(
+        Notification(
+            alert_config_id=alert.id,
+            vulnerability_id=vuln.id,
+            sbom_vulnerability_id=link.id,
+            channel="slack",
+            status="sent",
+        )
+    )
+    await db_session.commit()
+
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_not_called()
+    finally:
+        settings.slack_webhook_url = original
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_realerts_after_reopen(db_session):
+    vuln, alert = await _make_open_vuln_with_alert(db_session)
+    link = (await db_session.execute(select(SBOMVulnerability))).scalar_one()
+    db_session.add(
+        Notification(
+            alert_config_id=alert.id,
+            vulnerability_id=vuln.id,
+            sbom_vulnerability_id=link.id,
+            channel="slack",
+            status="sent",
+        )
+    )
+    await db_session.commit()
+
+    # Close the first episode and reopen the vulnerability with a new link.
+    link.status = "fixed"
+    link.fixed_at = datetime.now(UTC)
+    db_session.add(
+        SBOMVulnerability(
+            sbom_id=link.sbom_id,
+            dependency_purl="pkg:npm/y@1.0.0",
+            vulnerability_id=vuln.id,
+            status="open",
+            detected_at=datetime.now(UTC),
+        )
+    )
+    await db_session.commit()
+
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_awaited_once()
+    finally:
+        settings.slack_webhook_url = original
+
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].status == "sent"
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_ignores_vulns_outside_alert_project(db_session):
+    _, alert = await _make_open_vuln_with_alert(db_session)
+
+    other_project = Project(name="other-project")
+    db_session.add(other_project)
+    await db_session.flush()
+    alert.project_id = other_project.id
+    await db_session.commit()
+
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_not_called()
+    finally:
+        settings.slack_webhook_url = original
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_resets_attempts_on_new_episode(db_session):
+    vuln, alert = await _make_open_vuln_with_alert(db_session)
+    link = (await db_session.execute(select(SBOMVulnerability))).scalar_one()
+    db_session.add(
+        Notification(
+            alert_config_id=alert.id,
+            vulnerability_id=vuln.id,
+            sbom_vulnerability_id=link.id,
+            channel="slack",
+            status="failed",
+            attempts=MAX_ALERT_DELIVERY_ATTEMPTS,
+        )
+    )
+    await db_session.commit()
+
+    # Same episode: the exhausted budget blocks the retry.
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_not_called()
+    finally:
+        settings.slack_webhook_url = original
+
+    # Reopen: the new episode resets the budget, so it delivers again.
+    link.status = "fixed"
+    link.fixed_at = datetime.now(UTC)
+    db_session.add(
+        SBOMVulnerability(
+            sbom_id=link.sbom_id,
+            dependency_purl="pkg:npm/y@1.0.0",
+            vulnerability_id=vuln.id,
+            status="open",
+            detected_at=datetime.now(UTC),
+        )
+    )
+    await db_session.commit()
+
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send2:
+            await _do_check_alerts(db_session)
+        mock_send2.assert_awaited_once()
+    finally:
+        settings.slack_webhook_url = original
+
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].status == "sent"
+    assert notifications[0].attempts == 0

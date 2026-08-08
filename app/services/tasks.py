@@ -120,20 +120,31 @@ def _severity_rank(value: str | None) -> int:
     return _SEVERITY_RANK.get((value or "unknown").lower(), 99)
 
 
-async def _open_vulnerabilities(db: AsyncSession) -> list[Vulnerability]:
-    """Open vulnerabilities, deduplicated by id.
+async def _open_vulnerabilities(
+    db: AsyncSession,
+) -> tuple[dict[uuid.UUID, Vulnerability], dict[uuid.UUID, dict[uuid.UUID, list[uuid.UUID]]]]:
+    """Return open vulnerabilities and, per vulnerability, its open link ids grouped by project.
 
-    Distinct ids are fetched first because SELECT DISTINCT over the whole
-    entity would compare the JSON columns (affected_packages, extra_data,
-    ...), for which PostgreSQL has no equality operator.
+    Link ids are selected directly (no SELECT DISTINCT over the entity),
+    because the Vulnerability entity carries JSON columns (affected_packages,
+    extra_data, ...) that PostgreSQL cannot equate.
     """
-    open_ids = (
-        select(SBOMVulnerability.vulnerability_id)
+    rows = await db.execute(
+        select(SBOMVulnerability.id, SBOMVulnerability.vulnerability_id, SBOM.project_id)
+        .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
         .where(SBOMVulnerability.status == "open")
-        .distinct()
     )
-    result = await db.execute(select(Vulnerability).where(Vulnerability.id.in_(open_ids)))
-    return list(result.scalars().all())
+    vuln_ids: set[uuid.UUID] = set()
+    links_by_vuln: dict[uuid.UUID, dict[uuid.UUID, list[uuid.UUID]]] = {}
+    for link_id, vuln_id, project_id in rows.all():
+        vuln_ids.add(vuln_id)
+        links_by_vuln.setdefault(vuln_id, {}).setdefault(project_id, []).append(link_id)
+
+    if not vuln_ids:
+        return {}, {}
+
+    vulns = await db.execute(select(Vulnerability).where(Vulnerability.id.in_(vuln_ids)))
+    return {v.id: v for v in vulns.scalars().all()}, links_by_vuln
 
 
 async def _enabled_alerts(db: AsyncSession) -> list[AlertConfig]:
@@ -158,20 +169,42 @@ async def _deliver(alert: AlertConfig, vuln: Vulnerability) -> tuple[str, bool]:
     return alert.notification_type, False
 
 
-def _already_delivered(notifications: list[Notification]) -> bool:
-    """True when a previous attempt for this pair succeeded."""
-    return any(n.status != "failed" for n in notifications)
+def _already_delivered(notifications: list[Notification], open_link_ids: set[uuid.UUID]) -> bool:
+    """True when this pair was already delivered in the current episode.
+
+    A notification without a link (legacy, pre-episode rows) counts as
+    delivered permanently; a linked notification counts while its link is
+    still open. When the vulnerability is fixed and reopens, the new episode
+    has new open links, so it re-alerts.
+    """
+    return any(
+        n.status != "failed"
+        and (n.sbom_vulnerability_id is None or n.sbom_vulnerability_id in open_link_ids)
+        for n in notifications
+    )
+
+
+def _episode_attempts(
+    notifications: list[Notification], open_link_ids: set[uuid.UUID]
+) -> list[int]:
+    """Retry counts belonging to the current episode (failed attempts only)."""
+    return [
+        n.attempts
+        for n in notifications
+        if n.status == "failed"
+        and (n.sbom_vulnerability_id is None or n.sbom_vulnerability_id in open_link_ids)
+    ]
 
 
 async def _do_check_alerts(db: AsyncSession) -> None:
-    vulns = await _open_vulnerabilities(db)
+    vulns, links_by_vuln = await _open_vulnerabilities(db)
     alerts = await _enabled_alerts(db)
     if not vulns or not alerts:
         return
 
     notifications = await db.execute(
         select(Notification).where(
-            Notification.vulnerability_id.in_([v.id for v in vulns]),
+            Notification.vulnerability_id.in_(list(vulns)),
             Notification.alert_config_id.in_([a.id for a in alerts]),
         )
     )
@@ -179,33 +212,42 @@ async def _do_check_alerts(db: AsyncSession) -> None:
     for n in notifications.scalars().all():
         by_pair.setdefault((n.vulnerability_id, n.alert_config_id), []).append(n)
 
-    for vuln in vulns:
-        for alert in alerts:
+    for alert in alerts:
+        for vuln_id, projects in links_by_vuln.items():
+            open_link_ids = projects.get(alert.project_id)
+            if not open_link_ids:
+                continue
+            vuln = vulns[vuln_id]
             if _severity_rank(vuln.severity) > _severity_rank(alert.severity_threshold):
                 continue
 
-            existing = by_pair.get((vuln.id, alert.id), [])
-            if _already_delivered(existing):
+            existing = by_pair.get((vuln_id, alert.id), [])
+            open_set = set(open_link_ids)
+            if _already_delivered(existing, open_set):
                 continue
-            if existing and max(n.attempts for n in existing) >= MAX_ALERT_DELIVERY_ATTEMPTS:
-                # Give up retrying a permanently failing delivery.
+            episode_attempts = _episode_attempts(existing, open_set)
+            if episode_attempts and max(episode_attempts) >= MAX_ALERT_DELIVERY_ATTEMPTS:
+                # Give up retrying a permanently failing delivery for this episode.
                 continue
 
             channel, success = await _deliver(alert, vuln)
             status = "sent" if success else "failed"
-            attempts = 0 if success else max((n.attempts for n in existing), default=0) + 1
+            attempts = 0 if success else max(episode_attempts, default=0) + 1
+            representative = min(open_link_ids)
             if existing:
-                # Retry: flip the previous failed attempt(s) to the new outcome
-                # instead of accumulating rows.
+                # Retry: flip the previous attempt(s) to the new outcome instead
+                # of accumulating rows, tagging them to the current episode.
                 for n in existing:
                     n.status = status
                     n.channel = channel
                     n.attempts = attempts
+                    n.sbom_vulnerability_id = representative
             else:
                 db.add(
                     Notification(
                         alert_config_id=alert.id,
-                        vulnerability_id=vuln.id,
+                        vulnerability_id=vuln_id,
+                        sbom_vulnerability_id=representative,
                         channel=channel,
                         status=status,
                         attempts=attempts,
