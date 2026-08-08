@@ -5,11 +5,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy import select
 
+from config import settings
+from models.alert import AlertConfig, Notification
 from models.project import Project
 from models.sbom import SBOM
 from models.service import Service
 from models.vulnerability import SBOMVulnerability, Vulnerability
-from services.tasks import _do_scan_sbom, _latest_sbom_ids
+from services.tasks import _do_check_alerts, _do_scan_sbom, _latest_sbom_ids
 
 
 @pytest.mark.asyncio
@@ -202,3 +204,122 @@ async def test_do_scan_sbom_retires_stale_vulns_on_latest(db_session):
         )
     ).scalar_one()
     assert stale_fresh.status == "fixed"
+
+
+async def _make_open_vuln_with_alert(db_session):
+    project = Project(name="alerts-project")
+    db_session.add(project)
+    await db_session.flush()
+
+    sbom = SBOM(project_id=project.id, raw_sbom={}, sha256=uuid.uuid4().hex)
+    db_session.add(sbom)
+    await db_session.flush()
+
+    vuln = Vulnerability(cve_id="CVE-2026-0101", source="grype", severity="CRITICAL")
+    db_session.add(vuln)
+    await db_session.flush()
+
+    db_session.add(
+        SBOMVulnerability(
+            sbom_id=sbom.id,
+            dependency_purl="pkg:npm/x@1.0.0",
+            vulnerability_id=vuln.id,
+            status="open",
+            detected_at=datetime.now(UTC),
+        )
+    )
+
+    alert = AlertConfig(
+        project_id=project.id,
+        severity_threshold="high",
+        notification_type="slack",
+        enabled=True,
+    )
+    db_session.add(alert)
+    await db_session.commit()
+    return vuln, alert
+
+
+def _slack_webhook() -> str:
+    return "https://hooks.slack.com/services/xxx/yyy/zzz"
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_retries_failed_notification(db_session):
+    vuln, alert = await _make_open_vuln_with_alert(db_session)
+    db_session.add(
+        Notification(
+            alert_config_id=alert.id,
+            vulnerability_id=vuln.id,
+            channel="slack",
+            status="failed",
+        )
+    )
+    await db_session.commit()
+
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch("services.tasks.send_slack", new_callable=AsyncMock, return_value=True):
+            await _do_check_alerts(db_session)
+    finally:
+        settings.slack_webhook_url = original
+
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].status == "sent"
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_does_not_resend_sent_notification(db_session):
+    vuln, alert = await _make_open_vuln_with_alert(db_session)
+    db_session.add(
+        Notification(
+            alert_config_id=alert.id,
+            vulnerability_id=vuln.id,
+            channel="slack",
+            status="sent",
+        )
+    )
+    await db_session.commit()
+
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_not_called()
+    finally:
+        settings.slack_webhook_url = original
+
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].status == "sent"
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_keeps_failed_when_send_fails_again(db_session):
+    vuln, alert = await _make_open_vuln_with_alert(db_session)
+    db_session.add(
+        Notification(
+            alert_config_id=alert.id,
+            vulnerability_id=vuln.id,
+            channel="slack",
+            status="failed",
+        )
+    )
+    await db_session.commit()
+
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch("services.tasks.send_slack", new_callable=AsyncMock, return_value=False):
+            await _do_check_alerts(db_session)
+    finally:
+        settings.slack_webhook_url = original
+
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].status == "failed"

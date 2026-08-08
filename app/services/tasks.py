@@ -106,63 +106,102 @@ def rescan_vulnerabilities():
 def check_alerts():
     async def _run():
         async with _make_session()() as db:
-            result = await db.execute(
-                select(Vulnerability)
-                .join(SBOMVulnerability)
-                .filter(SBOMVulnerability.status == "open")
-                .distinct()
-            )
-            vulns = result.scalars().all()
-
-            alert_result = await db.execute(select(AlertConfig).where(AlertConfig.enabled))
-            alerts = alert_result.scalars().all()
-
-            severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-
-            for vuln in vulns:
-                vuln_severity = severity_order.get(
-                    vuln.severity.lower() if vuln.severity else "unknown", 99
-                )
-
-                for alert in alerts:
-                    threshold = severity_order.get(alert.severity_threshold.lower(), 1)
-                    if vuln_severity > threshold:
-                        continue
-
-                    already_notified = await db.execute(
-                        select(Notification).where(
-                            Notification.vulnerability_id == vuln.id,
-                            Notification.alert_config_id == alert.id,
-                        )
-                    )
-                    if already_notified.scalar_one_or_none():
-                        continue
-
-                    msg = f"🔴 *{vuln.cve_id}* ({vuln.severity})\n{vuln.summary}"
-
-                    notification_channel = alert.notification_type
-                    if notification_channel == "slack" and settings.slack_webhook_url:
-                        success = await send_slack(settings.slack_webhook_url, msg)
-                    elif notification_channel == "email":
-                        success = await send_email(
-                            alert.config.get("to", ""),
-                            f"Critical: {vuln.cve_id}",
-                            msg,
-                        )
-                    else:
-                        success = False
-
-                    notif = Notification(
-                        alert_config_id=alert.id,
-                        vulnerability_id=vuln.id,
-                        channel=notification_channel,
-                        status="sent" if success else "failed",
-                    )
-                    db.add(notif)
-
-            await db.commit()
+            await _do_check_alerts(db)
 
     asyncio.run(_run())
+
+
+_SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+
+def _severity_rank(value: str | None) -> int:
+    return _SEVERITY_RANK.get((value or "unknown").lower(), 99)
+
+
+async def _open_vulnerabilities(db: AsyncSession) -> list[Vulnerability]:
+    """Open vulnerabilities, deduplicated by id.
+
+    Distinct ids are fetched first because SELECT DISTINCT over the whole
+    entity would compare the JSON columns (affected_packages, extra_data,
+    ...), for which PostgreSQL has no equality operator.
+    """
+    open_ids = (
+        select(SBOMVulnerability.vulnerability_id)
+        .where(SBOMVulnerability.status == "open")
+        .distinct()
+    )
+    result = await db.execute(select(Vulnerability).where(Vulnerability.id.in_(open_ids)))
+    return list(result.scalars().all())
+
+
+async def _enabled_alerts(db: AsyncSession) -> list[AlertConfig]:
+    result = await db.execute(select(AlertConfig).where(AlertConfig.enabled))
+    return list(result.scalars().all())
+
+
+async def _deliver(alert: AlertConfig, vuln: Vulnerability) -> tuple[str, bool]:
+    """Send the alert, returning ``(channel, success)``."""
+    message = f"🔴 *{vuln.cve_id}* ({vuln.severity})\n{vuln.summary}"
+    if alert.notification_type == "slack" and settings.slack_webhook_url:
+        return "slack", await send_slack(settings.slack_webhook_url, message)
+    if alert.notification_type == "email":
+        return "email", await send_email(
+            alert.config.get("to", ""),
+            f"Critical: {vuln.cve_id}",
+            message,
+        )
+    return alert.notification_type, False
+
+
+def _already_delivered(notifications: list[Notification]) -> bool:
+    """True when a previous attempt for this pair succeeded."""
+    return any(n.status != "failed" for n in notifications)
+
+
+async def _do_check_alerts(db: AsyncSession) -> None:
+    vulns = await _open_vulnerabilities(db)
+    alerts = await _enabled_alerts(db)
+    if not vulns or not alerts:
+        return
+
+    notifications = await db.execute(
+        select(Notification).where(
+            Notification.vulnerability_id.in_([v.id for v in vulns]),
+            Notification.alert_config_id.in_([a.id for a in alerts]),
+        )
+    )
+    by_pair: dict[tuple[uuid.UUID, uuid.UUID], list[Notification]] = {}
+    for n in notifications.scalars().all():
+        by_pair.setdefault((n.vulnerability_id, n.alert_config_id), []).append(n)
+
+    for vuln in vulns:
+        for alert in alerts:
+            if _severity_rank(vuln.severity) > _severity_rank(alert.severity_threshold):
+                continue
+
+            existing = by_pair.get((vuln.id, alert.id), [])
+            if _already_delivered(existing):
+                continue
+
+            channel, success = await _deliver(alert, vuln)
+            status = "sent" if success else "failed"
+            if existing:
+                # Retry: flip the previous failed attempt(s) to the new outcome
+                # instead of accumulating rows.
+                for n in existing:
+                    n.status = status
+                    n.channel = channel
+            else:
+                db.add(
+                    Notification(
+                        alert_config_id=alert.id,
+                        vulnerability_id=vuln.id,
+                        channel=channel,
+                        status=status,
+                    )
+                )
+
+    await db.commit()
 
 
 @celery_app.task(name="tasks.snapshot_metrics")
