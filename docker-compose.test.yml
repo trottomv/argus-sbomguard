@@ -4,6 +4,8 @@
 #   docker compose -f docker-compose.test.yml run --rm app pytest -v
 #   docker compose -f docker-compose.test.yml down -v
 
+name: argus-sbomguard-test
+
 services:
   postgres:
     image: dhi.io/postgres:18-alpine3.23
