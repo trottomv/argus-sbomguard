@@ -196,7 +196,9 @@ def _delivery_action(existing: list[Notification], current_services: list[str]) 
     """Decide what to do for an (alert, vulnerability) pair.
 
     Pure decision based on the notification history and the services the
-    vulnerability is currently open in.
+    vulnerability is currently open in. A changed service scope is always a
+    fresh delivery (RESEND), even when the previous attempt failed, so the
+    retry budget is reset on scope change.
     """
     active = [n for n in existing if n.status != "resolved"]
     sent = [n for n in active if n.status == "sent"]
@@ -206,9 +208,11 @@ def _delivery_action(existing: list[Notification], current_services: list[str]) 
         return _DeliveryAction.RESEND
 
     failed = [n for n in existing if n.status == "failed"]
-    if failed and max(n.attempts for n in failed) >= MAX_ALERT_DELIVERY_ATTEMPTS:
-        return _DeliveryAction.GIVE_UP
     if failed:
+        if set(failed[-1].service_ids or []) != set(current_services):
+            return _DeliveryAction.RESEND
+        if max(n.attempts for n in failed) >= MAX_ALERT_DELIVERY_ATTEMPTS:
+            return _DeliveryAction.GIVE_UP
         return _DeliveryAction.RETRY
     return _DeliveryAction.DELIVER
 
@@ -217,7 +221,9 @@ async def _load_notifications(
     db: AsyncSession, alert_by_id: dict[uuid.UUID, AlertConfig]
 ) -> list[Notification]:
     result = await db.execute(
-        select(Notification).where(Notification.alert_config_id.in_(alert_by_id))
+        select(Notification)
+        .where(Notification.alert_config_id.in_(alert_by_id))
+        .order_by(Notification.created_at)
     )
     return list(result.scalars().all())
 
@@ -255,12 +261,24 @@ def _record_delivery(
 ) -> None:
     """Persist a delivery outcome: flip failed rows, or add a new one.
 
-    On a resend the previous sent row is closed (resolved) so history is kept.
+    A resend (changed service scope) closes the previous rows and adds a fresh
+    one with a reset attempt budget, keeping history.
     """
     if action == _DeliveryAction.RESEND:
         for n in existing:
-            if n.status == "sent":
+            if n.status != "resolved":
                 n.status = "resolved"
+        db.add(
+            Notification(
+                alert_config_id=alert.id,
+                vulnerability_id=vuln_id,
+                service_ids=current_services,
+                channel=channel,
+                status="sent" if success else "failed",
+                attempts=0 if success else 1,
+            )
+        )
+        return
 
     failed = [n for n in existing if n.status == "failed"]
     status = "sent" if success else "failed"
