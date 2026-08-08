@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -10,13 +10,20 @@ from models.alert import AlertConfig, Notification, NotificationChannel, Notific
 from models.project import Project
 from models.sbom import SBOM
 from models.service import Service
-from models.vulnerability import SBOMVulnerability, Vulnerability
+from models.vulnerability import (
+    SBOMVulnerability,
+    Vulnerability,
+    VulnerabilitySeverity,
+    VulnerabilitySnapshot,
+    VulnerabilityStatus,
+)
 from services.tasks import (
     MAX_ALERT_DELIVERY_ATTEMPTS,
     _delivery_action,
     _DeliveryAction,
     _do_check_alerts,
     _do_scan_sbom,
+    _do_snapshot_metrics,
     _latest_sbom_ids,
     _resolve_closed_episodes,
 )
@@ -800,3 +807,54 @@ def test_resolve_closed_episodes_keeps_open_pair():
     n = _notification(alert_config_id=alert.id, vulnerability_id=vuln_id)
     _resolve_closed_episodes([n], {alert.id: alert}, {(project_id, vuln_id)})
     assert n.status == NotificationStatus.SENT
+
+
+@pytest.mark.asyncio
+async def test_snapshot_metrics_counts_open_severities(db_session):
+    project = Project(name="snapshot-test")
+    db_session.add(project)
+    await db_session.flush()
+
+    sbom = SBOM(
+        project_id=project.id,
+        version="v1",
+        format="cyclonedx",
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="9" * 64,
+    )
+    db_session.add(sbom)
+    await db_session.flush()
+
+    vulns = [
+        Vulnerability(
+            cve_id="CVE-2026-9001", source="grype", severity=VulnerabilitySeverity.CRITICAL
+        ),
+        Vulnerability(cve_id="CVE-2026-9002", source="grype", severity=VulnerabilitySeverity.HIGH),
+    ]
+    db_session.add_all(vulns)
+    await db_session.flush()
+
+    for i, vuln in enumerate(vulns):
+        db_session.add(
+            SBOMVulnerability(
+                sbom_id=sbom.id,
+                dependency_purl=f"pkg:npm/dep{i}@1.0.0",
+                vulnerability_id=vuln.id,
+                status=VulnerabilityStatus.OPEN,
+                detected_at=datetime.now(UTC),
+            )
+        )
+    await db_session.commit()
+
+    await _do_snapshot_metrics(db_session, date.today().isoformat())
+
+    snap = (
+        await db_session.execute(
+            select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id == project.id)
+        )
+    ).scalar_one()
+    assert snap.critical_count == 1
+    assert snap.high_count == 1
+    assert snap.medium_count == 0
+    assert snap.low_count == 0
+    assert snap.fixed_count == 0
