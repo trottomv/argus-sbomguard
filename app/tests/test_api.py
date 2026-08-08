@@ -6,8 +6,13 @@ from unittest.mock import patch
 import pytest
 
 from models.project import Project
-from models.sbom import SBOM, Dependency
-from models.vulnerability import SBOMVulnerability, Vulnerability
+from models.sbom import SBOM, Dependency, SBOMFormat
+from models.vulnerability import (
+    SBOMVulnerability,
+    Vulnerability,
+    VulnerabilitySeverity,
+    VulnerabilityStatus,
+)
 
 SAMPLE_CYCLONEDX = {
     "bomFormat": "CycloneDX",
@@ -658,7 +663,7 @@ async def test_vulnerabilities_page_shows_library_and_fixed_version(client, db_s
     sbom = SBOM(
         project_id=project.id,
         version="v1",
-        format="cyclonedx",
+        format=SBOMFormat.CYCLONEDX,
         raw_sbom={"bomFormat": "CycloneDX"},
         sha256="a" * 64,
     )
@@ -681,7 +686,7 @@ async def test_vulnerabilities_page_shows_library_and_fixed_version(client, db_s
     vuln = Vulnerability(
         cve_id="CVE-2026-0001",
         source="grype",
-        severity="HIGH",
+        severity=VulnerabilitySeverity.HIGH,
         cvss_score=8.1,
         summary="Lodash RCE",
         affected_packages=["pkg:npm/lodash@4.17.20"],
@@ -696,21 +701,21 @@ async def test_vulnerabilities_page_shows_library_and_fixed_version(client, db_s
                 sbom_id=sbom.id,
                 dependency_purl="pkg:npm/lodash@4.17.20",
                 vulnerability_id=vuln.id,
-                status="open",
+                status=VulnerabilityStatus.OPEN,
                 detected_at=datetime.now(UTC),
             ),
             SBOMVulnerability(
                 sbom_id=sbom.id,
                 dependency_purl="pkg:npm/react@18.2.0",
                 vulnerability_id=vuln.id,
-                status="open",
+                status=VulnerabilityStatus.OPEN,
                 detected_at=datetime.now(UTC),
             ),
             SBOMVulnerability(
                 sbom_id=sbom.id,
                 dependency_purl="pkg:npm/axios@1.7.0",
                 vulnerability_id=vuln.id,
-                status="fixed",
+                status=VulnerabilityStatus.FIXED,
                 detected_at=datetime.now(UTC),
             ),
         ]
@@ -1060,7 +1065,9 @@ async def test_delete_sbom_reconciles_older_fixed_vulns(client, db_session):
     older_sid = r1.json()["id"]
     newest_sid = r2.json()["id"]
 
-    vuln = Vulnerability(cve_id="CVE-2026-0199", source="grype", severity="HIGH")
+    vuln = Vulnerability(
+        cve_id="CVE-2026-0199", source="grype", severity=VulnerabilitySeverity.HIGH
+    )
     db_session.add(vuln)
     await db_session.flush()
     db_session.add(
@@ -1068,7 +1075,7 @@ async def test_delete_sbom_reconciles_older_fixed_vulns(client, db_session):
             sbom_id=uuid.UUID(older_sid),
             dependency_purl="pkg:npm/keep@1.0.0",
             vulnerability_id=vuln.id,
-            status="fixed",
+            status=VulnerabilityStatus.FIXED,
             fixed_at=datetime.now(UTC),
             detected_at=datetime.now(UTC),
         )
@@ -1096,7 +1103,7 @@ async def test_active_vulnerabilities_filters_and_sort(client, db_session):
     vuln = Vulnerability(
         cve_id="CVE-2026-0102",
         source="grype",
-        severity="HIGH",
+        severity=VulnerabilitySeverity.HIGH,
         cvss_score=8.1,
         summary="Active filter test",
         published_at=datetime(2026, 1, 1, tzinfo=UTC),
@@ -1108,7 +1115,7 @@ async def test_active_vulnerabilities_filters_and_sort(client, db_session):
             sbom_id=uuid.UUID(sid),
             dependency_purl="pkg:npm/lodash@4.17.20",
             vulnerability_id=vuln.id,
-            status="open",
+            status=VulnerabilityStatus.OPEN,
             detected_at=datetime.now(UTC),
         )
     )
