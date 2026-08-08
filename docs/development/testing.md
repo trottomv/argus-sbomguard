@@ -2,7 +2,10 @@
 
 ## Test Setup
 
-Tests use pytest with `httpx.AsyncClient` and an in-memory SQLite database.
+Tests use pytest with `httpx.AsyncClient` and a dedicated PostgreSQL 18
+database (`argus_test`, created and migrated automatically by `conftest.py`).
+The real schema — including the generated slug column and the `public.slugify`
+function — is exercised exactly as in production.
 
 Run all tests:
 

@@ -17,6 +17,17 @@ curl -X POST http://localhost:8000/api/v1/sboms/upload \
   -F "file=@sbom.json"
 ```
 
+You can target the project by UUID (`project_id`) or by its readable **slug**
+(`slug`) — provide exactly one:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/sboms/upload \
+  -H "X-API-Key: argus_xxx" \
+  -F "slug=my-project" \
+  -F "version=1.2.3" \
+  -F "file=@sbom.json"
+```
+
 **gRPC**:
 
 ```bash
@@ -34,10 +45,13 @@ grpcurl -plaintext \
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `project_id` | Yes | UUID of the target project |
+| `project_id` | Yes* | UUID of the target project |
+| `slug` | Yes* | Slug of the target project (alternative to `project_id`) |
 | `file` | Yes | JSON SBOM file |
 | `version` | No | Software version tag |
 | `service_name` | No | Microservice/component name |
+
+\* Provide **exactly one** of `project_id` or `slug`.
 
 ## What Happens on Upload
 

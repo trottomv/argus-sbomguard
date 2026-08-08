@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -34,6 +35,7 @@ class ProjectUpdate(BaseModel):
 
 class ProjectResponse(BaseModel):
     id: str
+    slug: str
     name: str
     description: str | None
     repo_url: str | None
@@ -63,6 +65,8 @@ async def list_projects(
 
 @router.post("", status_code=201)
 async def create_project(data: ProjectCreate, db: AsyncSession = Depends(get_db)):
+    _validate_sluggable_name(data.name)
+
     existing = await db.execute(select(Project).where(Project.name == data.name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Project already exists")
@@ -74,7 +78,18 @@ async def create_project(data: ProjectCreate, db: AsyncSession = Depends(get_db)
         platform=data.platform,
     )
     db.add(project)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Project slug already in use"
+                if _is_slug_conflict(exc)
+                else "Project name already exists"
+            ),
+        ) from None
     await db.refresh(project)
     return _project_to_dict(project)
 
@@ -139,6 +154,7 @@ async def update_project(
         raise HTTPException(status_code=404, detail="Project not found")
 
     if data.name is not None:
+        _validate_sluggable_name(data.name)
         existing = await db.execute(
             select(Project).where(Project.name == data.name, Project.id != project_id)
         )
@@ -152,14 +168,43 @@ async def update_project(
     if data.platform is not None:
         project.platform = data.platform
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Project slug already in use"
+                if _is_slug_conflict(exc)
+                else "Project name already exists"
+            ),
+        ) from None
     await db.refresh(project)
     return _project_to_dict(project)
+
+
+def _validate_sluggable_name(name: str) -> None:
+    """Reject names that would slugify to an empty string (no alphanumeric)."""
+    if not any(c.isalnum() for c in name):
+        raise HTTPException(
+            status_code=422,
+            detail="Project name must contain at least one alphanumeric character",
+        )
+
+
+def _is_slug_conflict(exc: IntegrityError) -> bool:
+    """Return True when the failing UNIQUE constraint is the slug index."""
+    constraint = getattr(exc.orig, "constraint_name", None)
+    if constraint:
+        return "slug" in str(constraint)
+    return "slug" in str(exc.orig)
 
 
 def _project_to_dict(p: Project) -> dict:
     return {
         "id": str(p.id),
+        "slug": p.slug,
         "name": p.name,
         "description": p.description,
         "repo_url": p.repo_url,

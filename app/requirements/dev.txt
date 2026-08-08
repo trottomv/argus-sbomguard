@@ -6,10 +6,6 @@ aiosmtplib==5.1.2 \
     --hash=sha256:04a0ea3c678f5b719f998f290dce010ca512e1385836d3944206299df03b060f \
     --hash=sha256:070d467cc329dafd0af59108ba5d217d973cba10309910fed359a2a7bfb52d7a
     # via argus-sbomguard (app/pyproject.toml)
-aiosqlite==0.22.1 \
-    --hash=sha256:043e0bd78d32888c0a9ca90fc788b38796843360c855a7262a532813133a0650 \
-    --hash=sha256:21c002eb13823fad740196c5a2e9d8e62f6243bd9e7e4a1f87fb5e44ecb4fceb
-    # via argus-sbomguard (app/pyproject.toml)
 alembic==1.18.5 \
     --hash=sha256:06d8ba9d04558022f5395e9317de03d270f3dced49cee01f89fe7a13c26f14bc \
     --hash=sha256:1554982221dd17e9a749b53902407578eb305e453f71999e8c7f0a48389fff8e

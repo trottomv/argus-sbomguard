@@ -233,5 +233,4 @@ app/protos/generated/
 
 # Devcontainer
 .devcontainer/
-app/test.db
 .docs-venv/

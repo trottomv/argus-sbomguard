@@ -57,15 +57,32 @@ class SBOMServiceServicer(BaseServicer):
     async def upload_sbom(
         self, request: UploadRequest, context: grpc.aio.ServicerContext
     ) -> UploadResponse:
-        try:
-            project_uuid = uuid.UUID(request.project_id)
-        except ValueError:
-            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "invalid project_id UUID")
+        has_slug = request.HasField("slug") and bool(request.slug)
+        has_project_id = bool(request.project_id)
+
+        if has_slug and has_project_id:
+            await context.abort(
+                grpc.StatusCode.INVALID_ARGUMENT, "provide only one of project_id or slug"
+            )
+            return UploadResponse()
+        if not has_slug and not has_project_id:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "project_id or slug is required")
             return UploadResponse()
 
         async with self._session_factory() as db:
-            result = await db.execute(select(Project).where(Project.id == project_uuid))
-            if not result.scalar_one_or_none():
+            if has_slug:
+                result = await db.execute(select(Project).where(Project.slug == request.slug))
+                project = result.scalar_one_or_none()
+            else:
+                try:
+                    project_uuid = uuid.UUID(request.project_id)
+                except ValueError:
+                    await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "invalid project_id UUID")
+                    return UploadResponse()
+                result = await db.execute(select(Project).where(Project.id == project_uuid))
+                project = result.scalar_one_or_none()
+
+            if not project:
                 await context.abort(grpc.StatusCode.NOT_FOUND, "project not found")
                 return UploadResponse()
 
@@ -76,7 +93,7 @@ class SBOMServiceServicer(BaseServicer):
                 return UploadResponse()
 
             version = request.version if request.HasField("version") else None
-            sbom = await store_sbom(db, project_uuid, raw, version)
+            sbom = await store_sbom(db, project.id, raw, version)
             await db.commit()
 
             scan_sbom.delay(str(sbom.id))
