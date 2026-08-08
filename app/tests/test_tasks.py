@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 
 from config import settings
 from models.alert import AlertConfig, Notification
@@ -14,9 +13,12 @@ from models.service import Service
 from models.vulnerability import SBOMVulnerability, Vulnerability
 from services.tasks import (
     MAX_ALERT_DELIVERY_ATTEMPTS,
+    _delivery_action,
+    _DeliveryAction,
     _do_check_alerts,
     _do_scan_sbom,
     _latest_sbom_ids,
+    _resolve_closed_episodes,
 )
 
 
@@ -407,12 +409,10 @@ async def test_check_alerts_email_without_recipients_fails(db_session):
 @pytest.mark.asyncio
 async def test_check_alerts_does_not_resend_same_episode(db_session):
     vuln, alert = await _make_open_vuln_with_alert(db_session)
-    link = (await db_session.execute(select(SBOMVulnerability))).scalar_one()
     db_session.add(
         Notification(
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
-            sbom_vulnerability_id=link.id,
             channel="slack",
             status="sent",
         )
@@ -439,7 +439,6 @@ async def test_check_alerts_realerts_after_reopen(db_session):
         Notification(
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
-            sbom_vulnerability_id=link.id,
             channel="slack",
             status="sent",
         )
@@ -499,72 +498,6 @@ async def test_check_alerts_realerts_after_reopen(db_session):
     assert {n.status for n in notifications} == {"resolved", "sent"}
 
 
-@pytest.mark.asyncio
-async def test_notification_episode_unique_constraint_active(db_session):
-    vuln, alert = await _make_open_vuln_with_alert(db_session)
-    link = (await db_session.execute(select(SBOMVulnerability))).scalar_one()
-    db_session.add(
-        Notification(
-            alert_config_id=alert.id,
-            vulnerability_id=vuln.id,
-            sbom_vulnerability_id=link.id,
-            channel="slack",
-            status="sent",
-        )
-    )
-    await db_session.commit()
-
-    # A second row for the same (alert, episode) is rejected by the DB.
-    with pytest.raises(IntegrityError):
-        db_session.add(
-            Notification(
-                alert_config_id=alert.id,
-                vulnerability_id=vuln.id,
-                sbom_vulnerability_id=link.id,
-                channel="slack",
-                status="sent",
-            )
-        )
-        await db_session.commit()
-    await db_session.rollback()
-
-
-@pytest.mark.asyncio
-async def test_notification_episode_race_is_noop(db_session):
-    vuln, alert = await _make_open_vuln_with_alert(db_session)
-    link = (await db_session.execute(select(SBOMVulnerability))).scalar_one()
-    db_session.add(
-        Notification(
-            alert_config_id=alert.id,
-            vulnerability_id=vuln.id,
-            sbom_vulnerability_id=link.id,
-            channel="slack",
-            status="sent",
-        )
-    )
-    await db_session.commit()
-
-    from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-    result = await db_session.execute(
-        pg_insert(Notification)
-        .values(
-            alert_config_id=alert.id,
-            vulnerability_id=vuln.id,
-            sbom_vulnerability_id=link.id,
-            channel="slack",
-            status="sent",
-        )
-        .on_conflict_do_nothing(constraint="uq_notifications_alert_episode")
-    )
-    await db_session.commit()
-
-    assert result.rowcount == 0
-    notifications = (await db_session.execute(select(Notification))).scalars().all()
-    assert len(notifications) == 1
-
-
-@pytest.mark.asyncio
 async def test_check_alerts_ignores_vulns_outside_alert_project(db_session):
     _, alert = await _make_open_vuln_with_alert(db_session)
 
@@ -594,7 +527,6 @@ async def test_check_alerts_resets_attempts_on_new_episode(db_session):
         Notification(
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
-            sbom_vulnerability_id=link.id,
             channel="slack",
             status="failed",
             attempts=MAX_ALERT_DELIVERY_ATTEMPTS,
@@ -674,7 +606,6 @@ async def test_check_alerts_does_not_realert_while_episode_still_open(db_session
         Notification(
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
-            sbom_vulnerability_id=link1.id,
             channel="slack",
             status="sent",
         )
@@ -746,7 +677,6 @@ async def test_check_alerts_resends_when_affected_services_change(db_session):
         Notification(
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
-            sbom_vulnerability_id=link1.id,
             service_ids=sorted([str(s1.id), str(s2.id)]),
             channel="slack",
             status="sent",
@@ -790,3 +720,61 @@ async def test_check_alerts_resends_when_affected_services_change(db_session):
     assert notifications[0].status == "resolved"
     assert notifications[1].status == "sent"
     assert notifications[1].service_ids == [str(s2.id)]
+
+
+def _notification(
+    *, status="sent", attempts=0, service_ids=None, alert_config_id=None, vulnerability_id=None
+):
+    return Notification(
+        alert_config_id=alert_config_id or uuid.uuid4(),
+        vulnerability_id=vulnerability_id or uuid.uuid4(),
+        service_ids=service_ids,
+        status=status,
+        attempts=attempts,
+    )
+
+
+def test_delivery_action_skip_when_same_scope():
+    existing = [_notification(status="sent", service_ids=["a", "b"])]
+    assert _delivery_action(existing, ["b", "a"]) is _DeliveryAction.SKIP
+
+
+def test_delivery_action_resend_when_scope_changed():
+    existing = [_notification(status="sent", service_ids=["a", "b"])]
+    assert _delivery_action(existing, ["b"]) is _DeliveryAction.RESEND
+
+
+def test_delivery_action_retry_failed():
+    existing = [_notification(status="failed", attempts=1)]
+    assert _delivery_action(existing, []) is _DeliveryAction.RETRY
+
+
+def test_delivery_action_give_up_after_max_attempts():
+    existing = [_notification(status="failed", attempts=MAX_ALERT_DELIVERY_ATTEMPTS)]
+    assert _delivery_action(existing, []) is _DeliveryAction.GIVE_UP
+
+
+def test_delivery_action_deliver_first_time():
+    assert _delivery_action([], []) is _DeliveryAction.DELIVER
+
+
+def test_delivery_action_deliver_when_only_resolved_rows():
+    existing = [_notification(status="resolved")]
+    assert _delivery_action(existing, []) is _DeliveryAction.DELIVER
+
+
+def test_resolve_closed_episodes_marks_resolved_when_not_open():
+    project_id = uuid.uuid4()
+    alert = AlertConfig(id=uuid.uuid4(), project_id=project_id)
+    n = _notification(alert_config_id=alert.id, vulnerability_id=uuid.uuid4())
+    _resolve_closed_episodes([n], {alert.id: alert}, set())
+    assert n.status == "resolved"
+
+
+def test_resolve_closed_episodes_keeps_open_pair():
+    project_id = uuid.uuid4()
+    vuln_id = uuid.uuid4()
+    alert = AlertConfig(id=uuid.uuid4(), project_id=project_id)
+    n = _notification(alert_config_id=alert.id, vulnerability_id=vuln_id)
+    _resolve_closed_episodes([n], {alert.id: alert}, {(project_id, vuln_id)})
+    assert n.status == "sent"
