@@ -114,7 +114,7 @@ When you add or change dependencies in `pyproject.toml`:
 just compile-requirements
 ```
 
-This runs `pip-compile` with hashes for both `requirements/remote.txt` and `requirements/dev.txt`.
+This runs `uv pip compile` (uv's drop-in replacement for `pip-compile`) with hashes for both `requirements/remote.txt` and `requirements/dev.txt`. Requires [uv](https://docs.astral.sh/uv/) on the host.
 
 ## Documentation
 

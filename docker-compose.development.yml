@@ -20,6 +20,9 @@ services:
       context: ./app
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
+      args:
+        UV_VERSION: ${UV_VERSION:-~=0.12.0}
+        PIP_VERSION: ${PIP_VERSION:-~=26.0}
     env_file:
       - .env
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -42,6 +45,9 @@ services:
       context: ./app
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
+      args:
+        UV_VERSION: ${UV_VERSION:-~=0.12.0}
+        PIP_VERSION: ${PIP_VERSION:-~=26.0}
     env_file:
       - .env
     user: "0:0"
@@ -53,6 +59,9 @@ services:
       context: ./app
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
+      args:
+        UV_VERSION: ${UV_VERSION:-~=0.12.0}
+        PIP_VERSION: ${PIP_VERSION:-~=26.0}
     env_file:
       - .env
     user: "0:0"

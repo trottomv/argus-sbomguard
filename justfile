@@ -70,11 +70,13 @@ format:
 format-check:
     docker compose exec app ruff format --check
 
-# compile requirements with hashes (requires pip-tools on host: pip install pip-tools)
+# compile requirements with hashes (requires uv on host: pipx install uv)
+UV_VERSION := env_var_or_default("UV_VERSION", "~=0.12.0")
 compile-requirements:
-    @command -v pip-compile >/dev/null 2>&1 || { echo "pip-tools required. Install with: pip install pip-tools"; exit 1; }
-    pip-compile --generate-hashes --no-header --resolver=backtracking --upgrade --allow-unsafe -o app/requirements/remote.txt app/pyproject.toml
-    pip-compile --generate-hashes --no-header --resolver=backtracking --upgrade --extra dev --allow-unsafe -o app/requirements/dev.txt app/pyproject.toml
+    @command -v uv >/dev/null 2>&1 || { echo "uv ${UV_VERSION} required. Install with: pipx install \"uv${UV_VERSION}\""; exit 1; }
+    @echo "Compiling with uv ${UV_VERSION}..."
+    uv pip compile app/pyproject.toml --generate-hashes --no-header -o app/requirements/remote.txt
+    uv pip compile app/pyproject.toml --extra dev --generate-hashes --no-header -o app/requirements/dev.txt
 
 # ---- Security ----
 

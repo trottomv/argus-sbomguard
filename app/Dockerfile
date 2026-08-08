@@ -19,6 +19,8 @@ FROM dhi.io/grype:0-alpine@sha256:d19bddcf5064184f5a833303dc68e2b1a65a2c712aabd5
 FROM dhi.io/python:${PYTHON_VERSION}-alpine-dev@sha256:8c3820102033dff6a1e5de0fad001747c7b0979c372d6ffc1ac95dd0e03eed82 AS base
 
 ARG APP_USER=appuser
+ARG UV_VERSION=~=0.12.0
+ARG PIP_VERSION=~=26.0
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -29,13 +31,15 @@ WORKDIR /app
 
 RUN apk add --no-cache build-base \
     && addgroup -S ${APP_USER} \
-    && adduser -S ${APP_USER} -G ${APP_USER}
+    && adduser -S ${APP_USER} -G ${APP_USER} \
+    && python3 -m pip install --no-cache-dir "pip${PIP_VERSION}" \
+    && python3 -m pip install --no-cache-dir "uv${UV_VERSION}"
 
 
 FROM base AS build
 
 COPY requirements/remote.txt requirements/
-RUN python3 -m pip install --no-cache-dir --require-hashes -r requirements/remote.txt
+RUN uv pip install --system --require-hashes --no-cache -r requirements/remote.txt
 
 COPY alembic.ini ./
 COPY migrations/ migrations/
@@ -70,7 +74,7 @@ USER ${APP_USER}
 
 FROM build AS development
 
-RUN python3 -m pip install --no-cache-dir --require-hashes -r requirements/dev.txt
+RUN uv pip install --system --require-hashes --no-cache -r requirements/dev.txt
 
 USER ${APP_USER}
 
@@ -79,7 +83,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 FROM build AS test
 
-RUN python3 -m pip install --no-cache-dir --require-hashes -r requirements/dev.txt
+RUN uv pip install --system --require-hashes --no-cache -r requirements/dev.txt
 
 USER ${APP_USER}
 
