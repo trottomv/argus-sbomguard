@@ -1,15 +1,18 @@
-"""add surrogate id to sbom_vulnerabilities and episode link to notifications
+"""add surrogate id to sbom_vulnerabilities and service scope to notifications
 
 Revision ID: 0005
 Revises: 0004
 Create Date: 2026-08-08
 
-Notifications are deduplicated per vulnerability "episode" (the period a
-vulnerability stays open): a fixed-then-reopened vulnerability alerts
-again. To reference the episode, ``notifications`` needs a stable handle
-on a single ``sbom_vulnerabilities`` row, which the composite PK cannot
-provide, so ``sbom_vulnerabilities`` gains a surrogate UUID primary key
-and the unique scope constraint moves to the old composite.
+Notifications are deduplicated per vulnerability episode (the period a
+vulnerability stays open in a project): a fixed-then-reopened vulnerability
+alerts again. The notification records the affected ``service_ids`` when it
+was delivered, so the dedup can re-notify when the affected services change
+while the vulnerability stays open. To reference the episode, the anchor is
+a single ``sbom_vulnerabilities`` row, which needs a stable handle — the
+composite PK cannot provide it, so ``sbom_vulnerabilities`` gains a
+surrogate UUID primary key and the unique scope constraint moves to the old
+composite.
 
 """
 
@@ -48,7 +51,7 @@ def upgrade() -> None:
         ["sbom_vulnerability_id"],
         ["id"],
     )
-    op.add_column("notifications", sa.Column("episode_link_ids", sa.JSON(), nullable=True))
+    op.add_column("notifications", sa.Column("service_ids", sa.JSON(), nullable=True))
     op.create_unique_constraint(
         "uq_notifications_alert_episode",
         "notifications",
@@ -58,7 +61,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_constraint("uq_notifications_alert_episode", "notifications", type_="unique")
-    op.drop_column("notifications", "episode_link_ids")
+    op.drop_column("notifications", "service_ids")
     op.drop_constraint("fk_notifications_sbom_vulnerability", "notifications", type_="foreignkey")
     op.drop_column("notifications", "sbom_vulnerability_id")
 
