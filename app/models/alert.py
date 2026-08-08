@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, UniqueConstraint, Uuid
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import BaseModel, ValueLabelEnum
@@ -37,22 +37,12 @@ class AlertConfig(BaseModel):
 
 class Notification(BaseModel):
     __tablename__ = "notifications"
-    __table_args__ = (
-        UniqueConstraint(
-            "alert_config_id",
-            "sbom_vulnerability_id",
-            name="uq_notifications_alert_episode",
-        ),
-    )
 
     alert_config_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("alert_configs.id"), nullable=False
     )
     vulnerability_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("vulnerabilities.id"), nullable=False
-    )
-    sbom_vulnerability_id: Mapped[uuid.UUID | None] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("sbom_vulnerabilities.id"), nullable=True
     )
     service_ids: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     channel: Mapped[str | None] = mapped_column(String(50), nullable=True)
