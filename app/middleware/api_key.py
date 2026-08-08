@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
-from models.user import User
+from models.auth import User
 from services.auth import validate_api_key
 
 
