@@ -67,3 +67,36 @@ async def test_login_existing_user_shows_code_when_enabled(client, monkeypatch):
     resp = await client.post("/login", data={"email": "admin@argus.local"})
     assert resp.status_code == 200
     assert "Login code:" in resp.text
+
+
+async def test_login_page_renders(client):
+    resp = await client.get("/login")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+
+
+async def test_login_verify_success_sets_session(client, db_session):
+    user = (
+        await db_session.execute(select(User).where(User.email == "admin@argus.local"))
+    ).scalar_one()
+    code = await create_login_token(db_session, user.id)
+    await db_session.commit()
+
+    resp = await client.post("/login/verify", data={"email": "admin@argus.local", "code": code})
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/"
+    assert "set-cookie" in resp.headers
+
+
+async def test_login_verify_invalid_code(client):
+    resp = await client.post(
+        "/login/verify", data={"email": "admin@argus.local", "code": "NOT-A-REAL-CODE"}
+    )
+    assert resp.status_code == 200
+    assert "Invalid or expired code" in resp.text
+
+
+async def test_logout(client):
+    resp = await client.post("/logout")
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/login"

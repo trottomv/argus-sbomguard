@@ -46,6 +46,7 @@ docs = [
 [tool.coverage.run]
 source = ["app"]
 omit = ["app/templates/*", "app/static/*"]
+core = "sysmon"
 
 
 [tool.ruff]
