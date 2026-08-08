@@ -1,0 +1,48 @@
+# ── Local test stack (no host port bindings — no conflict with host postgres).
+# Usage:
+#   docker compose -f docker-compose.test.yml build app   # build the test image
+#   docker compose -f docker-compose.test.yml run --rm app pytest -v
+#   docker compose -f docker-compose.test.yml down -v
+
+services:
+  postgres:
+    image: dhi.io/postgres:18-alpine3.23
+    environment:
+      POSTGRES_USER: argus
+      POSTGRES_PASSWORD: argus
+      POSTGRES_DB: argus
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "argus"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
+  rabbitmq:
+    image: dhi.io/rabbitmq:4
+    environment:
+      RABBITMQ_DEFAULT_USER: argus
+      RABBITMQ_DEFAULT_PASS: argus
+      RABBITMQ_CONFIG_FILE: /etc/rabbitmq/rabbitmq.conf
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      target: test
+    env_file:
+      - .env
+    user: "0:0"
+    volumes:
+      - ./app:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy

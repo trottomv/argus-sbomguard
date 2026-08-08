@@ -55,7 +55,7 @@ argus-sbomguard/
 │   ├── requirements/
 │   │   ├── remote.txt            # compiled runtime deps with hashes
 │   │   └── dev.txt               # compiled dev deps with hashes
-│   ├── entrypoint.sh
+│   ├── entrypoint.py
 │   ├── alembic.ini              # points to migrations/
 │   ├── migrations/              # DB migrations (sequential 0001, 0002, …)
 │   ├── pyproject.toml           # single source of truth for dependencies
@@ -85,6 +85,9 @@ docker compose exec app alembic revision --autogenerate -m "description"
 
 # Run tests
 docker compose exec app pytest -v
+
+# Run tests standalone (postgres + rabbitmq only, no host port bindings)
+COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v
 
 # Run all checks (lint + format + SAST + SCA)
 pre-commit run --all-files

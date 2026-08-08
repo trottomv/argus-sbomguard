@@ -13,6 +13,15 @@ Run all tests:
 docker compose exec app pytest -v
 ```
 
+Run tests standalone with just postgres + rabbitmq (no full stack, no host
+port bindings):
+
+```bash
+COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v
+# or
+just test-stack
+```
+
 ## Test Configuration
 
 - `pytest-asyncio` with `asyncio_mode = "auto"` (set in `pyproject.toml`)
