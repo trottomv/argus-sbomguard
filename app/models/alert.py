@@ -1,35 +1,19 @@
 import uuid
-from enum import StrEnum
-from typing import Self
 
 from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from models.base import BaseModel
+from models.base import BaseModel, ValueLabelEnum
 
 
-class _LabelledValue(StrEnum):
-    """StrEnum member pairing a value with a human-readable label."""
-
-    def __new__(cls, value: str, label: str) -> Self:
-        obj = str.__new__(cls, value)
-        obj._value_ = value
-        obj._label = label
-        return obj
-
-    @property
-    def label(self) -> str:
-        return self._label
-
-
-class SeverityThreshold(_LabelledValue):
+class SeverityThreshold(ValueLabelEnum):
     CRITICAL = "critical", "Critical only"
     HIGH = "high", "High and above"
     MEDIUM = "medium", "Medium and above"
     LOW = "low", "All"
 
 
-class NotificationChannel(_LabelledValue):
+class NotificationChannel(ValueLabelEnum):
     EMAIL = "email", "Email"
     SLACK = "slack", "Slack"
 
