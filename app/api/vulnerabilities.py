@@ -86,11 +86,13 @@ async def active_vulnerabilities(
     project_map: dict[str, set[str]] = {}
     service_map: dict[str, set[str]] = {}
     if vuln_ids:
-        proj_rows = await db.execute(
-            select(SBOMVulnerability.vulnerability_id, SBOM.project_id.label("name"))
-            .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
-            .where(SBOMVulnerability.vulnerability_id.in_(vuln_ids))
-        )
+        proj_rows = (
+            await db.execute(
+                select(SBOMVulnerability.vulnerability_id, SBOM.project_id.label("name"))
+                .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
+                .where(SBOMVulnerability.vulnerability_id.in_(vuln_ids))
+            )
+        ).all()
         proj_ids = {row[1] for row in proj_rows}
         proj_lines = {}
         if proj_ids:

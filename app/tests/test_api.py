@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import patch
 
@@ -856,3 +857,291 @@ async def test_ui_rename_project_ok(client):
     resp = await client.patch(f"/projects/{pid}/name", data={"name": "Renamed"})
     assert resp.status_code == 200
     assert "Renamed" in resp.text
+
+
+# ── Projects — update/delete edge cases ──
+
+
+@pytest.mark.asyncio
+async def test_delete_project_not_found(client):
+    resp = await client.delete("/api/v1/projects/00000000-0000-0000-0000-000000000000")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_project(client):
+    create = await client.post("/api/v1/projects", json={"name": "update-me"})
+    pid = create.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/projects/{pid}",
+        json={
+            "name": "updated",
+            "description": "desc",
+            "repo_url": "https://example.com",
+            "platform": "github",
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["name"] == "updated"
+    assert data["slug"] == "updated"
+    assert data["description"] == "desc"
+    assert data["repo_url"] == "https://example.com"
+    assert data["platform"] == "github"
+
+
+@pytest.mark.asyncio
+async def test_update_project_not_found(client):
+    resp = await client.patch(
+        "/api/v1/projects/00000000-0000-0000-0000-000000000000",
+        json={"name": "x"},
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_project_name_conflict(client):
+    await client.post("/api/v1/projects", json={"name": "taken"})
+    create = await client.post("/api/v1/projects", json={"name": "other"})
+    pid = create.json()["id"]
+
+    resp = await client.patch(f"/api/v1/projects/{pid}", json={"name": "taken"})
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_update_project_slug_collision_409(client):
+    await client.post("/api/v1/projects", json={"name": "foo_bar"})
+    create = await client.post("/api/v1/projects", json={"name": "a"})
+    pid = create.json()["id"]
+
+    resp = await client.patch(f"/api/v1/projects/{pid}", json={"name": "Foo Bar"})
+    assert resp.status_code == 409
+
+
+# ── Alerts — update ──
+
+
+@pytest.mark.asyncio
+async def test_update_alert(client):
+    proj = await client.post("/api/v1/projects", json={"name": "alert-update"})
+    pid = proj.json()["id"]
+    create = await client.post(
+        "/api/v1/alerts",
+        json={
+            "project_id": pid,
+            "severity_threshold": "high",
+            "notification_type": "email",
+            "enabled": True,
+        },
+    )
+    aid = create.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/alerts/{aid}",
+        json={
+            "project_id": pid,
+            "severity_threshold": "critical",
+            "notification_type": "slack",
+            "enabled": False,
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "updated"
+
+
+@pytest.mark.asyncio
+async def test_update_alert_project_not_found(client):
+    proj = await client.post("/api/v1/projects", json={"name": "alert-upd-pnf"})
+    pid = proj.json()["id"]
+    create = await client.post("/api/v1/alerts", json={"project_id": pid})
+    aid = create.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/alerts/{aid}",
+        json={"project_id": "00000000-0000-0000-0000-000000000000"},
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_alert_not_found(client):
+    resp = await client.patch(
+        "/api/v1/alerts/00000000-0000-0000-0000-000000000000",
+        json={"enabled": False},
+    )
+    assert resp.status_code == 404
+
+
+# ── API keys ──
+
+
+@pytest.mark.asyncio
+async def test_list_api_keys(client):
+    resp = await client.get("/api/v1/api-keys")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_create_api_key(client):
+    resp = await client.post("/api/v1/api-keys", json={"label": "ci"})
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["key"]
+    assert data["label"] == "ci"
+    assert data["key_prefix"]
+
+
+@pytest.mark.asyncio
+async def test_revoke_api_key(client):
+    created = await client.post("/api/v1/api-keys", json={})
+    key_id = created.json()["id"]
+    resp = await client.delete(f"/api/v1/api-keys/{key_id}")
+    assert resp.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_revoke_api_key_not_found(client):
+    resp = await client.delete("/api/v1/api-keys/00000000-0000-0000-0000-000000000000")
+    assert resp.status_code == 404
+
+
+# ── SBOMs — download, delete ──
+
+
+@pytest.mark.asyncio
+async def test_download_sbom(client):
+    proj = await client.post("/api/v1/projects", json={"name": "sbom-download"})
+    pid = proj.json()["id"]
+    upload = await client.post(
+        "/api/v1/sboms/upload",
+        data={"project_id": pid},
+        files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
+    )
+    sid = upload.json()["id"]
+
+    resp = await client.get(f"/api/v1/sboms/{sid}/download")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/json")
+    assert resp.json()["bomFormat"] == "CycloneDX"
+
+
+@pytest.mark.asyncio
+async def test_download_sbom_not_found(client):
+    resp = await client.get("/api/v1/sboms/00000000-0000-0000-0000-000000000000/download")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_sbom_not_found(client):
+    resp = await client.delete("/api/v1/sboms/00000000-0000-0000-0000-000000000000")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_sbom_reconciles_older_fixed_vulns(client, db_session):
+    proj = await client.post("/api/v1/projects", json={"name": "sbom-delete-recon"})
+    pid = proj.json()["id"]
+
+    sbom_a = {"bomFormat": "CycloneDX", "components": [{"name": "keep", "version": "1.0"}]}
+    sbom_b = {"bomFormat": "CycloneDX", "components": [{"name": "newer", "version": "2.0"}]}
+    r1 = await client.post(
+        "/api/v1/sboms/upload",
+        data={"project_id": pid, "service_name": "svc"},
+        files={"file": ("a.json", json.dumps(sbom_a), "application/json")},
+    )
+    r2 = await client.post(
+        "/api/v1/sboms/upload",
+        data={"project_id": pid, "service_name": "svc"},
+        files={"file": ("b.json", json.dumps(sbom_b), "application/json")},
+    )
+    older_sid = r1.json()["id"]
+    newest_sid = r2.json()["id"]
+
+    vuln = Vulnerability(cve_id="CVE-2026-0199", source="grype", severity="HIGH")
+    db_session.add(vuln)
+    await db_session.flush()
+    db_session.add(
+        SBOMVulnerability(
+            sbom_id=uuid.UUID(older_sid),
+            dependency_purl="pkg:npm/keep@1.0.0",
+            vulnerability_id=vuln.id,
+            status="fixed",
+            fixed_at=datetime.now(UTC),
+            detected_at=datetime.now(UTC),
+        )
+    )
+    await db_session.commit()
+
+    resp = await client.delete(f"/api/v1/sboms/{newest_sid}")
+    assert resp.status_code == 204
+
+
+# ── Vulnerabilities — active filters and sorting ──
+
+
+@pytest.mark.asyncio
+async def test_active_vulnerabilities_filters_and_sort(client, db_session):
+    proj = await client.post("/api/v1/projects", json={"name": "vuln-active"})
+    pid = proj.json()["id"]
+    upload = await client.post(
+        "/api/v1/sboms/upload",
+        data={"project_id": pid, "service_name": "svc"},
+        files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
+    )
+    sid = upload.json()["id"]
+
+    vuln = Vulnerability(
+        cve_id="CVE-2026-0102",
+        source="grype",
+        severity="HIGH",
+        cvss_score=8.1,
+        summary="Active filter test",
+        published_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    db_session.add(vuln)
+    await db_session.flush()
+    db_session.add(
+        SBOMVulnerability(
+            sbom_id=uuid.UUID(sid),
+            dependency_purl="pkg:npm/lodash@4.17.20",
+            vulnerability_id=vuln.id,
+            status="open",
+            detected_at=datetime.now(UTC),
+        )
+    )
+    await db_session.commit()
+
+    resp = await client.get("/api/v1/vulnerabilities/active?severity=high")
+    assert resp.status_code == 200
+    assert len(resp.json()["items"]) == 1
+
+    resp = await client.get(f"/api/v1/vulnerabilities/active?project_id={pid}")
+    assert resp.status_code == 200
+    assert resp.json()["items"][0]["cve_id"] == "CVE-2026-0102"
+
+    svcs = await client.get(f"/api/v1/services?project_id={pid}")
+    svc_id = svcs.json()[0]["id"]
+    resp = await client.get(f"/api/v1/vulnerabilities/active?service_id={svc_id}")
+    assert resp.status_code == 200
+    assert resp.json()["items"][0]["cve_id"] == "CVE-2026-0102"
+
+    resp = await client.get("/api/v1/vulnerabilities/active?sort=severity&order=desc")
+    assert resp.status_code == 200
+    assert resp.json()["items"][0]["cve_id"] == "CVE-2026-0102"
+
+    resp = await client.get("/api/v1/vulnerabilities/active?sort=severity&order=asc")
+    assert resp.status_code == 200
+    assert resp.json()["items"][0]["cve_id"] == "CVE-2026-0102"
+
+    resp = await client.get("/api/v1/vulnerabilities/active?sort=published_at&order=asc")
+    assert resp.status_code == 200
+    assert resp.json()["items"][0]["cve_id"] == "CVE-2026-0102"
+
+    resp = await client.get("/api/v1/vulnerabilities/active?sort=published_at&order=desc")
+    assert resp.status_code == 200
+    assert resp.json()["items"][0]["cve_id"] == "CVE-2026-0102"
+    assert resp.json()["items"][0]["projects"] == ["vuln-active"]
+    assert resp.json()["items"][0]["services"] == ["svc"]
