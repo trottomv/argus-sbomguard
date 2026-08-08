@@ -79,6 +79,10 @@ compile-requirements:
     uv pip compile app/pyproject.toml --generate-hashes --upgrade --no-header -o app/requirements/remote.txt
     uv pip compile app/pyproject.toml --extra dev --generate-hashes --upgrade --no-header -o app/requirements/dev.txt
 
+# list outdated dependencies (installed in the app container vs latest on PyPI)
+outdated:
+    docker compose exec app uv pip list --outdated
+
 # ---- Security ----
 
 # run bandit SAST
