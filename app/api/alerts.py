@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -15,19 +16,22 @@ router = APIRouter(
     prefix="/api/v1/alerts", tags=["alerts"], dependencies=[Depends(api_key_required)]
 )
 
+SeverityThreshold = Literal["critical", "high", "medium", "low"]
+NotificationChannel = Literal["slack", "email"]
+
 
 class AlertConfigCreate(BaseModel):
     project_id: str
-    severity_threshold: str = "high"
-    notification_type: str = "slack"
+    severity_threshold: SeverityThreshold = "high"
+    notification_type: NotificationChannel = "email"
     config: dict = {}
     enabled: bool = True
 
 
 class AlertConfigUpdate(BaseModel):
     project_id: str | None = None
-    severity_threshold: str | None = None
-    notification_type: str | None = None
+    severity_threshold: SeverityThreshold | None = None
+    notification_type: NotificationChannel | None = None
     enabled: bool | None = None
 
 

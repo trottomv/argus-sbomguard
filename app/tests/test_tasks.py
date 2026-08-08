@@ -11,7 +11,12 @@ from models.project import Project
 from models.sbom import SBOM
 from models.service import Service
 from models.vulnerability import SBOMVulnerability, Vulnerability
-from services.tasks import _do_check_alerts, _do_scan_sbom, _latest_sbom_ids
+from services.tasks import (
+    MAX_ALERT_DELIVERY_ATTEMPTS,
+    _do_check_alerts,
+    _do_scan_sbom,
+    _latest_sbom_ids,
+)
 
 
 @pytest.mark.asyncio
@@ -317,6 +322,37 @@ async def test_check_alerts_keeps_failed_when_send_fails_again(db_session):
     try:
         with patch("services.tasks.send_slack", new_callable=AsyncMock, return_value=False):
             await _do_check_alerts(db_session)
+    finally:
+        settings.slack_webhook_url = original
+
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].status == "failed"
+    assert notifications[0].attempts == 1
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_gives_up_after_max_attempts(db_session):
+    vuln, alert = await _make_open_vuln_with_alert(db_session)
+    db_session.add(
+        Notification(
+            alert_config_id=alert.id,
+            vulnerability_id=vuln.id,
+            channel="slack",
+            status="failed",
+            attempts=MAX_ALERT_DELIVERY_ATTEMPTS,
+        )
+    )
+    await db_session.commit()
+
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_not_called()
     finally:
         settings.slack_webhook_url = original
 
