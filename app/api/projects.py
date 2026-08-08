@@ -1,13 +1,18 @@
 import uuid
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.schemas import (
+    PageResponse,
+    ProjectCreate,
+    ProjectResponse,
+    ProjectSBOMHistoryItem,
+    ProjectUpdate,
+)
 from database import get_db
 from middleware.api_key import api_key_required
 from models.project import Project
@@ -20,34 +25,7 @@ router = APIRouter(
 )
 
 
-class ProjectCreate(BaseModel):
-    name: str
-    description: str | None = None
-    repo_url: str | None = None
-    platform: str | None = None
-
-
-class ProjectUpdate(BaseModel):
-    name: str | None = None
-    description: str | None = None
-    repo_url: str | None = None
-    platform: str | None = None
-
-
-class ProjectResponse(BaseModel):
-    id: uuid.UUID
-    slug: str
-    name: str
-    description: str | None
-    repo_url: str | None
-    platform: str | None
-    created_at: datetime
-    updated_at: datetime | None
-
-    model_config = {"from_attributes": True}
-
-
-@router.get("")
+@router.get("", response_model=PageResponse[ProjectResponse])
 async def list_projects(
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
@@ -55,16 +33,17 @@ async def list_projects(
 ):
     query = select(Project).order_by(Project.created_at.desc())
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
-    return {
-        "items": [ProjectResponse.model_validate(p) for p in pg.items],
-        "total": pg.total,
-        "page": pg.page,
-        "per_page": pg.per_page,
-        "total_pages": pg.total_pages,
-    }
+    return PageResponse[ProjectResponse](
+        items=[ProjectResponse.model_validate(p) for p in pg.items],
+        total=pg.total,
+        page=pg.page,
+        per_page=pg.per_page,
+        total_pages=pg.total_pages,
+        has_more=pg.has_more,
+    )
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=ProjectResponse)
 async def create_project(data: ProjectCreate, db: AsyncSession = Depends(get_db)):
     _validate_sluggable_name(data.name)
 
@@ -95,7 +74,7 @@ async def create_project(data: ProjectCreate, db: AsyncSession = Depends(get_db)
     return ProjectResponse.model_validate(project)
 
 
-@router.get("/{project_id}")
+@router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
@@ -104,7 +83,7 @@ async def get_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_db))
     return ProjectResponse.model_validate(project)
 
 
-@router.get("/{project_id}/history")
+@router.get("/{project_id}/history", response_model=PageResponse[ProjectSBOMHistoryItem])
 async def project_history(
     project_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -113,22 +92,14 @@ async def project_history(
 ):
     query = select(SBOM).where(SBOM.project_id == project_id).order_by(SBOM.created_at.desc())
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
-    return {
-        "items": [
-            {
-                "id": str(s.id),
-                "version": s.version,
-                "format": s.format,
-                "dependency_count": s.dependency_count,
-                "created_at": s.created_at.isoformat() if s.created_at else None,
-            }
-            for s in pg.items
-        ],
-        "total": pg.total,
-        "page": pg.page,
-        "per_page": pg.per_page,
-        "total_pages": pg.total_pages,
-    }
+    return PageResponse[ProjectSBOMHistoryItem](
+        items=[ProjectSBOMHistoryItem.model_validate(s) for s in pg.items],
+        total=pg.total,
+        page=pg.page,
+        per_page=pg.per_page,
+        total_pages=pg.total_pages,
+        has_more=pg.has_more,
+    )
 
 
 @router.delete("/{project_id}", status_code=204)
@@ -145,7 +116,7 @@ async def delete_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_d
     await db.commit()
 
 
-@router.patch("/{project_id}")
+@router.patch("/{project_id}", response_model=ProjectResponse)
 async def update_project(
     project_id: uuid.UUID, data: ProjectUpdate, db: AsyncSession = Depends(get_db)
 ):
