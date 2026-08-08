@@ -7,9 +7,12 @@ from sqlalchemy.ext.compiler import compiles
 # UTF-8 locale, so international names are preserved: "Argus SBOM Guard"
 # -> "argus-sbom-guard", "Mio Progetto" -> "mio-progetto".
 #
-# Used by the SlugComputed column below. Alembic migrations inline the literal
-# at generation time as frozen snapshots, so keep them in sync via
-# ``alembic revision --autogenerate`` when this changes.
+# Used by the SlugComputed column below. If you change this expression, alembic
+# revision --autogenerate will NOT detect it (PostgreSQL normalizes the stored
+# generation_expression — e.g. TRIM(BOTH FROM name), ::text casts — so it never
+# byte-matches the model SQL). You must hand-write a migration instead, e.g.
+# op.alter_column("projects", "slug", existing_type=sa.String(255),
+# computed=sa.Computed(SLUG_EXPR), existing_nullable=False).
 SLUG_EXPR = (
     "lower(regexp_replace(regexp_replace(trim(name), '[^[:alnum:]]+', '-', 'g'), "
     "'^-+|-+$', '', 'g'))"
