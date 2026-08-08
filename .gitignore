@@ -47,6 +47,10 @@ nosetests.xml
 coverage.xml
 *.cover
 *.py.cover
+# coverage annotate output — run via `just cov-annotate` so files land in
+# cov_annotate/ (whole dir ignored); `*,cover` catches any stray scatter.
+*,cover
+cov_annotate/
 .hypothesis/
 .pytest_cache/
 cover/

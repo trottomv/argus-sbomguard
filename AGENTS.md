@@ -16,8 +16,8 @@
 # Run all checks
 pre-commit run --all-files
 
-# Run tests
-docker compose exec app pytest -v
+# Run tests (always via the standalone test stack, never in the dev app container)
+COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v
 
 # Only commit if BOTH pass
 ```
@@ -83,11 +83,12 @@ docker compose exec app alembic upgrade head
 # Create new migration (after model change)
 docker compose exec app alembic revision --autogenerate -m "description"
 
-# Run tests
-docker compose exec app pytest -v
-
-# Run tests standalone (postgres + rabbitmq only, no host port bindings)
+# Run tests — ALWAYS via the standalone test stack, never in the dev app container
+# (running pytest in the dev container leaves test logs in the dev services).
+# postgres + rabbitmq only, no host port bindings; teardown with down -v.
 COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v
+# or the shortcut (build + run + down -v):
+just test-stack
 
 # Run all checks (lint + format + SAST + SCA)
 pre-commit run --all-files
@@ -200,6 +201,7 @@ alert_configs → notifications / pull_requests
 - `pytest` + `httpx.AsyncClient` in `tests/test_api.py`
 - `pytest-asyncio` for async tests
 - PostgreSQL 18 for tests (dedicated `argus_test` database, migrations applied at session start — see `conftest.py`)
+- **Always run tests via the standalone test stack** (`docker-compose.test.yml`), never with `docker compose exec app pytest` — the dev `app` container would otherwise keep test logs in the dev services. Shortcut: `just test-stack`.
 - All tests must pass before committing
 
 ## Gotchas
