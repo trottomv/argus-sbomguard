@@ -827,3 +827,32 @@ async def test_delete_service_empty(client):
 
     svc_resp2 = await client.get(f"/api/v1/services?project_id={pid}")
     assert len(svc_resp2.json()) == 0
+
+
+@pytest.mark.asyncio
+async def test_ui_rename_project_slug_collision_409(client):
+    await client.post("/api/v1/projects", json={"name": "Payment Service"})
+    create_resp = await client.post("/api/v1/projects", json={"name": "Other"})
+    pid = create_resp.json()["id"]
+
+    resp = await client.patch(f"/projects/{pid}/name", data={"name": "Payment-Service"})
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_ui_rename_project_requires_alphanumeric(client):
+    create_resp = await client.post("/api/v1/projects", json={"name": "renamable-ui"})
+    pid = create_resp.json()["id"]
+
+    resp = await client.patch(f"/projects/{pid}/name", data={"name": "###"})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_ui_rename_project_ok(client):
+    create_resp = await client.post("/api/v1/projects", json={"name": "rename-me"})
+    pid = create_resp.json()["id"]
+
+    resp = await client.patch(f"/projects/{pid}/name", data={"name": "Renamed"})
+    assert resp.status_code == 200
+    assert "Renamed" in resp.text
