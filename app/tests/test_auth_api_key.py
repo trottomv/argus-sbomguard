@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from models.user import ApiKey, User
+from models.auth import ApiKey, User
 from services.auth import create_api_key, generate_api_key, validate_api_key
 
 

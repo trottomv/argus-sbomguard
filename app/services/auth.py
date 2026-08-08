@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
-from models.user import ApiKey, LoginToken, User
+from models.auth import ApiKey, LoginToken, User
 
 logger = logging.getLogger(__name__)
 

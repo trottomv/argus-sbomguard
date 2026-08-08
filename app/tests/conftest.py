@@ -15,8 +15,8 @@ from config import settings
 from database import get_db
 from main import app
 from middleware.api_key import api_key_required
+from models.auth import User
 from models.base import Base
-from models.user import User
 
 # Tests run against a dedicated PostgreSQL database (same server as the app,
 # separate database) so the real schema — including the generated slug column

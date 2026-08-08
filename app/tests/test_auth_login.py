@@ -3,7 +3,7 @@
 from sqlalchemy import select
 
 from config import settings
-from models.user import LoginToken, User
+from models.auth import LoginToken, User
 from services.auth import create_login_token, verify_login_token
 
 
