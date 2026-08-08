@@ -60,8 +60,10 @@ async def test_login_existing_user_hides_code_by_default(client):
 
 async def test_login_existing_user_shows_code_when_enabled(client, monkeypatch):
     # Explicitly enabling SHOW_LOGIN_CODE_IN_RESPONSE (e.g. APP_ENV=demo without
-    # SMTP) surfaces the one-time code in the login page response.
+    # SMTP) surfaces the one-time code in the login page response. smtp_host is
+    # forced empty so send_login_email short-circuits and returns the code.
     monkeypatch.setattr(settings, "show_login_code_in_response", True)
+    monkeypatch.setattr(settings, "smtp_host", "")
     resp = await client.post("/login", data={"email": "admin@argus.local"})
     assert resp.status_code == 200
     assert "Login code:" in resp.text
