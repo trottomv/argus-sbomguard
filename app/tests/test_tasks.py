@@ -498,6 +498,7 @@ async def test_check_alerts_realerts_after_reopen(db_session):
     assert {n.status for n in notifications} == {"resolved", "sent"}
 
 
+@pytest.mark.asyncio
 async def test_check_alerts_ignores_vulns_outside_alert_project(db_session):
     _, alert = await _make_open_vuln_with_alert(db_session)
 
@@ -752,6 +753,17 @@ def test_delivery_action_retry_failed():
 def test_delivery_action_give_up_after_max_attempts():
     existing = [_notification(status="failed", attempts=MAX_ALERT_DELIVERY_ATTEMPTS)]
     assert _delivery_action(existing, []) is _DeliveryAction.GIVE_UP
+
+
+def test_delivery_action_resend_when_scope_changed_even_if_exhausted():
+    existing = [
+        _notification(
+            status="failed",
+            attempts=MAX_ALERT_DELIVERY_ATTEMPTS,
+            service_ids=["a", "b"],
+        )
+    ]
+    assert _delivery_action(existing, ["b"]) is _DeliveryAction.RESEND
 
 
 def test_delivery_action_deliver_first_time():
