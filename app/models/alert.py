@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import JSON, Boolean, ForeignKey, String, Uuid
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import BaseModel
@@ -13,7 +13,7 @@ class AlertConfig(BaseModel):
         Uuid(as_uuid=True), ForeignKey("projects.id"), nullable=False, index=True
     )
     severity_threshold: Mapped[str] = mapped_column(String(20), default="high")
-    notification_type: Mapped[str] = mapped_column(String(50), default="slack")
+    notification_type: Mapped[str] = mapped_column(String(50), default="email")
     config: Mapped[dict | None] = mapped_column(JSON, default=dict)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -34,6 +34,7 @@ class Notification(BaseModel):
     )
     channel: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="sent")
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     alert_config = relationship("AlertConfig", back_populates="notifications")
 

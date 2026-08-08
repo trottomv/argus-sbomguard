@@ -113,6 +113,8 @@ def check_alerts():
 
 _SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
+MAX_ALERT_DELIVERY_ATTEMPTS = 5
+
 
 def _severity_rank(value: str | None) -> int:
     return _SEVERITY_RANK.get((value or "unknown").lower(), 99)
@@ -182,15 +184,20 @@ async def _do_check_alerts(db: AsyncSession) -> None:
             existing = by_pair.get((vuln.id, alert.id), [])
             if _already_delivered(existing):
                 continue
+            if existing and max(n.attempts for n in existing) >= MAX_ALERT_DELIVERY_ATTEMPTS:
+                # Give up retrying a permanently failing delivery.
+                continue
 
             channel, success = await _deliver(alert, vuln)
             status = "sent" if success else "failed"
+            attempts = 0 if success else max((n.attempts for n in existing), default=0) + 1
             if existing:
                 # Retry: flip the previous failed attempt(s) to the new outcome
                 # instead of accumulating rows.
                 for n in existing:
                     n.status = status
                     n.channel = channel
+                    n.attempts = attempts
             else:
                 db.add(
                     Notification(
@@ -198,6 +205,7 @@ async def _do_check_alerts(db: AsyncSession) -> None:
                         vulnerability_id=vuln.id,
                         channel=channel,
                         status=status,
+                        attempts=attempts,
                     )
                 )
 
