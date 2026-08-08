@@ -17,7 +17,7 @@ async def list_keys(
     _user=Depends(api_key_required),
 ):
     keys = await list_api_keys(db)
-    return [ApiKeyResponse.model_validate(k) for k in keys]
+    return [ApiKeyResponse.model_validate(key) for key in keys]
 
 
 @router.post("", status_code=201, response_model=ApiKeyCreatedResponse)

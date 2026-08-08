@@ -89,7 +89,7 @@ async def active_vulnerabilities(
 
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
 
-    vuln_ids = [v.id for v in pg.items]
+    vuln_ids = [vuln.id for vuln in pg.items]
     project_map: dict[str, set[str]] = {}
     service_map: dict[str, set[str]] = {}
     if vuln_ids:
@@ -108,12 +108,14 @@ async def active_vulnerabilities(
             proj_lines_rows = await db.execute(
                 select(Project.id, Project.name).where(Project.id.in_(proj_ids))
             )
-            proj_lines = {str(p_id): p_name for p_id, p_name in proj_lines_rows}
+            proj_lines = {
+                str(project_id): project_name for project_id, project_name in proj_lines_rows
+            }
 
-        for v_id, p_id in proj_rows:
-            p_name = proj_lines.get(str(p_id), "")
-            if p_name:
-                project_map.setdefault(v_id, set()).add(p_name)
+        for vuln_id, project_id in proj_rows:
+            project_name = proj_lines.get(str(project_id), "")
+            if project_name:
+                project_map.setdefault(vuln_id, set()).add(project_name)
 
         svc_rows = await db.execute(
             select(SBOMVulnerability.vulnerability_id, Service.name)
@@ -121,24 +123,24 @@ async def active_vulnerabilities(
             .outerjoin(Service, SBOM.service_id == Service.id)
             .where(SBOMVulnerability.vulnerability_id.in_(vuln_ids))
         )
-        for v_id, svc_name in svc_rows:
-            if svc_name:
-                service_map.setdefault(v_id, set()).add(svc_name)
+        for vuln_id, service_name in svc_rows:
+            if service_name:
+                service_map.setdefault(vuln_id, set()).add(service_name)
 
     return PageResponse[VulnerabilityResponse](
         items=[
             VulnerabilityResponse(
-                id=v.id,
-                cve_id=v.cve_id,
-                severity=v.severity,
-                cvss_score=v.cvss_score,
-                summary=v.summary,
-                source=v.source,
-                published_at=v.published_at,
-                projects=sorted(project_map.get(v.id, [])),
-                services=sorted(service_map.get(v.id, [])),
+                id=vuln.id,
+                cve_id=vuln.cve_id,
+                severity=vuln.severity,
+                cvss_score=vuln.cvss_score,
+                summary=vuln.summary,
+                source=vuln.source,
+                published_at=vuln.published_at,
+                projects=sorted(project_map.get(vuln.id, [])),
+                services=sorted(service_map.get(vuln.id, [])),
             )
-            for v in pg.items
+            for vuln in pg.items
         ],
         total=pg.total,
         page=pg.page,

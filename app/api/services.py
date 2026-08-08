@@ -26,7 +26,7 @@ async def list_services(
         select(Service).where(Service.project_id == project_id).order_by(Service.name)
     )
     services = result.scalars().all()
-    return [ServiceResponse.model_validate(s) for s in services]
+    return [ServiceResponse.model_validate(service) for service in services]
 
 
 @router.delete("/{service_id}", status_code=204)

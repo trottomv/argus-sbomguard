@@ -46,14 +46,14 @@
             </select>
             <select class="select select-bordered" x-model="project" @change="service=''; reloadFilters()">
                 <option value="">All Projects</option>
-                {% for p in projects %}
-                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% for project in projects %}
+                <option value="{{ project.id }}">{{ project.name }}</option>
                 {% endfor %}
             </select>
             <select class="select select-bordered" x-model="service" :disabled="!project" @change="reloadFilters()">
                 <option value="">All Services</option>
-                {% for s in services %}
-                <option value="{{ s.id }}">{{ s.name }}</option>
+                {% for service in services %}
+                <option value="{{ service.id }}">{{ service.name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -120,15 +120,15 @@
                             <td class="text-sm">{{ fix_versions | join(', ') or "-" }}</td>
                             <td>
                                 <div class="flex flex-wrap gap-1">
-                                    {% for pname in project_map.get(vuln.id, []) %}
-                                    <span class="badge badge-outline badge-xs">{{ pname }}</span>
+                                    {% for project_name in project_map.get(vuln.id, []) %}
+                                    <span class="badge badge-outline badge-xs">{{ project_name }}</span>
                                     {% endfor %}
                                 </div>
                             </td>
                             <td>
                                 <div class="flex flex-wrap gap-1">
-                                    {% for sn in service_map.get(vuln.id, []) %}
-                                    <span class="badge badge-ghost badge-xs">{{ sn }}</span>
+                                    {% for service_name in service_map.get(vuln.id, []) %}
+                                    <span class="badge badge-ghost badge-xs">{{ service_name }}</span>
                                     {% endfor %}
                                     </div>
                             </td>

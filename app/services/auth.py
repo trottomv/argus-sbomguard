@@ -48,7 +48,7 @@ async def seed_admin_user(db: AsyncSession) -> User:
 def _generate_code() -> str:
     alphabet = string.ascii_uppercase + string.digits
     chars = "".join(secrets.choice(alphabet) for _ in range(16))
-    return "-".join(chars[i : i + 4] for i in range(0, 16, 4))
+    return "-".join(chars[idx : idx + 4] for idx in range(0, 16, 4))
 
 
 async def create_login_token(db: AsyncSession, user_id: uuid.UUID) -> str:

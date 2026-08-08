@@ -31,7 +31,7 @@ async def list_alerts(
     query = select(AlertConfig).order_by(AlertConfig.created_at.desc())
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
     return PageResponse[AlertConfigResponse](
-        items=[AlertConfigResponse.model_validate(a) for a in pg.items],
+        items=[AlertConfigResponse.model_validate(alert) for alert in pg.items],
         total=pg.total,
         page=pg.page,
         per_page=pg.per_page,

@@ -63,7 +63,9 @@ async def _do_scan_sbom(db: AsyncSession, sbom_id: str) -> None:
         return
 
     await db.flush()
-    await retire_stale_vulnerabilities(db, sbom, {v.get("id") for v in scan_results if v.get("id")})
+    await retire_stale_vulnerabilities(
+        db, sbom, {result.get("id") for result in scan_results if result.get("id")}
+    )
     await reconcile_vulnerabilities(db, sbom)
     await db.commit()
 
@@ -165,7 +167,7 @@ async def _open_vulnerabilities(
         vuln_id: {project_id: sorted(services) for project_id, services in projects.items()}
         for vuln_id, projects in services_by_vuln.items()
     }
-    return {v.id: v for v in vulns.scalars().all()}, open_pairs, services_map
+    return {vuln.id: vuln for vuln in vulns.scalars().all()}, open_pairs, services_map
 
 
 async def _enabled_alerts(db: AsyncSession) -> list[AlertConfig]:
@@ -206,18 +208,28 @@ def _delivery_action(existing: list[Notification], current_services: list[str]) 
     fresh delivery (RESEND), even when the previous attempt failed, so the
     retry budget is reset on scope change.
     """
-    active = [n for n in existing if n.status != NotificationStatus.RESOLVED]
-    sent = [n for n in active if n.status == NotificationStatus.SENT]
+    active = [
+        notification
+        for notification in existing
+        if notification.status != NotificationStatus.RESOLVED
+    ]
+    sent = [
+        notification for notification in active if notification.status == NotificationStatus.SENT
+    ]
     if sent:
         if set(sent[-1].service_ids or []) == set(current_services):
             return _DeliveryAction.SKIP
         return _DeliveryAction.RESEND
 
-    failed = [n for n in existing if n.status == NotificationStatus.FAILED]
+    failed = [
+        notification
+        for notification in existing
+        if notification.status == NotificationStatus.FAILED
+    ]
     if failed:
         if set(failed[-1].service_ids or []) != set(current_services):
             return _DeliveryAction.RESEND
-        if max(n.attempts for n in failed) >= MAX_ALERT_DELIVERY_ATTEMPTS:
+        if max(notification.attempts for notification in failed) >= MAX_ALERT_DELIVERY_ATTEMPTS:
             return _DeliveryAction.GIVE_UP
         return _DeliveryAction.RETRY
     return _DeliveryAction.DELIVER
@@ -240,18 +252,23 @@ def _resolve_closed_episodes(
     open_pairs: set[tuple[uuid.UUID, uuid.UUID]],
 ) -> None:
     """Mark notifications resolved when their vulnerability is no longer open."""
-    for n in notifications:
-        alert = alert_by_id.get(n.alert_config_id)
-        if alert is not None and (alert.project_id, n.vulnerability_id) not in open_pairs:
-            n.status = NotificationStatus.RESOLVED
+    for notification in notifications:
+        alert = alert_by_id.get(notification.alert_config_id)
+        if (
+            alert is not None
+            and (alert.project_id, notification.vulnerability_id) not in open_pairs
+        ):
+            notification.status = NotificationStatus.RESOLVED
 
 
 def _index_by_pair(
     notifications: list[Notification],
 ) -> dict[tuple[uuid.UUID, uuid.UUID], list[Notification]]:
     by_pair: dict[tuple[uuid.UUID, uuid.UUID], list[Notification]] = {}
-    for n in notifications:
-        by_pair.setdefault((n.vulnerability_id, n.alert_config_id), []).append(n)
+    for notification in notifications:
+        by_pair.setdefault(
+            (notification.vulnerability_id, notification.alert_config_id), []
+        ).append(notification)
     return by_pair
 
 
@@ -271,9 +288,9 @@ def _record_delivery(
     one with a reset attempt budget, keeping history.
     """
     if action == _DeliveryAction.RESEND:
-        for n in existing:
-            if n.status != NotificationStatus.RESOLVED:
-                n.status = NotificationStatus.RESOLVED
+        for notification in existing:
+            if notification.status != NotificationStatus.RESOLVED:
+                notification.status = NotificationStatus.RESOLVED
         db.add(
             Notification(
                 alert_config_id=alert.id,
@@ -286,16 +303,22 @@ def _record_delivery(
         )
         return
 
-    failed = [n for n in existing if n.status == NotificationStatus.FAILED]
+    failed = [
+        notification
+        for notification in existing
+        if notification.status == NotificationStatus.FAILED
+    ]
     status = NotificationStatus.SENT if success else NotificationStatus.FAILED
-    attempts = 0 if success else max((n.attempts for n in failed), default=0) + 1
+    attempts = (
+        0 if success else max((notification.attempts for notification in failed), default=0) + 1
+    )
 
     if failed:
-        for n in failed:
-            n.status = status
-            n.channel = channel
-            n.attempts = attempts
-            n.service_ids = current_services
+        for notification in failed:
+            notification.status = status
+            notification.channel = channel
+            notification.attempts = attempts
+            notification.service_ids = current_services
     else:
         db.add(
             Notification(
@@ -315,7 +338,7 @@ async def _do_check_alerts(db: AsyncSession) -> None:
     if not alerts:
         return
 
-    alert_by_id = {a.id: a for a in alerts}
+    alert_by_id = {alert.id: alert for alert in alerts}
     notifications = await _load_notifications(db, alert_by_id)
     _resolve_closed_episodes(notifications, alert_by_id, open_pairs)
     by_pair = _index_by_pair(notifications)
@@ -357,58 +380,66 @@ async def _do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = Non
     result = await db.execute(select(Project.id))
     project_ids = result.scalars().all()
 
-    for pid in project_ids:
+    for project_id in project_ids:
         if target_date == date.today():
             open_vulns = await db.execute(
                 select(Vulnerability.severity)
                 .join(SBOMVulnerability)
                 .join(SBOM)
                 .where(
-                    SBOM.project_id == pid,
+                    SBOM.project_id == project_id,
                     SBOMVulnerability.status == VulnerabilityStatus.OPEN,
                 )
                 .distinct(Vulnerability.id)
             )
-            severities = [s.lower() for s in open_vulns.scalars().all()]
+            severities = [severity.lower() for severity in open_vulns.scalars().all()]
         else:
             # For historical days, compute: all vulns created <= date - fixed before date
             total_result = await db.execute(
                 select(Vulnerability.id, Vulnerability.severity)
                 .join(SBOMVulnerability)
                 .join(SBOM)
-                .where(SBOM.project_id == pid, func.date(SBOM.created_at) <= target_date)
+                .where(SBOM.project_id == project_id, func.date(SBOM.created_at) <= target_date)
                 .distinct(Vulnerability.id)
             )
             total_dict = {}
-            for v_id, sev in total_result:
-                total_dict[v_id] = sev.lower()
+            for vuln_id, severity in total_result:
+                total_dict[vuln_id] = severity.lower()
 
             fixed_before = await db.execute(
                 select(SBOMVulnerability.vulnerability_id)
                 .join(SBOM)
                 .where(
-                    SBOM.project_id == pid,
+                    SBOM.project_id == project_id,
                     SBOMVulnerability.status == VulnerabilityStatus.FIXED,
                     SBOMVulnerability.fixed_at.isnot(None),
                     func.date(SBOMVulnerability.fixed_at) <= target_date,
                 )
                 .distinct()
             )
-            fixed_ids = set(r[0] for r in fixed_before)
-            severities = [sev for vid, sev in total_dict.items() if vid not in fixed_ids]
+            fixed_ids = set(row[0] for row in fixed_before)
+            severities = [
+                severity for vuln_id, severity in total_dict.items() if vuln_id not in fixed_ids
+            ]
 
         critical_count = sum(
-            1 for s in severities if s == VulnerabilitySeverity.CRITICAL.value.lower()
+            1 for severity in severities if severity == VulnerabilitySeverity.CRITICAL.value.lower()
         )
-        high_count = sum(1 for s in severities if s == VulnerabilitySeverity.HIGH.value.lower())
-        medium_count = sum(1 for s in severities if s == VulnerabilitySeverity.MEDIUM.value.lower())
-        low_count = sum(1 for s in severities if s == VulnerabilitySeverity.LOW.value.lower())
+        high_count = sum(
+            1 for severity in severities if severity == VulnerabilitySeverity.HIGH.value.lower()
+        )
+        medium_count = sum(
+            1 for severity in severities if severity == VulnerabilitySeverity.MEDIUM.value.lower()
+        )
+        low_count = sum(
+            1 for severity in severities if severity == VulnerabilitySeverity.LOW.value.lower()
+        )
 
         fixed_result = await db.execute(
             select(func.count(SBOMVulnerability.vulnerability_id))
             .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
             .where(
-                SBOM.project_id == pid,
+                SBOM.project_id == project_id,
                 SBOMVulnerability.status == VulnerabilityStatus.FIXED,
                 SBOMVulnerability.fixed_at.isnot(None),
                 func.date(SBOMVulnerability.fixed_at) <= target_date,
@@ -420,7 +451,7 @@ async def _do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = Non
             select(func.count(Dependency.id))
             .select_from(SBOM)
             .join(Dependency, Dependency.sbom_id == SBOM.id)
-            .where(SBOM.project_id == pid, SBOM.created_at <= target_date)
+            .where(SBOM.project_id == project_id, SBOM.created_at <= target_date)
         )
         dep_count_val = dep_count.scalar() or 0
 
@@ -429,7 +460,7 @@ async def _do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = Non
         stmt = (
             insert(VulnerabilitySnapshot)
             .values(
-                project_id=pid,
+                project_id=project_id,
                 snapshot_date=target_date,
                 critical_count=critical_count,
                 high_count=high_count,

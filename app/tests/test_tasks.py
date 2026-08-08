@@ -502,7 +502,7 @@ async def test_check_alerts_realerts_after_reopen(db_session):
     # The previous episode's row is kept (history) and a new one is added.
     notifications = (await db_session.execute(select(Notification))).scalars().all()
     assert len(notifications) == 2
-    assert {n.status for n in notifications} == {
+    assert {notification.status for notification in notifications} == {
         NotificationStatus.RESOLVED,
         NotificationStatus.SENT,
     }
@@ -834,11 +834,11 @@ async def test_snapshot_metrics_counts_open_severities(db_session):
     db_session.add_all(vulns)
     await db_session.flush()
 
-    for i, vuln in enumerate(vulns):
+    for idx, vuln in enumerate(vulns):
         db_session.add(
             SBOMVulnerability(
                 sbom_id=sbom.id,
-                dependency_purl=f"pkg:npm/dep{i}@1.0.0",
+                dependency_purl=f"pkg:npm/dep{idx}@1.0.0",
                 vulnerability_id=vuln.id,
                 status=VulnerabilityStatus.OPEN,
                 detected_at=datetime.now(UTC),

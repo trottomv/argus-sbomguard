@@ -96,8 +96,8 @@
                     <legend class="fieldset-legend">Service (optional)</legend>
                     <input type="text" name="service_name" class="input w-full" placeholder="(auto-detect from SBOM)" list="service-list" autocomplete="off">
                     <datalist id="service-list">
-                        {% for svc in services %}
-                        <option value="{{ svc.name }}">
+                        {% for service in services %}
+                        <option value="{{ service.name }}">
                         {% endfor %}
                     </datalist>
                 </fieldset>
@@ -140,13 +140,13 @@
             <h2 class="text-lg font-bold text-ctp-text mb-3">Services</h2>
             <div class="flex flex-wrap gap-2">
                 <a href="/projects/{{ project.id }}" class="badge {% if not request.query_params.get('service_id') %}badge-primary{% else %}badge-outline{% endif %} hover:badge-primary transition-colors">All</a>
-                {% for svc in services %}
+                {% for service in services %}
                 <span class="inline-flex items-center gap-0">
-                    <a href="/projects/{{ project.id }}?service_id={{ svc.id }}" class="badge {% if request.query_params.get('service_id') == svc.id|string %}badge-primary{% else %}badge-outline{% endif %} hover:badge-primary transition-colors">
-                        {{ svc.name }}
+                    <a href="/projects/{{ project.id }}?service_id={{ service.id }}" class="badge {% if request.query_params.get('service_id') == service.id|string %}badge-primary{% else %}badge-outline{% endif %} hover:badge-primary transition-colors">
+                        {{ service.name }}
                     </a>
                     <button class="btn btn-ghost btn-xs text-error hover:text-error-content"
-                            @click="svcDelId='{{ svc.id }}'; svcDelName='{{ svc.name }}'; delete_service_modal.showModal()"
+                            @click="svcDelId='{{ service.id }}'; svcDelName='{{ service.name }}'; delete_service_modal.showModal()"
                             title="Delete service">&#x2715;</button>
                 </span>
                 {% endfor %}
