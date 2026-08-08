@@ -747,7 +747,7 @@ async def test_check_alerts_resends_when_affected_services_change(db_session):
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
             sbom_vulnerability_id=link1.id,
-            service_ids=[str(s1.id), str(s2.id)],
+            service_ids=sorted([str(s1.id), str(s2.id)]),
             channel="slack",
             status="sent",
         )
