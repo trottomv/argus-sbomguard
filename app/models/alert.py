@@ -1,5 +1,6 @@
 import uuid
 from enum import StrEnum
+from typing import Self
 
 from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -7,37 +8,30 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from models.base import BaseModel
 
 
-class SeverityThreshold(StrEnum):
-    CRITICAL = "critical"
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
+class _LabelledValue(StrEnum):
+    """StrEnum member pairing a value with a human-readable label."""
+
+    def __new__(cls, value: str, label: str) -> Self:
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj._label = label
+        return obj
 
     @property
     def label(self) -> str:
-        return _SEVERITY_THRESHOLD_LABELS[self]
+        return self._label
 
 
-class NotificationChannel(StrEnum):
-    EMAIL = "email"
-    SLACK = "slack"
-
-    @property
-    def label(self) -> str:
-        return _NOTIFICATION_CHANNEL_LABELS[self]
+class SeverityThreshold(_LabelledValue):
+    CRITICAL = "critical", "Critical only"
+    HIGH = "high", "High and above"
+    MEDIUM = "medium", "Medium and above"
+    LOW = "low", "All"
 
 
-_SEVERITY_THRESHOLD_LABELS = {
-    SeverityThreshold.CRITICAL: "Critical only",
-    SeverityThreshold.HIGH: "High and above",
-    SeverityThreshold.MEDIUM: "Medium and above",
-    SeverityThreshold.LOW: "All",
-}
-
-_NOTIFICATION_CHANNEL_LABELS = {
-    NotificationChannel.EMAIL: "Email",
-    NotificationChannel.SLACK: "Slack",
-}
+class NotificationChannel(_LabelledValue):
+    EMAIL = "email", "Email"
+    SLACK = "slack", "Slack"
 
 
 class AlertConfig(BaseModel):
