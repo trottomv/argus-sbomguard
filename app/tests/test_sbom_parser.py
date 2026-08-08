@@ -110,7 +110,7 @@ async def test_parse_spdx_empty():
 @pytest.mark.asyncio
 async def test_store_sbom_cyclonedx(db_session):
     project_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
-    db_session.add(Project(id=project_id, name="sbom-parser-1"))
+    db_session.add(Project(id=project_id, name="SBOM parser 1"))
     await db_session.flush()
     sbom = await store_sbom(db_session, project_id, CYCLONEDX_SAMPLE, version="v1")
     assert sbom.format == "cyclonedx"
@@ -122,7 +122,7 @@ async def test_store_sbom_cyclonedx(db_session):
 @pytest.mark.asyncio
 async def test_store_sbom_spdx(db_session):
     project_id = uuid.UUID("00000000-0000-0000-0000-000000000002")
-    db_session.add(Project(id=project_id, name="sbom-parser-2"))
+    db_session.add(Project(id=project_id, name="SBOM parser 2"))
     await db_session.flush()
     sbom = await store_sbom(db_session, project_id, SPDX_SAMPLE)
     assert sbom.format == "spdx"
@@ -132,7 +132,7 @@ async def test_store_sbom_spdx(db_session):
 @pytest.mark.asyncio
 async def test_store_sbom_duplicate(db_session):
     project_id = uuid.UUID("00000000-0000-0000-0000-000000000003")
-    db_session.add(Project(id=project_id, name="sbom-parser-3"))
+    db_session.add(Project(id=project_id, name="SBOM parser 3"))
     await db_session.flush()
     sbom1 = await store_sbom(db_session, project_id, CYCLONEDX_SAMPLE)
     sbom2 = await store_sbom(db_session, project_id, CYCLONEDX_SAMPLE)
@@ -142,7 +142,7 @@ async def test_store_sbom_duplicate(db_session):
 @pytest.mark.asyncio
 async def test_store_sbom_unknown_format(db_session):
     project_id = uuid.UUID("00000000-0000-0000-0000-000000000004")
-    db_session.add(Project(id=project_id, name="sbom-parser-4"))
+    db_session.add(Project(id=project_id, name="SBOM parser 4"))
     await db_session.flush()
     raw = {"unknown": True}
     sbom = await store_sbom(db_session, project_id, raw)

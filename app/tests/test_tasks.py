@@ -19,11 +19,13 @@ async def test_latest_sbom_ids_picks_latest_per_scope(db_session):
     s1 = uuid.uuid4()
     s2 = uuid.uuid4()
 
-    db_session.add_all([Project(id=p1, name="tasks-p1"), Project(id=p2, name="tasks-p2")])
+    db_session.add_all(
+        [Project(id=p1, name="Tasks project 1"), Project(id=p2, name="Tasks project 2")]
+    )
     db_session.add_all(
         [
-            Service(id=s1, project_id=p1, name="tasks-s1"),
-            Service(id=s2, project_id=p1, name="tasks-s2"),
+            Service(id=s1, project_id=p1, name="Tasks service 1"),
+            Service(id=s2, project_id=p1, name="Tasks service 2"),
         ]
     )
 
@@ -85,7 +87,7 @@ async def test_latest_sbom_ids_picks_latest_per_scope(db_session):
 
 
 async def _make_scope(db_session, project_id, older_uploaded, latest_uploaded):
-    db_session.add(Project(id=project_id, name=f"tasks-{project_id}"))
+    db_session.add(Project(id=project_id, name=f"Tasks project {project_id}"))
     older = SBOM(
         project_id=project_id,
         format="cyclonedx",
