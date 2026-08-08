@@ -5,7 +5,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy import select
 
+from models.project import Project
 from models.sbom import SBOM
+from models.service import Service
 from models.vulnerability import SBOMVulnerability, Vulnerability
 from services.tasks import _do_scan_sbom, _latest_sbom_ids
 
@@ -16,6 +18,14 @@ async def test_latest_sbom_ids_picks_latest_per_scope(db_session):
     p2 = uuid.uuid4()
     s1 = uuid.uuid4()
     s2 = uuid.uuid4()
+
+    db_session.add_all([Project(id=p1, name="tasks-p1"), Project(id=p2, name="tasks-p2")])
+    db_session.add_all(
+        [
+            Service(id=s1, project_id=p1, name="tasks-s1"),
+            Service(id=s2, project_id=p1, name="tasks-s2"),
+        ]
+    )
 
     sboms = [
         SBOM(
@@ -75,6 +85,7 @@ async def test_latest_sbom_ids_picks_latest_per_scope(db_session):
 
 
 async def _make_scope(db_session, project_id, older_uploaded, latest_uploaded):
+    db_session.add(Project(id=project_id, name=f"tasks-{project_id}"))
     older = SBOM(
         project_id=project_id,
         format="cyclonedx",

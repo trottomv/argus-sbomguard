@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 
 from models.project import Project
 
@@ -53,7 +53,7 @@ async def test_slug_is_read_only(db_session):
     assert project.slug == "read-only"
 
     project.slug = "forced-slug"
-    with pytest.raises(OperationalError):
+    with pytest.raises((OperationalError, ProgrammingError)):
         await db_session.flush()
     await db_session.rollback()
 

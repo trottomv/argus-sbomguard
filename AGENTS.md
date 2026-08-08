@@ -196,7 +196,7 @@ alert_configs → notifications / pull_requests
 ## Testing
 - `pytest` + `httpx.AsyncClient` in `tests/test_api.py`
 - `pytest-asyncio` for async tests
-- SQLite in-memory for tests (via `conftest.py`)
+- PostgreSQL 18 for tests (dedicated `argus_test` database, migrations applied at session start — see `conftest.py`)
 - All tests must pass before committing
 
 ## Gotchas

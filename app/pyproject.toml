@@ -30,7 +30,6 @@ dev = [
     "pytest-asyncio~=1.4.0",
     "pytest-cov~=7.1.0",
     "pytest-httpx~=0.36.0",
-    "aiosqlite~=0.22.0",
     "ruff~=0.16.0",
     "bandit~=1.9.0",
     "pip-audit~=2.10.0",
