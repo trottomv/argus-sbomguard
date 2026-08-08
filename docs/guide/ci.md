@@ -14,8 +14,10 @@ background — no extra steps needed.
 4. **Attach it to the pipeline** as a build artifact for later download and
    audit.
 
-Argus deduplicates SBOMs by SHA-256, so uploading the same artifact twice is
-harmless — you still get one record per unique SBOM.
+Argus deduplicates SBOMs by the SHA-256 of the raw JSON, so re-uploading a
+byte-identical file is harmless. Re-running Syft emits a fresh
+`metadata.timestamp`, so each build produces a new record — that is expected,
+and it is what lets Argus track how dependencies change between versions.
 
 ## Prerequisites
 
@@ -27,8 +29,9 @@ harmless — you still get one record per unique SBOM.
 
 ## Configuration
 
-Store these as CI/CD variables or repository secrets — **never** in plaintext
-YAML:
+Store `ARGUS_API_KEY` as a CI/CD secret (repository secret or masked
+variable). `ARGUS_URL` and `ARGUS_PROJECT_ID` are not secret and may be written
+directly in your pipeline file:
 
 | Variable | Example | Purpose |
 |----------|---------|---------|
@@ -125,6 +128,11 @@ curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
 === "GitLab CI"
 
     ```yaml
+    workflow:
+      rules:
+        - if: '$CI_COMMIT_BRANCH == "main"'
+        - if: '$CI_COMMIT_TAG =~ /^v/'
+
     stages:
       - build
       - sbom
