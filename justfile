@@ -34,9 +34,15 @@ logs-worker:
 
 # ---- Testing ----
 
-# run tests
+# run tests (full stack running)
 test:
     docker compose exec app pytest -v
+
+# run tests standalone (postgres + rabbitmq only, no host port bindings)
+test-stack:
+    COMPOSE_FILE=docker-compose.test.yml docker compose build app
+    COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v
+    COMPOSE_FILE=docker-compose.test.yml docker compose down -v
 
 # run tests with coverage
 test-cov:

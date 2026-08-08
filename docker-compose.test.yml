@@ -1,0 +1,28 @@
+# ── Local test stack (no host port bindings — no conflict with host postgres).
+# Usage:
+#   docker compose -f docker-compose.test.yml build app   # build the test image
+#   docker compose -f docker-compose.test.yml run --rm app pytest -v
+#   docker compose -f docker-compose.test.yml down -v
+
+name: argus-sbomguard-test
+
+include:
+  - docker-compose/postgresql.yml
+  - docker-compose/rabbitmq.yml
+
+services:
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      target: test
+    env_file:
+      - .env
+    user: "0:0"
+    volumes:
+      - ./app:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
