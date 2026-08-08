@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import smtplib
 import ssl
@@ -10,7 +11,7 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 
-async def send_email(to: str, subject: str, body: str) -> bool:
+def _send_email_sync(to: str, subject: str, body: str) -> bool:
     if not settings.smtp_host:
         logger.warning("SMTP not configured, skipping email notification")
         return False
@@ -32,6 +33,10 @@ async def send_email(to: str, subject: str, body: str) -> bool:
     except Exception as e:
         logger.error("Failed to send email: %s", e)
         return False
+
+
+async def send_email(to: str, subject: str, body: str) -> bool:
+    return await asyncio.to_thread(_send_email_sync, to, subject, body)
 
 
 async def send_slack(webhook_url: str, message: str) -> bool:

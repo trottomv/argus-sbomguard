@@ -1,10 +1,37 @@
 """Regression tests for the passwordless login flow (issue: admin takeover)."""
 
+from unittest.mock import AsyncMock, patch
+
 from sqlalchemy import select
 
 from config import settings
 from models.auth import LoginToken, User
-from services.auth import create_login_token, verify_login_token
+from services.auth import create_login_token, send_login_email, verify_login_token
+
+
+async def test_send_login_email_returns_code_without_smtp(monkeypatch):
+    monkeypatch.setattr(settings, "smtp_host", "")
+    result = await send_login_email("admin@argus.local", "ABCD")
+    assert result == "Login code: ABCD"
+
+
+async def test_send_login_email_smtp_success(monkeypatch):
+    monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
+    with patch("services.auth.aiosmtplib.send", new_callable=AsyncMock) as mock_send:
+        result = await send_login_email("admin@argus.local", "ABCD")
+    assert result is True
+    mock_send.assert_awaited_once()
+
+
+async def test_send_login_email_smtp_failure_returns_code(monkeypatch):
+    monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
+    with patch(
+        "services.auth.aiosmtplib.send",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("smtp down"),
+    ):
+        result = await send_login_email("admin@argus.local", "ABCD")
+    assert result == "Login code: ABCD"
 
 
 async def test_verify_login_token_is_bound_to_email(db_session):

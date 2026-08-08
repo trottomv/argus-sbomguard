@@ -28,5 +28,5 @@ def upgrade() -> None:
     )
 
 
-def downgrade() -> None:
+def downgrade() -> None:  # pragma: no cover - rollback path, never exercised by tests
     op.drop_column("notifications", "attempts")

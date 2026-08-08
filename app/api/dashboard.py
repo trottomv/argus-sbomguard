@@ -49,7 +49,7 @@ def _dep_name(name: str | None, version: str | None, purl: str | None) -> str:
             pkg, ver = last.split("@", 1)
             return f"{pkg} {ver}"
         return last
-    return "-"  # pragma: no cover - SBOMVulnerability.dependency_purl is NOT NULL
+    return "-"
 
 
 async def _get_project_vulns(
@@ -731,7 +731,7 @@ async def create_api_key_web(
     db: AsyncSession = Depends(get_db),
 ):
     user = getattr(request.state, "user", None)
-    if not user:  # pragma: no cover - the auth middleware redirects anonymous users
+    if not user:
         return RedirectResponse(url="/login", status_code=302)
 
     form = await request.form()

@@ -1,6 +1,6 @@
 import uuid
 from datetime import UTC, date, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import select
@@ -14,7 +14,7 @@ from models.alert import (
     SeverityThreshold,
 )
 from models.project import Project
-from models.sbom import SBOM, SBOMFormat
+from models.sbom import SBOM, Dependency, SBOMFormat
 from models.service import Service
 from models.vulnerability import (
     SBOMVulnerability,
@@ -31,7 +31,12 @@ from services.tasks import (
     _do_scan_sbom,
     _do_snapshot_metrics,
     _latest_sbom_ids,
+    _make_session,
     _resolve_closed_episodes,
+    check_alerts,
+    rescan_vulnerabilities,
+    scan_sbom,
+    snapshot_metrics,
 )
 
 
@@ -229,6 +234,233 @@ async def test_do_scan_sbom_retires_stale_vulns_on_latest(db_session):
         )
     ).scalar_one()
     assert stale_fresh.status == VulnerabilityStatus.FIXED
+
+
+@pytest.mark.asyncio
+async def test_do_scan_sbom_invalid_uuid(db_session):
+    await _do_scan_sbom(db_session, "not-a-uuid")
+
+
+@pytest.mark.asyncio
+async def test_do_scan_sbom_not_found(db_session):
+    await _do_scan_sbom(db_session, str(uuid.uuid4()))
+
+
+def test_make_session_builds_factory():
+    factory = _make_session()
+    assert factory is not None
+
+
+def _mock_session_factory(monkeypatch):
+    mock_session = AsyncMock()
+    mock_factory = MagicMock(return_value=mock_session)
+    monkeypatch.setattr("services.tasks._make_session", lambda: mock_factory)
+    return mock_session
+
+
+def test_scan_sbom_task_runs(monkeypatch):
+    _mock_session_factory(monkeypatch)
+    with patch("services.tasks._do_scan_sbom", new=AsyncMock()) as mock_do:
+        scan_sbom(str(uuid.uuid4()))
+        mock_do.assert_awaited_once()
+
+
+def test_check_alerts_task_runs(monkeypatch):
+    _mock_session_factory(monkeypatch)
+    with patch("services.tasks._do_check_alerts", new=AsyncMock()) as mock_do:
+        check_alerts()
+        mock_do.assert_awaited_once()
+
+
+def test_snapshot_metrics_task_runs(monkeypatch):
+    _mock_session_factory(monkeypatch)
+    with patch("services.tasks._do_snapshot_metrics", new=AsyncMock()) as mock_do:
+        snapshot_metrics()
+        mock_do.assert_awaited_once()
+
+
+def test_rescan_vulnerabilities_task_runs(monkeypatch):
+    _mock_session_factory(monkeypatch)
+    fake_ids = [uuid.uuid4()]
+
+    with (
+        patch("services.tasks._latest_sbom_ids", new=AsyncMock(return_value=fake_ids)),
+        patch("services.tasks.scan_sbom.delay") as mock_delay,
+    ):
+        rescan_vulnerabilities()
+        mock_delay.assert_called_once_with(str(fake_ids[0]))
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_no_enabled_alerts_skips(db_session):
+    project = Project(name="no-alerts-project")
+    db_session.add(project)
+    await db_session.flush()
+
+    sbom = SBOM(project_id=project.id, raw_sbom={}, sha256=uuid.uuid4().hex)
+    db_session.add(sbom)
+    await db_session.flush()
+
+    vuln = Vulnerability(
+        cve_id="CVE-2026-0301", source="grype", severity=VulnerabilitySeverity.CRITICAL
+    )
+    db_session.add(vuln)
+    await db_session.flush()
+    db_session.add(
+        SBOMVulnerability(
+            sbom_id=sbom.id,
+            dependency_purl="pkg:npm/x@1.0.0",
+            vulnerability_id=vuln.id,
+            status=VulnerabilityStatus.OPEN,
+            detected_at=datetime.now(UTC),
+        )
+    )
+    await db_session.commit()
+
+    with patch("services.tasks.send_slack", new_callable=AsyncMock) as mock_send:
+        await _do_check_alerts(db_session)
+    mock_send.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_skips_vulns_above_threshold(db_session):
+    project = Project(name="threshold-project")
+    db_session.add(project)
+    await db_session.flush()
+
+    sbom = SBOM(project_id=project.id, raw_sbom={}, sha256=uuid.uuid4().hex)
+    db_session.add(sbom)
+    await db_session.flush()
+
+    low = Vulnerability(cve_id="CVE-2026-0302", source="grype", severity=VulnerabilitySeverity.LOW)
+    db_session.add(low)
+    await db_session.flush()
+    db_session.add(
+        SBOMVulnerability(
+            sbom_id=sbom.id,
+            dependency_purl="pkg:npm/low@1.0.0",
+            vulnerability_id=low.id,
+            status=VulnerabilityStatus.OPEN,
+            detected_at=datetime.now(UTC),
+        )
+    )
+
+    alert = AlertConfig(
+        project_id=project.id,
+        severity_threshold=SeverityThreshold.HIGH,
+        notification_type=NotificationChannel.SLACK,
+        enabled=True,
+    )
+    db_session.add(alert)
+    await db_session.commit()
+
+    with patch("services.tasks.send_slack", new_callable=AsyncMock) as mock_send:
+        await _do_check_alerts(db_session)
+    mock_send.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_deliver_unsupported_channel(db_session):
+    vuln = Vulnerability(
+        cve_id="CVE-2026-0303", source="grype", severity=VulnerabilitySeverity.CRITICAL
+    )
+    db_session.add(vuln)
+    await db_session.flush()
+
+    alert = AlertConfig(
+        project_id=uuid.uuid4(),
+        severity_threshold=SeverityThreshold.HIGH,
+        notification_type=NotificationChannel.SLACK,
+        enabled=True,
+    )
+    alert.notification_type = "smoke-signals"
+
+    from services.tasks import _deliver
+
+    channel, success = await _deliver(alert, vuln)
+    assert channel == "smoke-signals"
+    assert success is False
+
+
+@pytest.mark.asyncio
+async def test_snapshot_metrics_historical_date(db_session):
+    project = Project(name="historical-snapshot")
+    db_session.add(project)
+    await db_session.flush()
+
+    past = date(2026, 1, 15)
+    sbom = SBOM(
+        project_id=project.id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="7" * 64,
+        created_at=datetime(2026, 1, 10, tzinfo=UTC),
+    )
+    db_session.add(sbom)
+    await db_session.flush()
+
+    vuln = Vulnerability(
+        cve_id="CVE-2026-9101", source="grype", severity=VulnerabilitySeverity.MEDIUM
+    )
+    db_session.add(vuln)
+    await db_session.flush()
+    db_session.add(
+        Dependency(sbom_id=sbom.id, name="hist", version="1.0.0", purl="pkg:npm/hist@1.0.0")
+    )
+    link = SBOMVulnerability(
+        sbom_id=sbom.id,
+        dependency_purl="pkg:npm/hist@1.0.0",
+        vulnerability_id=vuln.id,
+        status=VulnerabilityStatus.FIXED,
+        detected_at=datetime(2026, 1, 11, tzinfo=UTC),
+        fixed_at=datetime(2026, 1, 12, tzinfo=UTC),
+    )
+    db_session.add(link)
+    await db_session.commit()
+
+    await _do_snapshot_metrics(db_session, past.isoformat())
+
+    snap = (
+        await db_session.execute(
+            select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id == project.id)
+        )
+    ).scalar_one()
+    assert snap.snapshot_date == past
+    assert snap.medium_count == 0  # fixed before the snapshot date
+    assert snap.fixed_count == 1
+    assert snap.total_dependencies == 1
+
+
+@pytest.mark.asyncio
+async def test_snapshot_metrics_upsert_existing(db_session):
+    project = Project(name="upsert-snapshot")
+    db_session.add(project)
+    await db_session.flush()
+
+    past = date(2026, 2, 1)
+    sbom = SBOM(
+        project_id=project.id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="6" * 64,
+        created_at=datetime(2026, 1, 20, tzinfo=UTC),
+    )
+    db_session.add(sbom)
+    await db_session.commit()
+
+    await _do_snapshot_metrics(db_session, past.isoformat())
+    await _do_snapshot_metrics(db_session, past.isoformat())
+
+    snaps = (
+        (
+            await db_session.execute(
+                select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id == project.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(snaps) == 1
 
 
 async def _make_open_vuln_with_alert(

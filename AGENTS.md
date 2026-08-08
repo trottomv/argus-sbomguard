@@ -87,7 +87,8 @@ docker compose exec app alembic revision --autogenerate -m "description"
 # (running pytest in the dev container leaves test logs in the dev services).
 # postgres + rabbitmq only, no host port bindings; teardown with down -v.
 COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v
-# or the shortcut (build + run + down -v):
+# or the shortcut (build + run + down -v). The test image CMD runs pytest with
+# coverage by default, so `just test-stack` emits a coverage report:
 just test-stack
 
 # Run all checks (lint + format + SAST + SCA)
@@ -200,9 +201,17 @@ alert_configs → notifications / pull_requests
 ## Testing
 - `pytest` + `httpx.AsyncClient` in `tests/test_api.py`
 - `pytest-asyncio` for async tests
-- PostgreSQL 18 for tests (dedicated `argus_test` database, migrations applied at session start — see `conftest.py`)
+- PostgreSQL 18 for tests (dedicated `argus_test` database, dropped/recreated and migrations applied at session start — see `conftest.py`)
 - **Always run tests via the standalone test stack** (`docker-compose.test.yml`), never with `docker compose exec app pytest` — the dev `app` container would otherwise keep test logs in the dev services. Shortcut: `just test-stack`.
 - All tests must pass before committing
+- **Coverage must stay at 100%** (`fail_under = 100` in `app/pyproject.toml`). The test image CMD runs `pytest --cov=. --cov-report=term-missing` by default, so `just test-stack` fails if coverage drops. CI enforces the same via `.github/workflows/tests.yml`.
+- **Coverage scope** (`[tool.coverage.run]`): everything under `app/` is measured — including `tests/` and `migrations/` — except templates, static, generated gRPC protos, `entrypoint.py`, and vendored/non-source paths (node_modules, `__pycache__`, venvs, `cov_annotate/`).
+- **`# pragma: no cover` is only allowed where a line is genuinely unreachable in tests**, e.g.:
+  - migration `downgrade()` bodies (rollback paths never run in CI),
+  - alembic `env.py` offline (`--sql`) mode,
+  - cross-process `IntegrityError` race handlers in `services/vulnerability_scanner.py`,
+  - a module-level import guard whose dependency is always installed.
+  Do not use pragmas to hide testable code — if a line can be reached by a test, test it.
 
 ## Gotchas
 - `.env` required (copy from `.env.example`).

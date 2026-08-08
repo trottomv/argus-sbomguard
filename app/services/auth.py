@@ -5,6 +5,7 @@ import string
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import aiosmtplib
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,13 +13,6 @@ from config import settings
 from models.auth import ApiKey, LoginToken, User
 
 logger = logging.getLogger(__name__)
-
-try:
-    import aiosmtplib
-
-    HAS_SMTP = True
-except ImportError:
-    HAS_SMTP = False
 
 
 def _hash_token(token: str) -> str:
@@ -90,7 +84,7 @@ async def verify_login_token(db: AsyncSession, raw_token: str, email: str) -> Us
 async def send_login_email(email: str, code: str) -> bool | str:
     logger.debug("Generated login code for %s", email)
 
-    if not HAS_SMTP or not settings.smtp_host:
+    if not settings.smtp_host:
         return f"Login code: {code}"
 
     message = f"From: {settings.smtp_from}\r\nTo: {email}\r\n"

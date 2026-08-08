@@ -57,7 +57,7 @@ def upgrade() -> None:
     )
 
 
-def downgrade() -> None:
+def downgrade() -> None:  # pragma: no cover - rollback path, never exercised by tests
     op.drop_column("services", "updated_at")
     op.drop_column("services", "created_at")
 

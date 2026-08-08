@@ -64,3 +64,26 @@ def test_show_login_code_rejected_in_production():
             secret_key="a-strong-random-value",
             show_login_code_in_response=True,
         )
+
+
+def test_alert_email_recipients_splits_comma_separated():
+    settings = Settings(
+        app_env="development",
+        secret_key=_PLACEHOLDER,
+        alert_email_recipients="ops@example.com, sec@example.com, ,",
+    )
+    assert settings.alert_email_recipients == ["ops@example.com", "sec@example.com"]
+
+
+def test_alert_email_recipients_passthrough_list():
+    settings = Settings(
+        app_env="development",
+        secret_key=_PLACEHOLDER,
+        alert_email_recipients=["a@example.com"],
+    )
+    assert settings.alert_email_recipients == ["a@example.com"]
+
+
+def test_invalid_display_timezone_rejected():
+    with pytest.raises(ValidationError):
+        Settings(app_env="development", secret_key=_PLACEHOLDER, display_timezone="Not/AZone")

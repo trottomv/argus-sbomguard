@@ -15,7 +15,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-def run_migrations_offline():
+def run_migrations_offline():  # pragma: no cover - offline (--sql) mode, not used by tests
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -49,6 +49,6 @@ def run_migrations_online():
 
 
 if context.is_offline_mode():
-    run_migrations_offline()
+    run_migrations_offline()  # pragma: no cover - offline (--sql) mode, not used by tests
 else:
     run_migrations_online()
