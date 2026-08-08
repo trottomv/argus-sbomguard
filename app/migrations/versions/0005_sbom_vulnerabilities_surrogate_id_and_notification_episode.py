@@ -49,9 +49,15 @@ def upgrade() -> None:
         ["id"],
     )
     op.add_column("notifications", sa.Column("episode_link_ids", sa.JSON(), nullable=True))
+    op.create_unique_constraint(
+        "uq_notifications_alert_episode",
+        "notifications",
+        ["alert_config_id", "sbom_vulnerability_id"],
+    )
 
 
 def downgrade() -> None:
+    op.drop_constraint("uq_notifications_alert_episode", "notifications", type_="unique")
     op.drop_column("notifications", "episode_link_ids")
     op.drop_constraint("fk_notifications_sbom_vulnerability", "notifications", type_="foreignkey")
     op.drop_column("notifications", "sbom_vulnerability_id")

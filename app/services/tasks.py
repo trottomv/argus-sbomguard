@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC, date, datetime
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -243,9 +244,13 @@ async def _do_check_alerts(db: AsyncSession) -> None:
                     n.episode_link_ids = list(open_ids)
             else:
                 # New episode (reopen) or first delivery: keep history by adding
-                # a fresh row tagged to this episode's open links.
-                db.add(
-                    Notification(
+                # a fresh row tagged to this episode's open links. The unique
+                # (alert_config_id, sbom_vulnerability_id) constraint backs up
+                # the in-process dedup: a concurrent run that already inserted
+                # the row for this episode is silently skipped.
+                await db.execute(
+                    pg_insert(Notification)
+                    .values(
                         alert_config_id=alert.id,
                         vulnerability_id=vuln_id,
                         sbom_vulnerability_id=min(open_link_ids),
@@ -254,6 +259,7 @@ async def _do_check_alerts(db: AsyncSession) -> None:
                         status=status,
                         attempts=attempts,
                     )
+                    .on_conflict_do_nothing(constraint="uq_notifications_alert_episode")
                 )
 
     await db.commit()

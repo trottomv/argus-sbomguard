@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from config import settings
 from models.alert import AlertConfig, Notification
@@ -475,6 +476,75 @@ async def test_check_alerts_realerts_after_reopen(db_session):
     notifications = (await db_session.execute(select(Notification))).scalars().all()
     assert len(notifications) == 2
     assert all(n.status == "sent" for n in notifications)
+
+
+@pytest.mark.asyncio
+async def test_notification_episode_unique_constraint_active(db_session):
+    vuln, alert = await _make_open_vuln_with_alert(db_session)
+    link = (await db_session.execute(select(SBOMVulnerability))).scalar_one()
+    db_session.add(
+        Notification(
+            alert_config_id=alert.id,
+            vulnerability_id=vuln.id,
+            sbom_vulnerability_id=link.id,
+            episode_link_ids=[str(link.id)],
+            channel="slack",
+            status="sent",
+        )
+    )
+    await db_session.commit()
+
+    # A second row for the same (alert, episode) is rejected by the DB.
+    with pytest.raises(IntegrityError):
+        db_session.add(
+            Notification(
+                alert_config_id=alert.id,
+                vulnerability_id=vuln.id,
+                sbom_vulnerability_id=link.id,
+                episode_link_ids=[str(link.id)],
+                channel="slack",
+                status="sent",
+            )
+        )
+        await db_session.commit()
+    await db_session.rollback()
+
+
+@pytest.mark.asyncio
+async def test_notification_episode_race_is_noop(db_session):
+    vuln, alert = await _make_open_vuln_with_alert(db_session)
+    link = (await db_session.execute(select(SBOMVulnerability))).scalar_one()
+    db_session.add(
+        Notification(
+            alert_config_id=alert.id,
+            vulnerability_id=vuln.id,
+            sbom_vulnerability_id=link.id,
+            episode_link_ids=[str(link.id)],
+            channel="slack",
+            status="sent",
+        )
+    )
+    await db_session.commit()
+
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    result = await db_session.execute(
+        pg_insert(Notification)
+        .values(
+            alert_config_id=alert.id,
+            vulnerability_id=vuln.id,
+            sbom_vulnerability_id=link.id,
+            episode_link_ids=[str(link.id)],
+            channel="slack",
+            status="sent",
+        )
+        .on_conflict_do_nothing(constraint="uq_notifications_alert_episode")
+    )
+    await db_session.commit()
+
+    assert result.rowcount == 0
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
 
 
 @pytest.mark.asyncio
