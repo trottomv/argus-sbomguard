@@ -54,7 +54,7 @@ class Notification(BaseModel):
     sbom_vulnerability_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("sbom_vulnerabilities.id"), nullable=True
     )
-    episode_link_ids: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    service_ids: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     channel: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="sent")
     attempts: Mapped[int] = mapped_column(Integer, server_default="0", default=0, nullable=False)

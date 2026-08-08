@@ -440,16 +440,38 @@ async def test_check_alerts_realerts_after_reopen(db_session):
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
             sbom_vulnerability_id=link.id,
-            episode_link_ids=[str(link.id)],
             channel="slack",
             status="sent",
         )
     )
     await db_session.commit()
 
-    # Close the first episode and reopen the vulnerability with a new link.
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_not_called()
+    finally:
+        settings.slack_webhook_url = original
+
+    # Close the episode: the notification becomes resolved.
     link.status = "fixed"
     link.fixed_at = datetime.now(UTC)
+    await db_session.commit()
+
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_not_called()
+    finally:
+        settings.slack_webhook_url = original
+
+    # Reopen with a new link: a fresh episode re-alerts.
     db_session.add(
         SBOMVulnerability(
             sbom_id=link.sbom_id,
@@ -461,7 +483,6 @@ async def test_check_alerts_realerts_after_reopen(db_session):
     )
     await db_session.commit()
 
-    original = settings.slack_webhook_url
     settings.slack_webhook_url = _slack_webhook()
     try:
         with patch(
@@ -475,7 +496,7 @@ async def test_check_alerts_realerts_after_reopen(db_session):
     # The previous episode's row is kept (history) and a new one is added.
     notifications = (await db_session.execute(select(Notification))).scalars().all()
     assert len(notifications) == 2
-    assert all(n.status == "sent" for n in notifications)
+    assert {n.status for n in notifications} == {"resolved", "sent"}
 
 
 @pytest.mark.asyncio
@@ -487,7 +508,6 @@ async def test_notification_episode_unique_constraint_active(db_session):
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
             sbom_vulnerability_id=link.id,
-            episode_link_ids=[str(link.id)],
             channel="slack",
             status="sent",
         )
@@ -501,7 +521,6 @@ async def test_notification_episode_unique_constraint_active(db_session):
                 alert_config_id=alert.id,
                 vulnerability_id=vuln.id,
                 sbom_vulnerability_id=link.id,
-                episode_link_ids=[str(link.id)],
                 channel="slack",
                 status="sent",
             )
@@ -519,7 +538,6 @@ async def test_notification_episode_race_is_noop(db_session):
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
             sbom_vulnerability_id=link.id,
-            episode_link_ids=[str(link.id)],
             channel="slack",
             status="sent",
         )
@@ -534,7 +552,6 @@ async def test_notification_episode_race_is_noop(db_session):
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
             sbom_vulnerability_id=link.id,
-            episode_link_ids=[str(link.id)],
             channel="slack",
             status="sent",
         )
@@ -578,7 +595,6 @@ async def test_check_alerts_resets_attempts_on_new_episode(db_session):
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
             sbom_vulnerability_id=link.id,
-            episode_link_ids=[str(link.id)],
             channel="slack",
             status="failed",
             attempts=MAX_ALERT_DELIVERY_ATTEMPTS,
@@ -598,9 +614,21 @@ async def test_check_alerts_resets_attempts_on_new_episode(db_session):
     finally:
         settings.slack_webhook_url = original
 
-    # Reopen: the new episode resets the budget, so it delivers again.
+    # Close the episode: the exhausted failed row is resolved.
     link.status = "fixed"
     link.fixed_at = datetime.now(UTC)
+    await db_session.commit()
+
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_not_called()
+    finally:
+        settings.slack_webhook_url = original
+
+    # Reopen: the new episode resets the budget, so it delivers again.
     db_session.add(
         SBOMVulnerability(
             sbom_id=link.sbom_id,
@@ -647,7 +675,6 @@ async def test_check_alerts_does_not_realert_while_episode_still_open(db_session
             alert_config_id=alert.id,
             vulnerability_id=vuln.id,
             sbom_vulnerability_id=link1.id,
-            episode_link_ids=[str(link1.id), str(link2.id)],
             channel="slack",
             status="sent",
         )
@@ -670,3 +697,96 @@ async def test_check_alerts_does_not_realert_while_episode_still_open(db_session
         mock_send.assert_not_called()
     finally:
         settings.slack_webhook_url = original
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_resends_when_affected_services_change(db_session):
+    project = Project(name="multi-service-project")
+    db_session.add(project)
+    await db_session.flush()
+    s1 = Service(project_id=project.id, name="service-a")
+    s2 = Service(project_id=project.id, name="service-b")
+    db_session.add_all([s1, s2])
+    await db_session.flush()
+
+    sbom1 = SBOM(project_id=project.id, service_id=s1.id, raw_sbom={}, sha256=uuid.uuid4().hex)
+    sbom2 = SBOM(project_id=project.id, service_id=s2.id, raw_sbom={}, sha256=uuid.uuid4().hex)
+    db_session.add_all([sbom1, sbom2])
+    await db_session.flush()
+
+    vuln = Vulnerability(cve_id="CVE-2026-0202", source="grype", severity="CRITICAL")
+    db_session.add(vuln)
+    await db_session.flush()
+    link1 = SBOMVulnerability(
+        sbom_id=sbom1.id,
+        dependency_purl="pkg:npm/x@1.0.0",
+        vulnerability_id=vuln.id,
+        status="open",
+        detected_at=datetime.now(UTC),
+    )
+    link2 = SBOMVulnerability(
+        sbom_id=sbom2.id,
+        dependency_purl="pkg:npm/x@1.0.0",
+        vulnerability_id=vuln.id,
+        status="open",
+        detected_at=datetime.now(UTC),
+    )
+    db_session.add_all([link1, link2])
+    await db_session.flush()
+
+    alert = AlertConfig(
+        project_id=project.id,
+        severity_threshold="high",
+        notification_type="slack",
+        enabled=True,
+    )
+    db_session.add(alert)
+    await db_session.flush()
+    db_session.add(
+        Notification(
+            alert_config_id=alert.id,
+            vulnerability_id=vuln.id,
+            sbom_vulnerability_id=link1.id,
+            service_ids=[str(s1.id), str(s2.id)],
+            channel="slack",
+            status="sent",
+        )
+    )
+    await db_session.commit()
+
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_not_called()
+    finally:
+        settings.slack_webhook_url = original
+
+    # service-a is fixed but the vulnerability stays open in service-b: the
+    # affected services changed, so the notification is re-sent for service-b.
+    link1.status = "fixed"
+    link1.fixed_at = datetime.now(UTC)
+    await db_session.commit()
+
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch(
+            "services.tasks.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await _do_check_alerts(db_session)
+        mock_send.assert_awaited_once()
+    finally:
+        settings.slack_webhook_url = original
+
+    notifications = (
+        (await db_session.execute(select(Notification).order_by(Notification.created_at)))
+        .scalars()
+        .all()
+    )
+    assert len(notifications) == 2
+    assert notifications[0].status == "resolved"
+    assert notifications[1].status == "sent"
+    assert notifications[1].service_ids == [str(s2.id)]

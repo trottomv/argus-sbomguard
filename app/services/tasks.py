@@ -123,29 +123,48 @@ def _severity_rank(value: str | None) -> int:
 
 async def _open_vulnerabilities(
     db: AsyncSession,
-) -> tuple[dict[uuid.UUID, Vulnerability], dict[uuid.UUID, dict[uuid.UUID, list[uuid.UUID]]]]:
-    """Return open vulnerabilities and, per vulnerability, its open link ids grouped by project.
+) -> tuple[
+    dict[uuid.UUID, Vulnerability],
+    dict[uuid.UUID, dict[uuid.UUID, list[uuid.UUID]]],
+    dict[uuid.UUID, dict[uuid.UUID, list[str]]],
+]:
+    """Return open vulnerabilities plus, per (vulnerability, project), the open
+    link ids and the distinct service ids they belong to.
 
     Link ids are selected directly (no SELECT DISTINCT over the entity),
     because the Vulnerability entity carries JSON columns (affected_packages,
     extra_data, ...) that PostgreSQL cannot equate.
     """
     rows = await db.execute(
-        select(SBOMVulnerability.id, SBOMVulnerability.vulnerability_id, SBOM.project_id)
+        select(
+            SBOMVulnerability.id,
+            SBOMVulnerability.vulnerability_id,
+            SBOM.project_id,
+            SBOM.service_id,
+        )
         .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
         .where(SBOMVulnerability.status == "open")
     )
     vuln_ids: set[uuid.UUID] = set()
     links_by_vuln: dict[uuid.UUID, dict[uuid.UUID, list[uuid.UUID]]] = {}
-    for link_id, vuln_id, project_id in rows.all():
+    services_by_vuln: dict[uuid.UUID, dict[uuid.UUID, set[str]]] = {}
+    for link_id, vuln_id, project_id, service_id in rows.all():
         vuln_ids.add(vuln_id)
         links_by_vuln.setdefault(vuln_id, {}).setdefault(project_id, []).append(link_id)
+        if service_id is not None:
+            services_by_vuln.setdefault(vuln_id, {}).setdefault(project_id, set()).add(
+                str(service_id)
+            )
 
     if not vuln_ids:
-        return {}, {}
+        return {}, {}, {}
 
     vulns = await db.execute(select(Vulnerability).where(Vulnerability.id.in_(vuln_ids)))
-    return {v.id: v for v in vulns.scalars().all()}, links_by_vuln
+    services_map = {
+        vuln_id: {project_id: sorted(services) for project_id, services in projects.items()}
+        for vuln_id, projects in services_by_vuln.items()
+    }
+    return {v.id: v for v in vulns.scalars().all()}, links_by_vuln, services_map
 
 
 async def _enabled_alerts(db: AsyncSession) -> list[AlertConfig]:
@@ -170,43 +189,37 @@ async def _deliver(alert: AlertConfig, vuln: Vulnerability) -> tuple[str, bool]:
     return alert.notification_type, False
 
 
-def _in_current_episode(n: Notification, open_ids: set[str]) -> bool:
-    """True when a notification belongs to the current open episode.
-
-    Rows without episode_link_ids are legacy (pre-episode) deliveries and are
-    treated as permanently current, preserving the old dedup for existing data.
-    """
-    return not n.episode_link_ids or any(link_id in open_ids for link_id in n.episode_link_ids)
-
-
-def _already_delivered(notifications: list[Notification], open_ids: set[str]) -> bool:
-    """True when this pair was already delivered in the current episode."""
-    return any(n.status != "failed" and _in_current_episode(n, open_ids) for n in notifications)
-
-
-def _episode_attempts(notifications: list[Notification], open_ids: set[str]) -> list[int]:
-    """Retry counts belonging to the current episode (failed attempts only)."""
-    return [
-        n.attempts
-        for n in notifications
-        if n.status == "failed" and _in_current_episode(n, open_ids)
-    ]
-
-
 async def _do_check_alerts(db: AsyncSession) -> None:
-    vulns, links_by_vuln = await _open_vulnerabilities(db)
+    vulns, links_by_vuln, services_by_vuln = await _open_vulnerabilities(db)
     alerts = await _enabled_alerts(db)
-    if not vulns or not alerts:
+    if not alerts:
         return
 
-    notifications = await db.execute(
-        select(Notification).where(
-            Notification.vulnerability_id.in_(list(vulns)),
-            Notification.alert_config_id.in_([a.id for a in alerts]),
+    open_pairs: set[tuple[uuid.UUID, uuid.UUID]] = {
+        (project_id, vuln_id)
+        for vuln_id, projects in links_by_vuln.items()
+        for project_id in projects
+    }
+    alert_by_id = {a.id: a for a in alerts}
+
+    notifications = (
+        (
+            await db.execute(
+                select(Notification).where(Notification.alert_config_id.in_(alert_by_id))
+            )
         )
+        .scalars()
+        .all()
     )
+
+    # Close episodes whose vulnerability is no longer open in the alert's project.
+    for n in notifications:
+        alert = alert_by_id.get(n.alert_config_id)
+        if alert is not None and (alert.project_id, n.vulnerability_id) not in open_pairs:
+            n.status = "resolved"
+
     by_pair: dict[tuple[uuid.UUID, uuid.UUID], list[Notification]] = {}
-    for n in notifications.scalars().all():
+    for n in notifications:
         by_pair.setdefault((n.vulnerability_id, n.alert_config_id), []).append(n)
 
     for alert in alerts:
@@ -219,13 +232,20 @@ async def _do_check_alerts(db: AsyncSession) -> None:
                 continue
 
             existing = by_pair.get((vuln_id, alert.id), [])
-            open_ids = {str(link_id) for link_id in open_link_ids}
-            if _already_delivered(existing, open_ids):
-                continue
-            current_episode_failed = [
-                n for n in existing if n.status == "failed" and _in_current_episode(n, open_ids)
-            ]
-            attempts_so_far = [n.attempts for n in current_episode_failed]
+            active = [n for n in existing if n.status != "resolved"]
+            current_services = services_by_vuln.get(vuln_id, {}).get(alert.project_id, [])
+
+            sent = [n for n in active if n.status == "sent"]
+            if sent:
+                if (sent[-1].service_ids or []) == current_services:
+                    continue
+                # The affected services changed while the vulnerability stayed
+                # open: re-notify for the current set and close the old row.
+                for n in sent:
+                    n.status = "resolved"
+
+            failed = [n for n in existing if n.status == "failed"]
+            attempts_so_far = [n.attempts for n in failed]
             if attempts_so_far and max(attempts_so_far) >= MAX_ALERT_DELIVERY_ATTEMPTS:
                 # Give up retrying a permanently failing delivery for this episode.
                 continue
@@ -233,28 +253,27 @@ async def _do_check_alerts(db: AsyncSession) -> None:
             channel, success = await _deliver(alert, vuln)
             status = "sent" if success else "failed"
             attempts = 0 if success else max(attempts_so_far, default=0) + 1
-            if current_episode_failed:
-                # Same-episode retry: flip the current episode's failed attempt(s)
-                # to the new outcome instead of accumulating rows.
-                for n in current_episode_failed:
+            if failed:
+                # Same-episode retry: flip the failed attempt(s) to the new
+                # outcome instead of accumulating rows.
+                for n in failed:
                     n.status = status
                     n.channel = channel
                     n.attempts = attempts
                     n.sbom_vulnerability_id = min(open_link_ids)
-                    n.episode_link_ids = list(open_ids)
+                    n.service_ids = current_services
             else:
-                # New episode (reopen) or first delivery: keep history by adding
-                # a fresh row tagged to this episode's open links. The unique
-                # (alert_config_id, sbom_vulnerability_id) constraint backs up
-                # the in-process dedup: a concurrent run that already inserted
-                # the row for this episode is silently skipped.
+                # New episode (reopen) or first delivery: add a fresh row tagged
+                # to the affected services. The unique (alert_config_id,
+                # sbom_vulnerability_id) constraint backs up the in-process
+                # dedup for concurrent runs.
                 await db.execute(
                     pg_insert(Notification)
                     .values(
                         alert_config_id=alert.id,
                         vulnerability_id=vuln_id,
                         sbom_vulnerability_id=min(open_link_ids),
-                        episode_link_ids=list(open_ids),
+                        service_ids=current_services,
                         channel=channel,
                         status=status,
                         attempts=attempts,
