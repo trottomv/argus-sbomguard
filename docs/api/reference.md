@@ -45,9 +45,7 @@ generated from the project name (e.g. `Argus SBOM Guard` → `argus-sbom-guard`)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/v1/services` | List services (paginated) |
-| `POST` | `/api/v1/services` | Create service |
-| `PATCH` | `/api/v1/services/{id}` | Update service |
+| `GET` | `/api/v1/services` | List services for a project (`project_id` required) |
 | `DELETE` | `/api/v1/services/{id}` | Delete service |
 
 ### Vulnerabilities
@@ -55,8 +53,7 @@ generated from the project name (e.g. `Argus SBOM Guard` → `argus-sbom-guard`)
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/v1/vulnerabilities/active` | List active (open) vulns |
-| `GET` | `/api/v1/vulnerabilities/{id}` | Get vulnerability details |
-| `GET` | `/api/v1/vulnerabilities/snapshots` | Get daily snapshot data |
+| `GET` | `/api/v1/vulnerabilities/summary` | Vulnerability counts by severity |
 
 ### Alerts
 
@@ -92,7 +89,8 @@ Response includes:
   "total": 42,
   "page": 1,
   "per_page": 20,
-  "total_pages": 3
+  "total_pages": 3,
+  "has_more": true
 }
 ```
 
