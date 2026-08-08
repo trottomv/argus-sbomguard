@@ -38,20 +38,18 @@ logs-worker:
 test:
     COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v
 
-# build the test image and run the full suite in a fresh standalone stack
+# build the test image and run the full suite in a fresh standalone stack.
+# The test image CMD already runs pytest with coverage (--cov=. --cov-report=term-missing),
+# so coverage output is produced on every run; teardown removes the stack afterwards.
 test-stack:
     COMPOSE_FILE=docker-compose.test.yml docker compose build app
-    COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v
+    COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app
     COMPOSE_FILE=docker-compose.test.yml docker compose down -v
-
-# run tests with coverage
-test-cov:
-    COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v --cov=. --cov-report=term-missing
 
 # run tests writing coverage annotate output into cov_annotate/ (gitignored).
 # cleanup happens inside the container because the files are root-owned there.
 cov-annotate:
-    COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app sh -c "rm -rf /app/cov_annotate && pytest -q --cov=api --cov-report=annotate:cov_annotate"
+    COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app sh -c "rm -rf /app/cov_annotate && pytest -q --cov=. --cov-report=annotate:cov_annotate"
 
 # run tests in watch mode
 test-watch:

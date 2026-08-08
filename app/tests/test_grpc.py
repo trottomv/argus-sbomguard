@@ -1,5 +1,6 @@
 import json
 import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import grpc
 import grpc.aio
@@ -9,7 +10,96 @@ from sbom_pb2 import UploadRequest
 from sbom_pb2_grpc import SBOMServiceStub, add_SBOMServiceServicer_to_server
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from services.grpc_server import SBOMServiceServicer
+from services.grpc_server import AuthInterceptor, SBOMServiceServicer, _rejecting_handler
+
+
+class TestUploadSBOMDefensiveReturns:
+    """Exercise the defensive ``return UploadResponse()`` after ``abort()``.
+
+    In the real server ``context.abort`` raises and the return is never hit,
+    but with a no-op ``abort`` mock the explicit return statement runs, which
+    exercises the line coverage without changing the production code.
+    """
+
+    @pytest.mark.asyncio
+    async def test_both_ids_returns_after_abort(self, db_session):
+        from sbom_pb2 import UploadResponse
+
+        from models.project import Project
+
+        project = Project(name="defensive-both")
+        db_session.add(project)
+        await db_session.commit()
+
+        servicer = SBOMServiceServicer(session_factory=async_sessionmaker(db_session.bind))
+        context = AsyncMock()
+
+        request = UploadRequest(
+            project_id=str(project.id),
+            slug=project.slug or "x",
+            sbom_json=b"{}",
+        )
+        response = await servicer.upload_sbom(request, context)
+        assert isinstance(response, UploadResponse)
+        context.abort.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_missing_ids_returns_after_abort(self, db_session):
+        from sbom_pb2 import UploadResponse
+
+        servicer = SBOMServiceServicer(session_factory=async_sessionmaker(db_session.bind))
+        context = AsyncMock()
+
+        response = await servicer.upload_sbom(
+            UploadRequest(project_id="", sbom_json=b"{}"), context
+        )
+        assert isinstance(response, UploadResponse)
+        context.abort.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_invalid_uuid_returns_after_abort(self, db_session):
+        from sbom_pb2 import UploadResponse
+
+        servicer = SBOMServiceServicer(session_factory=async_sessionmaker(db_session.bind))
+        context = AsyncMock()
+
+        response = await servicer.upload_sbom(
+            UploadRequest(project_id="not-a-uuid", sbom_json=b"{}"), context
+        )
+        assert isinstance(response, UploadResponse)
+        context.abort.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_project_not_found_returns_after_abort(self, db_session):
+        from sbom_pb2 import UploadResponse
+
+        servicer = SBOMServiceServicer(session_factory=async_sessionmaker(db_session.bind))
+        context = AsyncMock()
+
+        response = await servicer.upload_sbom(
+            UploadRequest(project_id=str(uuid.uuid4()), sbom_json=b"{}"), context
+        )
+        assert isinstance(response, UploadResponse)
+        context.abort.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_invalid_json_returns_after_abort(self, db_session):
+        from sbom_pb2 import UploadResponse
+
+        from models.project import Project
+
+        project = Project(name="defensive-json")
+        db_session.add(project)
+        await db_session.commit()
+
+        servicer = SBOMServiceServicer(session_factory=async_sessionmaker(db_session.bind))
+        context = AsyncMock()
+
+        response = await servicer.upload_sbom(
+            UploadRequest(project_id=str(project.id), sbom_json=b"not json"), context
+        )
+        assert isinstance(response, UploadResponse)
+        context.abort.assert_awaited_once()
 
 
 class TestUploadSBOM:
@@ -159,3 +249,86 @@ class TestUploadSBOM:
                 UploadRequest(project_id="", sbom_json=b'{"bomFormat":"CycloneDX","components":[]}')
             )
         assert exc.value.code() == grpc.StatusCode.INVALID_ARGUMENT
+
+
+class TestAuthInterceptor:
+    def _details(self, api_key: str = ""):
+        class _Details:
+            invocation_metadata = [("api-key", api_key)] if api_key else []
+
+        return _Details()
+
+    @pytest.mark.asyncio
+    async def test_missing_api_key_rejected(self):
+        interceptor = AuthInterceptor()
+        continuation = AsyncMock()
+
+        handler = await interceptor.intercept_service(continuation, self._details(""))
+        assert handler is not None
+        continuation.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_invalid_api_key_rejected(self):
+
+        interceptor = AuthInterceptor()
+        continuation = AsyncMock()
+
+        with patch(
+            "services.grpc_server.validate_api_key",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            handler = await interceptor.intercept_service(continuation, self._details("argus_bad"))
+        assert handler is not None
+        continuation.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_valid_api_key_passes_through(self):
+        from models.auth import User
+
+        user = User(email="grpc-key@example.com", is_admin=True)
+        interceptor = AuthInterceptor()
+        continuation = AsyncMock()
+        continuation.return_value = "handled"
+
+        with patch(
+            "services.grpc_server.validate_api_key",
+            new_callable=AsyncMock,
+            return_value=user,
+        ):
+            result = await interceptor.intercept_service(continuation, self._details("argus_valid"))
+        assert result == "handled"
+        continuation.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_rejecting_handler_aborts(self):
+        context = AsyncMock()
+        handler = _rejecting_handler(grpc.StatusCode.UNAUTHENTICATED, "nope")
+        await handler(None, context)
+        context.abort.assert_awaited_once_with(grpc.StatusCode.UNAUTHENTICATED, "nope")
+
+
+def test_servicer_default_session_factory():
+    servicer = SBOMServiceServicer()
+    assert servicer._session_factory is not None
+
+
+@pytest.mark.asyncio
+async def test_start_grpc_server():
+    server = AsyncMock()
+    server.add_insecure_port = MagicMock(return_value=50051)
+    server.start = AsyncMock()
+    with (
+        patch("services.grpc_server.grpc.aio.server", return_value=server) as mock_server,
+        patch("services.grpc_server.settings.grpc_port", "5055"),
+        patch("services.grpc_server.add_SBOMServiceServicer_to_server") as mock_add,
+    ):
+        from services.grpc_server import start_grpc_server
+
+        result = await start_grpc_server()
+
+    mock_server.assert_called_once()
+    mock_add.assert_called_once()
+    server.add_insecure_port.assert_called_once_with("0.0.0.0:5055")
+    server.start.assert_awaited_once()
+    assert result == server

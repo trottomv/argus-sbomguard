@@ -39,7 +39,7 @@ def compute_sha256(data: dict) -> str:
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 
-async def parse_cyclonedx(raw: dict) -> list[dict]:
+def parse_cyclonedx(raw: dict) -> list[dict]:
     deps = []
     components = raw.get("components", [])
     for component in components:
@@ -58,7 +58,7 @@ async def parse_cyclonedx(raw: dict) -> list[dict]:
     return deps
 
 
-async def parse_spdx(raw: dict) -> list[dict]:
+def parse_spdx(raw: dict) -> list[dict]:
     deps = []
     packages = raw.get("packages", [])
     for package in packages:
@@ -103,10 +103,10 @@ async def store_sbom(
 ) -> SBOM:
     fmt = raw.get("bomFormat", "").lower()
     if fmt == SBOMFormat.CYCLONEDX.value:
-        deps_data = await parse_cyclonedx(raw)
+        deps_data = parse_cyclonedx(raw)
         fmt = SBOMFormat.CYCLONEDX
     elif raw.get("spdxVersion"):
-        deps_data = await parse_spdx(raw)
+        deps_data = parse_spdx(raw)
         fmt = SBOMFormat.SPDX
     else:
         deps_data = []

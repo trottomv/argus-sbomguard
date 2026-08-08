@@ -44,8 +44,18 @@ docs = [
 ]
 
 [tool.coverage.run]
-source = ["app"]
-omit = ["app/templates/*", "app/static/*"]
+source = ["."]
+omit = [
+    "*/templates/*",
+    "*/static/*",
+    "*/protos/generated/*",
+    "*/node_modules/*",
+    "*/__pycache__/*",
+    "*/.venv/*",
+    "*/.docs-venv/*",
+    "*/cov_annotate/*",
+    "*/entrypoint.py",
+]
 core = "sysmon"
 
 
@@ -55,18 +65,24 @@ line-length = 100
 exclude = ["protos/generated"]
 
 [tool.ruff.lint]
+preview = true
 select = [
-    "E",   # pycodestyle errors
-    "F",   # pyflakes
-    "I",   # isort
-    "N",   # pep8-naming
-    "W",   # pycodestyle warnings
-    "UP",  # pyupgrade
-    "B",   # flake8-bugbear
-    "SIM", # flake8-simplify
-    "RUF", # ruff specific
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "W",    # pycodestyle warnings
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff specific
 ]
-ignore = ["E501", "B008", "N818"]
+ignore = [
+    "E501",     # line-too-long: allow long lines (URLs, string literals)
+    "B008",     # function-call-in-default-argument: allow Depends()/Header() defaults in FastAPI
+    "N818",     # error-suffix-on-exception-name: exception names may omit the "Error" suffix
+    "RUF201",   # rule-codes-in-selectors: keep alphanumeric codes in select/ignore lists
+]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -75,6 +91,10 @@ quote-style = "double"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 100
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", ".ruff_cache"]

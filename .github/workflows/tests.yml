@@ -75,4 +75,4 @@ jobs:
           RABBITMQ_HOST: localhost
           RABBITMQ_USER: argus
           RABBITMQ_PASSWORD: argus
-        run: uv run --no-sync pytest -v
+        run: uv run --no-sync pytest -v --cov=. --cov-report=term-missing

@@ -4,7 +4,9 @@ from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select
+from starlette.requests import Request
 
+from api.dashboard import _dep_name, create_api_key_web
 from models.auth import ApiKey
 from models.sbom import Dependency
 from models.vulnerability import (
@@ -20,6 +22,29 @@ def _sbom(name: str, version: str) -> dict:
         "bomFormat": "CycloneDX",
         "components": [{"type": "library", "name": name, "version": version}],
     }
+
+
+class TestDepName:
+    def test_with_name_and_version(self):
+        assert _dep_name("lodash", "4.17.20", "pkg:npm/lodash@4.17.20") == "lodash 4.17.20"
+
+    def test_with_name_no_version(self):
+        assert _dep_name("lodash", None, None) == "lodash"
+
+    def test_purl_with_version(self):
+        assert _dep_name(None, None, "pkg:npm/lodash@4.17.20") == "lodash 4.17.20"
+
+    def test_purl_without_version(self):
+        assert _dep_name(None, None, "pkg:npm/lodash") == "lodash"
+
+    def test_purl_single_segment(self):
+        assert _dep_name(None, None, "lodash") == "lodash"
+
+    def test_purl_query_string(self):
+        assert _dep_name(None, None, "pkg:npm/lodash?x=y") == "lodash"
+
+    def test_empty_all(self):
+        assert _dep_name(None, None, None) == "-"
 
 
 async def _upload(
@@ -332,6 +357,25 @@ async def test_create_api_key_web(client):
     resp = await client.post("/settings/api-keys", data={"label": "web"})
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
+
+
+@pytest.mark.asyncio
+async def test_create_api_key_web_defensive_redirect_without_user(db_session):
+    # The auth middleware already redirects anonymous users, but the handler
+    # keeps a defensive guard: invoking it without an authenticated session
+    # must redirect to /login instead of creating a key.
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/settings/api-keys",
+        "query_string": b"",
+        "headers": [],
+        "state": {},
+    }
+    request = Request(scope)
+    resp = await create_api_key_web(request, db=db_session)
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/login"
 
 
 @pytest.mark.asyncio

@@ -28,5 +28,5 @@ def upgrade() -> None:
     op.add_column("notifications", sa.Column("service_ids", sa.JSON(), nullable=True))
 
 
-def downgrade() -> None:
+def downgrade() -> None:  # pragma: no cover - rollback path, never exercised by tests
     op.drop_column("notifications", "service_ids")

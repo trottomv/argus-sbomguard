@@ -41,12 +41,8 @@ def _make_session_cookie(user_id: str) -> str:
 async def _create_test_database() -> None:
     engine = create_async_engine(_database_url("postgres"), isolation_level="AUTOCOMMIT")
     async with engine.connect() as conn:
-        result = await conn.execute(
-            text("SELECT 1 FROM pg_database WHERE datname = :name"),
-            {"name": TEST_DATABASE_NAME},
-        )
-        if not result.scalar_one_or_none():
-            await conn.execute(text(f'CREATE DATABASE "{TEST_DATABASE_NAME}"'))
+        await conn.execute(text(f'DROP DATABASE IF EXISTS "{TEST_DATABASE_NAME}" WITH (FORCE)'))
+        await conn.execute(text(f'CREATE DATABASE "{TEST_DATABASE_NAME}"'))
     await engine.dispose()
 
 
@@ -61,13 +57,6 @@ def _apply_migrations() -> None:
 def _prepare_test_database():
     asyncio.run(_create_test_database())
     _apply_migrations()
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest_asyncio.fixture
@@ -90,10 +79,10 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     db_session.add(user)
     await db_session.commit()
 
-    async def override_get_db():
+    def override_get_db():
         yield db_session
 
-    async def override_api_key():
+    def override_api_key():
         return user
 
     app.dependency_overrides[get_db] = override_get_db
