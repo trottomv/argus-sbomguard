@@ -237,7 +237,7 @@ async def _do_check_alerts(db: AsyncSession) -> None:
 
             sent = [n for n in active if n.status == "sent"]
             if sent:
-                if (sent[-1].service_ids or []) == current_services:
+                if set(sent[-1].service_ids or []) == set(current_services):
                     continue
                 # The affected services changed while the vulnerability stayed
                 # open: re-notify for the current set and close the old row.
