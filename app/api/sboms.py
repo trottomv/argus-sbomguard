@@ -6,6 +6,15 @@ from fastapi.responses import Response
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.schemas import (
+    DependencyResponse,
+    DiffItemResponse,
+    SBOMDetailResponse,
+    SBOMDiffResponse,
+    SBOMUploadResponse,
+    VersionChangeResponse,
+    VulnerabilityBriefResponse,
+)
 from database import get_db
 from middleware.api_key import api_key_required
 from models.project import Project
@@ -17,7 +26,7 @@ from services.tasks import scan_sbom
 router = APIRouter(prefix="/api/v1/sboms", tags=["sboms"], dependencies=[Depends(api_key_required)])
 
 
-@router.post("/upload", status_code=201)
+@router.post("/upload", status_code=201, response_model=SBOMUploadResponse)
 async def upload_sbom(
     project_id: str = Form(None),
     slug: str = Form(None),
@@ -54,12 +63,12 @@ async def upload_sbom(
 
     scan_sbom.delay(str(sbom.id))
 
-    return {
-        "id": str(sbom.id),
-        "format": sbom.format,
-        "dependency_count": sbom.dependency_count,
-        "sha256": sbom.sha256,
-    }
+    return SBOMUploadResponse(
+        id=sbom.id,
+        format=sbom.format,
+        dependency_count=sbom.dependency_count,
+        sha256=sbom.sha256,
+    )
 
 
 @router.get("/{sbom_id}/download")
@@ -77,7 +86,7 @@ async def download_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.get("/{sbom_id}")
+@router.get("/{sbom_id}", response_model=SBOMDetailResponse)
 async def get_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(SBOM).where(SBOM.id == sbom_id))
     sbom = result.scalar_one_or_none()
@@ -92,38 +101,38 @@ async def get_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     )
     vulns = vuln_result.scalars().all()
 
-    return {
-        "id": str(sbom.id),
-        "project_id": str(sbom.project_id),
-        "version": sbom.version,
-        "format": sbom.format,
-        "sha256": sbom.sha256,
-        "dependency_count": sbom.dependency_count,
-        "created_at": sbom.created_at.isoformat() if sbom.created_at else None,
-        "dependencies": [
-            {
-                "name": d.name,
-                "version": d.version,
-                "purl": d.purl,
-                "type": d.dep_type,
-                "license": d.license,
-                "is_direct": d.is_direct,
-            }
+    return SBOMDetailResponse(
+        id=sbom.id,
+        project_id=sbom.project_id,
+        version=sbom.version,
+        format=sbom.format,
+        sha256=sbom.sha256,
+        dependency_count=sbom.dependency_count,
+        created_at=sbom.created_at,
+        dependencies=[
+            DependencyResponse(
+                name=d.name,
+                version=d.version,
+                purl=d.purl,
+                type=d.dep_type,
+                license=d.license,
+                is_direct=d.is_direct,
+            )
             for d in deps
         ],
-        "vulnerabilities": [
-            {
-                "id": str(v.id),
-                "cve_id": v.cve_id,
-                "severity": v.severity,
-                "summary": v.summary,
-            }
+        vulnerabilities=[
+            VulnerabilityBriefResponse(
+                id=v.id,
+                cve_id=v.cve_id,
+                severity=v.severity,
+                summary=v.summary,
+            )
             for v in vulns
         ],
-    }
+    )
 
 
-@router.get("/{sbom_id}/diff/{other_id}")
+@router.get("/{sbom_id}/diff/{other_id}", response_model=SBOMDiffResponse)
 async def diff_sboms(
     sbom_id: uuid.UUID,
     other_id: uuid.UUID,
@@ -135,24 +144,23 @@ async def diff_sboms(
     result = await db.execute(select(Dependency).where(Dependency.sbom_id == other_id))
     deps_b = {(d.name, d.version) for d in result.scalars().all()}
 
-    added = [{"name": n, "version": v} for n, v in deps_b - deps_a]
-    removed = [{"name": n, "version": v} for n, v in deps_a - deps_b]
-    changed = []
-
     names_a = {n: v for n, v in deps_a}
     names_b = {n: v for n, v in deps_b}
     common = set(names_a.keys()) & set(names_b.keys())
-    for name in common:
-        if names_a[name] != names_b[name]:
-            changed.append(
-                {
-                    "name": name,
-                    "from_version": names_a[name],
-                    "to_version": names_b[name],
-                }
-            )
 
-    return {"added": added, "removed": removed, "changed": changed}
+    return SBOMDiffResponse(
+        added=[DiffItemResponse(name=n, version=v) for n, v in deps_b - deps_a],
+        removed=[DiffItemResponse(name=n, version=v) for n, v in deps_a - deps_b],
+        changed=[
+            VersionChangeResponse(
+                name=name,
+                from_version=names_a[name],
+                to_version=names_b[name],
+            )
+            for name in common
+            if names_a[name] != names_b[name]
+        ],
+    )
 
 
 @router.delete("/{sbom_id}", status_code=204)

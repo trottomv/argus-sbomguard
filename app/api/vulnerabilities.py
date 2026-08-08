@@ -2,6 +2,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.schemas import (
+    PageResponse,
+    VulnerabilityResponse,
+    VulnerabilitySummaryResponse,
+)
 from database import get_db
 from middleware.api_key import api_key_required
 from models.sbom import SBOM
@@ -16,7 +21,7 @@ router = APIRouter(
 )
 
 
-@router.get("/active")
+@router.get("/active", response_model=PageResponse[VulnerabilityResponse])
 async def active_vulnerabilities(
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
@@ -111,29 +116,30 @@ async def active_vulnerabilities(
             if svc_name:
                 service_map.setdefault(v_id, set()).add(svc_name)
 
-    return {
-        "items": [
-            {
-                "id": str(v.id),
-                "cve_id": v.cve_id,
-                "severity": v.severity,
-                "cvss_score": v.cvss_score,
-                "summary": v.summary,
-                "source": v.source,
-                "published_at": v.published_at.isoformat() if v.published_at else None,
-                "projects": sorted(project_map.get(v.id, [])),
-                "services": sorted(service_map.get(v.id, [])),
-            }
+    return PageResponse[VulnerabilityResponse](
+        items=[
+            VulnerabilityResponse(
+                id=v.id,
+                cve_id=v.cve_id,
+                severity=v.severity,
+                cvss_score=v.cvss_score,
+                summary=v.summary,
+                source=v.source,
+                published_at=v.published_at,
+                projects=sorted(project_map.get(v.id, [])),
+                services=sorted(service_map.get(v.id, [])),
+            )
             for v in pg.items
         ],
-        "total": pg.total,
-        "page": pg.page,
-        "per_page": pg.per_page,
-        "total_pages": pg.total_pages,
-    }
+        total=pg.total,
+        page=pg.page,
+        per_page=pg.per_page,
+        total_pages=pg.total_pages,
+        has_more=pg.has_more,
+    )
 
 
-@router.get("/summary")
+@router.get("/summary", response_model=VulnerabilitySummaryResponse)
 async def vulnerability_summary(db: AsyncSession = Depends(get_db)):
     vuln_subq = (
         select(Vulnerability.id, Vulnerability.severity)
@@ -169,8 +175,8 @@ async def vulnerability_summary(db: AsyncSession = Depends(get_db)):
         )
     )
 
-    return {
-        "counts": counts,
-        "total": sum(counts.values()),
-        "affected_projects": affected.scalar() or 0,
-    }
+    return VulnerabilitySummaryResponse(
+        counts=counts,
+        total=sum(counts.values()),
+        affected_projects=affected.scalar() or 0,
+    )

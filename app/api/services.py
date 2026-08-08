@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.schemas import ServiceResponse
 from database import get_db
 from middleware.api_key import api_key_required
 from models.sbom import SBOM
@@ -16,7 +17,7 @@ router = APIRouter(
 )
 
 
-@router.get("")
+@router.get("", response_model=list[ServiceResponse])
 async def list_services(
     project_id: uuid.UUID = Query(...),
     db: AsyncSession = Depends(get_db),
@@ -25,7 +26,7 @@ async def list_services(
         select(Service).where(Service.project_id == project_id).order_by(Service.name)
     )
     services = result.scalars().all()
-    return [{"id": str(s.id), "name": s.name, "project_id": str(s.project_id)} for s in services]
+    return [ServiceResponse.model_validate(s) for s in services]
 
 
 @router.delete("/{service_id}", status_code=204)
