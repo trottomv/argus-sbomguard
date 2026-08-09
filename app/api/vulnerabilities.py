@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.schemas import (
@@ -18,54 +18,13 @@ from models.vulnerability import (
     VulnerabilityStatus,
 )
 from services.pagination import VULN_PER_PAGE, Page, paginate
+from services.vulnerability_queries import apply_vuln_ordering, build_vuln_subquery
 
 router = APIRouter(
     prefix="/api/v1/vulnerabilities",
     tags=["vulnerabilities"],
     dependencies=[Depends(api_key_required)],
 )
-
-
-def _build_vuln_subquery(severity: str | None, project_id: str | None, service_id: str | None):
-    subq = (
-        select(Vulnerability.id)
-        .join(SBOMVulnerability)
-        .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
-    )
-    if severity and severity != "":
-        subq = subq.where(Vulnerability.severity.ilike(severity))
-    if (project_id and project_id != "") or (service_id and service_id != ""):
-        subq = subq.join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
-        if project_id and project_id != "":
-            subq = subq.where(SBOM.project_id == project_id)
-        if service_id and service_id != "":
-            subq = subq.where(SBOM.service_id == service_id)
-    return subq.distinct()
-
-
-def _apply_vuln_ordering(query, sort: str, order: str):
-    sort_map = {
-        "severity": func.lower(Vulnerability.severity),
-        "cvss_score": Vulnerability.cvss_score,
-        "published_at": Vulnerability.published_at,
-    }
-    sort_col = sort_map.get(sort, Vulnerability.cvss_score)
-    if sort == "severity":
-        severity_case = case(
-            (Vulnerability.severity == VulnerabilitySeverity.CRITICAL.value, 0),
-            (Vulnerability.severity == VulnerabilitySeverity.HIGH.value, 1),
-            (Vulnerability.severity == VulnerabilitySeverity.MEDIUM.value, 2),
-            (Vulnerability.severity == VulnerabilitySeverity.LOW.value, 3),
-            else_=99,
-        )
-        if order == "asc":
-            return query.order_by(severity_case.asc(), Vulnerability.cvss_score.desc().nullslast())
-        return query.order_by(severity_case.desc(), Vulnerability.cvss_score.desc().nullslast())
-    if order == "asc":
-        return query.order_by(
-            sort_col.asc().nullslast(), Vulnerability.cvss_score.desc().nullslast()
-        )
-    return query.order_by(sort_col.desc().nullslast(), Vulnerability.cvss_score.desc().nullslast())
 
 
 @router.get("/active", response_model=PageResponse[VulnerabilityResponse])
@@ -80,9 +39,9 @@ async def active_vulnerabilities(
     order: str = Query("desc"),
 ):
     query = select(Vulnerability).where(
-        Vulnerability.id.in_(_build_vuln_subquery(severity, project_id, service_id))
+        Vulnerability.id.in_(build_vuln_subquery(severity, project_id, service_id))
     )
-    query = _apply_vuln_ordering(query, sort, order)
+    query = apply_vuln_ordering(query, sort, order)
 
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
 
