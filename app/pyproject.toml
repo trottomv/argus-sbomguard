@@ -65,27 +65,32 @@ line-length = 100
 exclude = ["protos/generated"]
 
 [tool.ruff.lint]
-preview = true
-select = [
-    "E",    # pycodestyle errors
-    "F",    # pyflakes
-    "I",    # isort
-    "N",    # pep8-naming
-    "W",    # pycodestyle warnings
-    "UP",   # pyupgrade
-    "B",    # flake8-bugbear
-    "SIM",  # flake8-simplify
-    "RUF",  # ruff specific
-]
 ignore = [
-    "E501",     # line-too-long: allow long lines (URLs, string literals)
     "B008",     # function-call-in-default-argument: allow Depends()/Header() defaults in FastAPI
+    "E501",     # line-too-long: allow long lines (URLs, string literals)
     "N818",     # error-suffix-on-exception-name: exception names may omit the "Error" suffix
     "RUF201",   # rule-codes-in-selectors: keep alphanumeric codes in select/ignore lists
+]
+mccabe.max-complexity = 12
+preview = true
+select = [
+    "A",    # flake8-builtins
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "C90",  # McCabe cyclomatic complexity
+    "E",    # pycodestyle errors
+    "F",    # Pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "RUF",  # ruff specific
+    "SIM",  # flake8-simplify
+    "UP",   # pyupgrade
+    "W",    # pycodestyle warnings
 ]
 
 [tool.ruff.format]
 quote-style = "double"
+docstring-code-format = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
