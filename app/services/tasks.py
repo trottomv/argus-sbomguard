@@ -417,7 +417,7 @@ async def _do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = Non
                 )
                 .distinct()
             )
-            fixed_ids = set(row[0] for row in fixed_before)
+            fixed_ids = {row[0] for row in fixed_before}
             severities = [
                 severity for vuln_id, severity in total_dict.items() if vuln_id not in fixed_ids
             ]

@@ -144,8 +144,8 @@ async def diff_sboms(
     result = await db.execute(select(Dependency).where(Dependency.sbom_id == other_id))
     deps_b = {(dep.name, dep.version) for dep in result.scalars().all()}
 
-    names_a = {name: version for name, version in deps_a}
-    names_b = {name: version for name, version in deps_b}
+    names_a = dict(deps_a)
+    names_b = dict(deps_b)
     common = set(names_a.keys()) & set(names_b.keys())
 
     return SBOMDiffResponse(
