@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/trottomv/argus-sbomguard/releases"><img alt="Version" src="https://img.shields.io/badge/version-0.0.3--beta-orange?style=flat-square"></a>
+  <a href="https://github.com/trottomv/argus-sbomguard/releases"><img alt="Version" src="https://img.shields.io/badge/version-0.0.5--beta-orange?style=flat-square"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPLv3-blue?style=flat-square"></a>
 </p>
 
