@@ -1,11 +1,27 @@
+from pathlib import Path
+
 from pydantic import computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 _INSECURE_SECRET_KEY = "change-me-to-a-random-secret"  # nosec
 
+_VERSION_FILE = Path(__file__).resolve().parent / "VERSION.md"
+
+
+def _read_version_file(path: Path | None = None) -> str:
+    version_path = path or _VERSION_FILE
+    try:
+        return version_path.read_text().strip()
+    except OSError:
+        return "0.0.0-dev"
+
 
 class Settings(BaseSettings):
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "env_ignore_empty": True,
+    }
 
     # Database
     postgres_host: str = "postgres"
@@ -44,7 +60,7 @@ class Settings(BaseSettings):
     # Valid values: development | demo | production. Also used as the Docker
     # image tag (argussbomguard:${APP_ENV}).
     app_env: str = "development"
-    app_version: str = "0.0.3-beta"
+    app_version: str = _read_version_file()
     log_level: str = "info"
     # Surface the one-time login code directly in the login page response.
     # Only for dev/demo setups without SMTP; rejected when app_env is production.

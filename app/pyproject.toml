@@ -1,6 +1,10 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "argus-sbomguard"
-version = "0.0.3-beta"
+dynamic = ["version"]
 description = "Centralized SBOM management platform"
 requires-python = ">=3.12"
 dependencies = [
@@ -42,6 +46,9 @@ docs = [
     "mkdocstrings[python]~=0.29.0",
     "mike~=2.2.0",
 ]
+
+[tool.hatch.version]
+path = "VERSION.md"
 
 [tool.coverage.run]
 source = ["."]

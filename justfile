@@ -1,8 +1,8 @@
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 set dotenv-load := false
 
-# read version from pyproject.toml
-_version := `grep '^version = ' app/pyproject.toml | sed 's/.*= "\(.*\)"/\1/'`
+# read version from app/VERSION.md
+_version := `cat app/VERSION.md`
 
 # show available recipes
 help:
@@ -143,6 +143,11 @@ css:
     cd app && bun install --frozen-lockfile && bun run build:css
 
 # ---- Docs ----
+
+# propagate the version from app/VERSION.md to README, compose fallback,
+# .env.example and docs. Edit app/VERSION.md first, then run.
+bump-version:
+    python3 scripts/bump_version.py
 
 # install docs dependencies into a local venv
 docs-deps:
