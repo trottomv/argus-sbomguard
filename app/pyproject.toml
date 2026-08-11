@@ -49,6 +49,7 @@ docs = [
 
 [tool.hatch.version]
 path = "VERSION.md"
+pattern = '(?P<version>\S+)'
 
 [tool.coverage.run]
 source = ["."]
