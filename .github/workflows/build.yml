@@ -42,6 +42,12 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+          labels: |
+            org.opencontainers.image.description=Open-source SBOM-based vulnerability management platform.
+          annotations: |
+            org.opencontainers.image.description=Open-source SBOM-based vulnerability management platform.
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
 
       - name: Build and push app image
         id: build
@@ -55,6 +61,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
           provenance: true
           sbom: true
           cache-from: type=gha
