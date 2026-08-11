@@ -43,7 +43,7 @@ jobs:
         working-directory: app
         run: |
           uv venv
-          uv sync --no-default-groups --only-group docs
+          uv sync --no-default-groups --only-group docs --no-install-project
 
       - name: Configure git
         run: |
