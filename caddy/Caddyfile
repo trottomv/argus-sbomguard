@@ -3,7 +3,7 @@
 }
 
 (health) {
-	@health path /healthz /readyz
+	@health path /healthz
 	respond @health "OK" 200
 }
 

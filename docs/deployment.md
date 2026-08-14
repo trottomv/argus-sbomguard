@@ -210,8 +210,8 @@ Check that all services are healthy:
 docker compose ps
 ```
 
-The health endpoints answer `200 OK` from Caddy *before* the WAF rules are
-applied:
+The `/healthz` endpoint answers `200 OK` from Caddy *before* the WAF rules are
+applied; `/readyz` is proxied to the app so it reflects real readiness:
 
 ```bash
 curl -sS -o /dev/null -w "%{http_code}\n" https://argus.example.com/healthz

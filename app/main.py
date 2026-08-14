@@ -65,13 +65,18 @@ async def readyz():
 
     try:
         async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
+            await asyncio.wait_for(
+                conn.execute(text("SELECT 1")), settings.readiness_timeout_seconds
+            )
         checks["database"] = "ok"
     except Exception:
         checks["database"] = "error"
 
     try:
-        _, writer = await asyncio.open_connection(settings.rabbitmq_host, settings.rabbitmq_port)
+        _, writer = await asyncio.wait_for(
+            asyncio.open_connection(settings.rabbitmq_host, settings.rabbitmq_port),
+            settings.readiness_timeout_seconds,
+        )
         writer.close()
         await writer.wait_closed()
         checks["rabbitmq"] = "ok"

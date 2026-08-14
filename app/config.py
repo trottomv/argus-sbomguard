@@ -93,6 +93,9 @@ class Settings(BaseSettings):
     # gRPC
     grpc_port: int = 50051
 
+    # Readiness
+    readiness_timeout_seconds: float = 5.0
+
     # Display
     display_timezone: str = "UTC"
 
