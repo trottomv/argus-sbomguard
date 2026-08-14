@@ -210,11 +210,11 @@ Check that all services are healthy:
 docker compose ps
 ```
 
-The health endpoint answers `200 OK` from Caddy *before* the WAF rules are
+The health endpoints answer `200 OK` from Caddy *before* the WAF rules are
 applied:
 
 ```bash
-curl -sS -o /dev/null -w "%{http_code}\n" https://argus.example.com/health
+curl -sS -o /dev/null -w "%{http_code}\n" https://argus.example.com/healthz
 ```
 
 Expected: `200`. If you get a TLS warning instead, DNS has not propagated yet
