@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
+import main
 from models.project import Project
 from models.sbom import SBOM, Dependency, SBOMFormat
 from models.vulnerability import (
@@ -44,12 +45,76 @@ SAMPLE_SPDX = {
 
 
 @pytest.mark.asyncio
-async def test_health(client):
-    resp = await client.get("/health")
+async def test_healthz(client):
+    resp = await client.get("/healthz")
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "ok"
     assert data["service"] == "argus-sbomguard"
+
+
+@pytest.mark.asyncio
+async def test_readyz_ok(client):
+    resp = await client.get("/readyz")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert data["checks"] == {"database": "ok", "rabbitmq": "ok"}
+
+
+@pytest.mark.asyncio
+async def test_readyz_database_failure(client, monkeypatch):
+    class FailingConn:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def execute(self, *args, **kwargs):
+            raise Exception("db down")
+
+    class FailingEngine:
+        def connect(self):
+            return FailingConn()
+
+    monkeypatch.setattr(main, "engine", FailingEngine())
+    resp = await client.get("/readyz")
+    assert resp.status_code == 503
+    data = resp.json()
+    assert data["status"] == "error"
+    assert data["checks"]["database"] == "error"
+    assert data["checks"]["rabbitmq"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_readyz_rabbitmq_failure(client, monkeypatch):
+    class OkConn:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def execute(self, *args, **kwargs):
+            return None
+
+    class OkEngine:
+        def connect(self):
+            return OkConn()
+
+    monkeypatch.setattr(main, "engine", OkEngine())
+
+    def boom_connection(*args, **kwargs):
+        raise OSError("rabbitmq down")
+
+    monkeypatch.setattr(main.asyncio, "open_connection", boom_connection)
+    resp = await client.get("/readyz")
+    assert resp.status_code == 503
+    data = resp.json()
+    assert data["status"] == "error"
+    assert data["checks"]["database"] == "ok"
+    assert data["checks"]["rabbitmq"] == "error"
 
 
 # ── Projects ──

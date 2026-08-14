@@ -67,4 +67,4 @@ docker compose logs -f proxy
 
 ## Health
 
-The proxy responds to `/health` with `200 OK` before applying WAF rules — useful for load balancer health checks.
+The proxy responds to `/healthz` and `/readyz` with `200 OK` before applying WAF rules — useful for load balancer health checks.

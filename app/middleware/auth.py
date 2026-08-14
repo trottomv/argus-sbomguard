@@ -10,7 +10,7 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-PUBLIC_PATHS = {"/login", "/login/verify", "/health", "/favicon.ico"}
+PUBLIC_PATHS = {"/login", "/login/verify", "/healthz", "/readyz", "/favicon.ico"}
 
 _SESSION_MAX_AGE = settings.session_max_age_hours * 3600
 
