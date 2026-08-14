@@ -117,6 +117,32 @@ async def test_readyz_rabbitmq_failure(client, monkeypatch):
     assert data["checks"]["rabbitmq"] == "error"
 
 
+@pytest.mark.asyncio
+async def test_readyz_database_timeout(client, monkeypatch):
+    import asyncio as _asyncio
+
+    class StalledConn:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def execute(self, *args, **kwargs):
+            await _asyncio.sleep(60)
+
+    class StalledEngine:
+        def connect(self):
+            return StalledConn()
+
+    monkeypatch.setattr(main, "engine", StalledEngine())
+    monkeypatch.setattr(main.settings, "readiness_timeout_seconds", 0.001)
+    resp = await client.get("/readyz")
+    assert resp.status_code == 503
+    data = resp.json()
+    assert data["checks"]["database"] == "error"
+
+
 # ── Projects ──
 
 
