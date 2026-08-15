@@ -91,6 +91,9 @@ async def test_security_headers_present_on_pages(client):
     assert "'unsafe-eval'" in csp
     assert "fonts.googleapis.com" not in csp
     assert "fonts.gstatic.com" not in csp
+    assert resp.headers["x-frame-options"] == "DENY"
+    assert resp.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+    assert "geolocation=()" in resp.headers["permissions-policy"]
 
 
 @pytest.mark.asyncio
@@ -106,14 +109,23 @@ async def test_static_assets_served_locally(client):
     ):
         resp = await client.get(path)
         assert resp.status_code == 200
+        assert resp.headers["x-content-type-options"] == "nosniff"
+        assert "content-security-policy" not in resp.headers
+        assert "x-frame-options" not in resp.headers
+        assert "referrer-policy" not in resp.headers
+        assert "permissions-policy" not in resp.headers
 
 
 @pytest.mark.asyncio
-async def test_csp_not_applied_to_json_api(client):
+async def test_json_api_gets_only_nosniff(client):
     resp = await client.get("/api/v1/projects")
     assert resp.status_code == 200
     assert "application/json" in resp.headers["content-type"]
+    assert resp.headers["x-content-type-options"] == "nosniff"
     assert "content-security-policy" not in resp.headers
+    assert "x-frame-options" not in resp.headers
+    assert "referrer-policy" not in resp.headers
+    assert "permissions-policy" not in resp.headers
 
 
 _ON_HANDLER = re.compile(
