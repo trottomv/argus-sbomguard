@@ -58,6 +58,26 @@
 	}
 	route {
 		import health
+		rate_limit {
+			zone login {
+				match {
+					method POST
+					path /login /login/verify
+				}
+				key         {remote_host}
+				events      {$LOGIN_RATE_LIMIT}
+				window      1m
+				ipv6_prefix 64
+			}
+			zone api {
+				match {
+					path /api/v1/*
+				}
+				key    {remote_host} {http.request.header.X-API-Key}
+				events {$API_RATE_LIMIT}
+				window 1m
+			}
+		}
 		import waf_rules
 		reverse_proxy app:8000
 	}
