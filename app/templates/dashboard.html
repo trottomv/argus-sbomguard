@@ -76,24 +76,19 @@
         </div>
         {% if chart_labels|length > 0 %}
         <div class="w-full" style="height:260px">
-            <canvas id="trendChart"></canvas>
+            <canvas id="trendChart" data-chart='{{ {
+                'labels': chart_labels,
+                'critical': chart_critical,
+                'high': chart_high,
+                'medium': chart_medium,
+                'low': chart_low,
+                'fixed': chart_fixed,
+            } | tojson }}'></canvas>
         </div>
         {% else %}
         <p class="text-sm text-ctp-overlay0 py-8 text-center">No snapshot data yet. Click <strong>Refresh</strong> to compute today's metrics.</p>
         {% endif %}
     </div>
-    {% if chart_labels|length > 0 %}
-    <script type="application/json" id="trend-data">
-    {{ {
-        'labels': chart_labels,
-        'critical': chart_critical,
-        'high': chart_high,
-        'medium': chart_medium,
-        'low': chart_low,
-        'fixed': chart_fixed,
-    } | tojson }}
-    </script>
-    {% endif %}
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6 card-hover">

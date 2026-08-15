@@ -1,15 +1,14 @@
 (function () {
     'use strict';
 
-    var dataEl = document.getElementById('trend-data');
     var ctx = document.getElementById('trendChart');
-    if (!dataEl || !ctx || typeof Chart === 'undefined') {
+    if (!ctx || typeof Chart === 'undefined') {
         return;
     }
 
     var data;
     try {
-        data = JSON.parse(dataEl.textContent);
+        data = JSON.parse(ctx.getAttribute('data-chart'));
     } catch (e) {
         return;
     }
