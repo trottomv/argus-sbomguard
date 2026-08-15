@@ -539,6 +539,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rate-limiting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rate Limiting
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#configuration" class="md-nav__link">
     <span class="md-ellipsis">
       Configuration
@@ -778,6 +787,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rate-limiting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rate Limiting
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#configuration" class="md-nav__link">
     <span class="md-ellipsis">
       Configuration
@@ -835,9 +853,10 @@
 <li><strong>HTTP reverse proxy</strong> to <code>app:8000</code> with WAF inspection</li>
 </ul>
 <h2 id="build">Build<a class="headerlink" href="#build" title="Permanent link">&para;</a></h2>
-<p>The Dockerfile at <a href="https://github.com/trottomv/argus-sbomguard/blob/main/caddy/Dockerfile"><code>caddy/Dockerfile</code></a> uses <code>xcaddy</code> to build Caddy 2.11.3 with the <code>corazawaf/coraza-caddy</code> module.</p>
+<p>The Dockerfile at <a href="https://github.com/trottomv/argus-sbomguard/blob/main/caddy/Dockerfile"><code>caddy/Dockerfile</code></a> uses <code>xcaddy</code> to build Caddy 2.11.3 with the <code>corazawaf/coraza-caddy</code> and <code>mholt/caddy-ratelimit</code> modules.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">RUN</span><span class="w"> </span>xcaddy<span class="w"> </span>build<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--with<span class="w"> </span>github.com/corazawaf/coraza-caddy
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--with<span class="w"> </span>github.com/corazawaf/coraza-caddy<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--with<span class="w"> </span>github.com/mholt/caddy-ratelimit
 </code></pre></div>
 <p>The OWASP CRS v4.4.0 archive is downloaded and extracted to <code>/etc/caddy/crs/</code> at build time.</p>
 <h2 id="waf-rules">WAF Rules<a class="headerlink" href="#waf-rules" title="Permanent link">&para;</a></h2>
@@ -885,6 +904,31 @@
 </tbody>
 </table>
 <p>All rules run in blocking mode (<code>SecRuleEngine On</code>) with request body inspection enabled.</p>
+<h2 id="rate-limiting">Rate Limiting<a class="headerlink" href="#rate-limiting" title="Permanent link">&para;</a></h2>
+<p>The proxy applies rate limiting via the <code>caddy-ratelimit</code> module, before the WAF and reverse proxy. Two zones are defined, both keyed per client IP (grouped by IPv6 <code>/64</code> prefix) over a 1-minute sliding window:</p>
+<table>
+<thead>
+<tr>
+<th>Zone</th>
+<th>Scope</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>login</code></td>
+<td><code>POST /login</code>, <code>POST /login/verify</code></td>
+<td>Caps login attempts per client IP</td>
+</tr>
+<tr>
+<td><code>api</code></td>
+<td><code>/api/v1/*</code></td>
+<td>Caps API requests per client IP</td>
+</tr>
+</tbody>
+</table>
+<p>The keys are based on the client IP only — the <code>X-API-Key</code> header is deliberately <em>not</em> part of the key, so a client cannot bypass its per-source budget by cycling arbitrary header values. When a limit is hit, Caddy returns <code>429 Too Many Requests</code> with a <code>Retry-After</code> header.</p>
+<p><code>/healthz</code> responds before rate limiting, so health checks are never throttled.</p>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <p>Set these variables in <code>.env</code>:</p>
 <table>
@@ -907,6 +951,16 @@
 <td>Email for Let's Encrypt</td>
 </tr>
 <tr>
+<td><code>LOGIN_RATE_LIMIT</code></td>
+<td><code>10</code></td>
+<td>Max <code>POST /login</code> / <code>POST /login/verify</code> per client IP per minute</td>
+</tr>
+<tr>
+<td><code>API_RATE_LIMIT</code></td>
+<td><code>120</code></td>
+<td>Max <code>/api/v1/*</code> requests per client IP per minute</td>
+</tr>
+<tr>
 <td><code>PROXY_MEM_LIMIT</code></td>
 <td><code>128M</code></td>
 <td>Container memory limit</td>
@@ -918,6 +972,7 @@
 </tr>
 </tbody>
 </table>
+<p>Rate-limit storage is in-memory per proxy instance; distributed limiting via Redis is planned but not yet enabled.</p>
 <h2 id="logs">Logs<a class="headerlink" href="#logs" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>proxy
 </code></pre></div>
