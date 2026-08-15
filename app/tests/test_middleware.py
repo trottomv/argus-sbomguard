@@ -84,16 +84,20 @@ async def test_security_headers_present_on_pages(client):
     assert "script-src 'self'" in csp
     assert "script-src 'self' 'unsafe-inline'" not in csp
     assert "'unsafe-eval'" in csp
+    assert "fonts.googleapis.com" not in csp
+    assert "fonts.gstatic.com" not in csp
 
 
 @pytest.mark.asyncio
-async def test_static_js_served_locally(client):
+async def test_static_assets_served_locally(client):
     for path in (
         "/static/js/htmx.min.js",
         "/static/js/alpine.min.js",
         "/static/js/chart.umd.min.js",
         "/static/js/app.js",
         "/static/js/dashboard.js",
+        "/static/fonts/InterVariable.woff2",
+        "/static/fonts/InterVariable-Italic.woff2",
     ):
         resp = await client.get(path)
         assert resp.status_code == 200
