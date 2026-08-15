@@ -101,11 +101,11 @@ async def test_static_assets_served_locally(client):
     ):
         resp = await client.get(path)
         assert resp.status_code == 200
-        assert resp.headers["content-security-policy"]
 
 
 @pytest.mark.asyncio
-async def test_csp_applied_to_api_responses(client):
+async def test_csp_not_applied_to_json_api(client):
     resp = await client.get("/api/v1/projects")
     assert resp.status_code == 200
-    assert "content-security-policy" in resp.headers
+    assert "application/json" in resp.headers["content-type"]
+    assert "content-security-policy" not in resp.headers

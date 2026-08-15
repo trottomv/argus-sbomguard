@@ -42,7 +42,9 @@
         target = event.target.closest('[data-copy]');
         if (target) {
             var text = target.getAttribute('data-copy');
-            navigator.clipboard.writeText(text);
+            navigator.clipboard.writeText(text).catch(function () {
+                target.classList.remove('badge-primary');
+            });
             target.classList.add('badge-primary');
         }
     });

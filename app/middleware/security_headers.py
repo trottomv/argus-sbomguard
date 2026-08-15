@@ -27,5 +27,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
-        response.headers["Content-Security-Policy"] = CSP_DIRECTIVES
+        content_type = response.headers.get("content-type", "")
+        if content_type.lower().startswith("text/html"):
+            response.headers["Content-Security-Policy"] = CSP_DIRECTIVES
         return response
