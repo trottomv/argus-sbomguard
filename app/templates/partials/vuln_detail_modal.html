@@ -1,4 +1,4 @@
-<dialog id="detail_modal" class="modal" @click="if($event.target === $el) $el.close()">
+<dialog id="detail_modal" class="modal" @click.self="$el.close()">
     <div class="modal-box max-w-lg">
         <h3 class="font-bold text-lg flex items-center gap-2">
             <code class="text-sm" x-text="detail.cve_id"></code>

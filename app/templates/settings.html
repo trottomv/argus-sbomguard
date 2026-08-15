@@ -2,47 +2,41 @@
 {% block title %}Settings - Argus SBOM Guard{% endblock title %}
 {% block breadcrumb %}{% endblock breadcrumb %}
 {% block content %}
-<div class="space-y-6" x-data="{ keyId: null, keyLabel: '', editAlertId: null, alertProject: '', alertSeverity: 'high', alertType: 'email', alertEnabled: true, delAlertId: null, createdKey: '', showCreatedKey: false, newKeyLabel: '' }">
+<div class="space-y-6" x-data="settingsPage">
     <h1 class="text-2xl font-bold">Settings</h1>
 
     <div x-show="showCreatedKey" class="alert alert-success relative">
         <div class="w-full">
             <p class="font-medium text-sm pr-8">API Key created — copy it now, it won't be shown again</p>
-            <button class="btn btn-ghost btn-sm absolute top-2 right-2" @click="location.reload()">
+            <button class="btn btn-ghost btn-sm absolute top-2 right-2" @click="reload()">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div class="flex items-center gap-2 mt-1">
                 <code class="text-xs break-all" x-text="createdKey"></code>
-                <button class="btn btn-ghost btn-sm shrink-0 tooltip" data-tip="Copy" @click="navigator.clipboard.writeText(createdKey)">
+                <button class="btn btn-ghost btn-sm shrink-0 tooltip" data-tip="Copy" @click="copyKey()">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 </button>
             </div>
         </div>
     </div>
 
-    <dialog id="revoke_key_modal" class="modal" @click="if($event.target === $el) $el.close()">
+    <dialog id="revoke_key_modal" class="modal" @click.self="$el.close()">
         <div class="modal-box">
             <h3 class="font-bold text-lg">Revoke API Key</h3>
             <p class="py-4">Revoke key <strong x-text="keyLabel || 'N/A'"></strong>?</p>
             <div class="modal-action">
-                <button class="btn btn-error" @click="
-                    fetch('/settings/api-keys/' + keyId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
-                    revoke_key_modal.close();
-                ">Revoke</button>
+                <button class="btn btn-error" @click="confirmRevoke()">Revoke</button>
                 <button class="btn btn-outline" data-close-modal="revoke_key_modal">Cancel</button>
             </div>
         </div>
     </dialog>
 
-    <dialog id="delete_alert_modal" class="modal" @click="if($event.target === $el) $el.close()">
+    <dialog id="delete_alert_modal" class="modal" @click.self="$el.close()">
         <div class="modal-box">
             <h3 class="font-bold text-lg">Delete Alert Rule</h3>
             <p class="py-4">Delete this alert rule?</p>
             <div class="modal-action">
-                <button class="btn btn-error" @click="
-                    fetch('/api/v1/alerts/' + delAlertId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
-                    delete_alert_modal.close();
-                ">Delete</button>
+                <button class="btn btn-error" @click="confirmDeleteAlert()">Delete</button>
                 <button class="btn btn-outline" data-close-modal="delete_alert_modal">Cancel</button>
             </div>
         </div>
@@ -54,22 +48,12 @@
             <p class="text-sm text-ctp-subtext0">Use these keys to authenticate REST API and gRPC requests via the <code class="text-xs">X-API-Key</code> header.</p>
 
             <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
-                    @click="newKeyLabel=''; gen_key_modal.showModal()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Generate Key</button>
+                    @click="openGenKey()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Generate Key</button>
 
             <dialog id="gen_key_modal" class="modal">
                 <div class="modal-box">
                     <h3 class="font-bold text-lg">Generate API Key</h3>
-                    <form @submit.prevent="
-                        fetch('/api/v1/api-keys', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ label: newKeyLabel })
-                        }).then(r => r.json()).then(data => {
-                            createdKey = data.key;
-                            showCreatedKey = true;
-                            gen_key_modal.close();
-                        });
-                    " class="space-y-4 mt-4">
+                    <form @submit.prevent="submitKey()" class="space-y-4 mt-4">
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend">Label</legend>
                             <input type="text" x-model="newKeyLabel" class="input w-full" placeholder="e.g. CI/CD, production" required autofocus>
@@ -102,7 +86,8 @@
                             <td class="text-sm">{{ key.last_used_at | format_dt('%Y-%m-%d %H:%M', 'never') }}</td>
                             <td>
                                 <button class="btn btn-error btn-sm"
-                                        @click="keyId='{{ key.id }}'; keyLabel='{{ key.label or key.key_prefix }}...'; revoke_key_modal.showModal()">
+                                        data-id="{{ key.id }}" data-label="{{ key.label or key.key_prefix }}..."
+                                        @click="openRevoke($event)">
                                     Revoke
                                 </button>
                             </td>
@@ -122,18 +107,12 @@
         <div>
             <h2 class="text-lg font-bold text-ctp-text">Alert Configurations</h2>
             <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
-                    @click="editAlertId=null; alertProject=''; alertSeverity='high'; alertType='email'; alertEnabled=true; alert_modal.showModal()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> New Alert Rule</button>
+                    @click="openNewAlert()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> New Alert Rule</button>
 
             <dialog id="alert_modal" class="modal">
                 <div class="modal-box">
                     <h3 class="font-bold text-lg" x-text="editAlertId ? 'Edit Alert Rule' : 'New Alert Rule'"></h3>
-                    <form @submit.prevent="
-                        const url = editAlertId ? '/api/v1/alerts/' + editAlertId : '/api/v1/alerts';
-                        const method = editAlertId ? 'PATCH' : 'POST';
-                        const body = { project_id: alertProject, severity_threshold: alertSeverity, notification_type: alertType, enabled: alertEnabled };
-                        fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-                            .then(r => { if(r.ok) location.reload(); });
-                    " class="space-y-4 mt-4">
+                    <form @submit.prevent="submitAlert()" class="space-y-4 mt-4">
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend">Project</legend>
                             <select x-model="alertProject" class="select w-full" required>
@@ -199,11 +178,16 @@
                             <td>
                                 <div class="flex gap-1">
                                     <button class="btn btn-ghost btn-sm"
-                                            @click="editAlertId='{{ alert.id }}'; alertProject='{{ alert.project_id }}'; alertSeverity='{{ alert.severity_threshold }}'; alertType='{{ alert.notification_type }}'; alertEnabled={{ 'true' if alert.enabled else 'false' }}; alert_modal.showModal()">
+                                            data-id="{{ alert.id }}" data-project="{{ alert.project_id }}"
+                                            data-severity="{{ alert.severity_threshold }}"
+                                            data-type="{{ alert.notification_type }}"
+                                            data-enabled="{{ 'true' if alert.enabled else 'false' }}"
+                                            @click="openEditAlert($event)">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                     </button>
                                     <button class="btn btn-ghost btn-sm text-error"
-                                            @click="delAlertId='{{ alert.id }}'; delete_alert_modal.showModal()">
+                                            data-id="{{ alert.id }}"
+                                            @click="openDeleteAlert($event)">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                     </button>
                                 </div>
