@@ -11,6 +11,7 @@ from api import alerts, api_keys, auth, dashboard, projects, sboms, services, vu
 from config import settings
 from database import async_session_factory, engine
 from middleware import AuthMiddleware
+from middleware.security_headers import SecurityHeadersMiddleware
 from services.auth import seed_admin_user
 from services.grpc_server import start_grpc_server
 
@@ -40,6 +41,7 @@ app = FastAPI(
     redoc_url="/api/redoc",
 )
 
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(AuthMiddleware)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")

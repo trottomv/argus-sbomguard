@@ -29,7 +29,7 @@
                     fetch('/settings/api-keys/' + keyId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                     revoke_key_modal.close();
                 ">Revoke</button>
-                <button class="btn btn-outline" onclick="document.getElementById('revoke_key_modal').close()">Cancel</button>
+                <button class="btn btn-outline" data-close-modal="revoke_key_modal">Cancel</button>
             </div>
         </div>
     </dialog>
@@ -43,7 +43,7 @@
                     fetch('/api/v1/alerts/' + delAlertId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                     delete_alert_modal.close();
                 ">Delete</button>
-                <button class="btn btn-outline" onclick="document.getElementById('delete_alert_modal').close()">Cancel</button>
+                <button class="btn btn-outline" data-close-modal="delete_alert_modal">Cancel</button>
             </div>
         </div>
     </dialog>
@@ -76,7 +76,7 @@
                         </fieldset>
                         <div class="modal-action">
                             <button type="submit" class="btn btn-primary">Create</button>
-                            <button type="button" class="btn btn-outline" onclick="gen_key_modal.close()">Cancel</button>
+                            <button type="button" class="btn btn-outline" data-close-modal="gen_key_modal">Cancel</button>
                         </div>
                     </form>
                 </div>
@@ -166,7 +166,7 @@
                         <div class="modal-action">
                             <button type="submit" class="btn btn-primary"
                                     x-text="editAlertId ? 'Save' : 'Create'"></button>
-                            <button type="button" class="btn btn-outline" onclick="alert_modal.close()">Cancel</button>
+                            <button type="button" class="btn btn-outline" data-close-modal="alert_modal">Cancel</button>
                         </div>
                     </form>
                 </div>

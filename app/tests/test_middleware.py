@@ -74,3 +74,34 @@ async def test_middleware_allows_public_paths(client):
     for path in ("/healthz", "/readyz"):
         resp = await client.get(path)
         assert resp.status_code in (200, 503)
+
+
+@pytest.mark.asyncio
+async def test_security_headers_present_on_pages(client):
+    resp = await client.get("/login")
+    assert resp.status_code == 200
+    csp = resp.headers["content-security-policy"]
+    assert "script-src 'self'" in csp
+    assert "script-src 'self' 'unsafe-inline'" not in csp
+    assert "'unsafe-eval'" in csp
+
+
+@pytest.mark.asyncio
+async def test_static_js_served_locally(client):
+    for path in (
+        "/static/js/htmx.min.js",
+        "/static/js/alpine.min.js",
+        "/static/js/chart.umd.min.js",
+        "/static/js/app.js",
+        "/static/js/dashboard.js",
+    ):
+        resp = await client.get(path)
+        assert resp.status_code == 200
+        assert resp.headers["content-security-policy"]
+
+
+@pytest.mark.asyncio
+async def test_csp_applied_to_api_responses(client):
+    resp = await client.get("/api/v1/projects")
+    assert resp.status_code == 200
+    assert "content-security-policy" in resp.headers

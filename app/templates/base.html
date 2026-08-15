@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Argus SBOM Guard{% endblock title %}</title>
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="/static/js/htmx.min.js"></script>
+    <script src="/static/js/chart.umd.min.js"></script>
     <link rel="stylesheet" href="/static/css/dist.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="/static/js/alpine.min.js" defer></script>
 </head>
 <body class="bg-ctp-base text-ctp-text antialiased">
     <div class="flex h-screen overflow-hidden">
@@ -67,7 +67,7 @@
             <header class="bg-ctp-mantle/80 backdrop-blur-sm border-b border-ctp-surface0">
                 <div class="flex items-center justify-between px-4 lg:px-6 h-14">
                     <div class="flex items-center gap-3">
-                        <button type="button" class="lg:hidden p-2 rounded-lg text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0 transition-colors" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')">
+                        <button type="button" data-toggle-mobile-menu class="lg:hidden p-2 rounded-lg text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0 transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"/></svg>
                         </button>
                         <div class="text-sm text-ctp-subtext0">
@@ -95,7 +95,7 @@
     </div>
 
     <div id="mobile-menu" class="fixed inset-0 z-50 hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="document.getElementById('mobile-menu').classList.add('hidden')"></div>
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-close-mobile-menu></div>
         <aside class="absolute left-0 top-0 bottom-0 w-64 bg-ctp-mantle border-r border-ctp-surface0 p-4">
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
@@ -104,7 +104,7 @@
                      </div>
                     <span class="font-bold">Argus</span>
                 </div>
-                <button onclick="document.getElementById('mobile-menu').classList.add('hidden')" class="p-1 rounded-lg hover:bg-ctp-surface0 transition-colors">
+                <button data-close-mobile-menu class="p-1 rounded-lg hover:bg-ctp-surface0 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
@@ -117,5 +117,7 @@
             </nav>
         </aside>
     </div>
+    <script src="/static/js/app.js"></script>
+    {% block scripts %}{% endblock scripts %}
 </body>
 </html>
