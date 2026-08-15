@@ -42,10 +42,12 @@
         target = event.target.closest('[data-copy]');
         if (target) {
             var text = target.getAttribute('data-copy');
-            navigator.clipboard.writeText(text).catch(function () {
-                target.classList.remove('badge-primary');
-            });
-            target.classList.add('badge-primary');
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                navigator.clipboard.writeText(text).catch(function () {
+                    target.classList.remove('badge-primary');
+                });
+                target.classList.add('badge-primary');
+            }
         }
     });
 

@@ -1,11 +1,16 @@
 """Tests for the auth session middleware."""
 
+import re
+from pathlib import Path
+
 import pytest
 from starlette.requests import Request
 from starlette.responses import Response
 
 from main import app
 from middleware.auth import _get_user_from_cookie, clear_session_cookie, set_session_cookie
+
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 
 
 def _request(cookies: dict[str, str] | None = None) -> Request:
@@ -109,3 +114,38 @@ async def test_csp_not_applied_to_json_api(client):
     assert resp.status_code == 200
     assert "application/json" in resp.headers["content-type"]
     assert "content-security-policy" not in resp.headers
+
+
+_ON_HANDLER = re.compile(
+    r"\bon(?:click|dblclick|mousedown|mouseup|mouseover|mouseout|mousemove|mouseenter|mouseleave|"
+    r"change|input|submit|focus|blur|load|error|keydown|keyup|keypress|"
+    r"resize|scroll|wheel|paste|copy|cut|contextmenu|drag|drop|touchstart|touchend)\s*=",
+    re.IGNORECASE,
+)
+
+_SCRIPT_OPEN = re.compile(r"<script\b[^>]*>", re.IGNORECASE)
+
+
+def _template_files():
+    return sorted(TEMPLATES_DIR.rglob("*.html"))
+
+
+def test_templates_have_no_inline_event_handlers():
+    offenders = [
+        f"{path.relative_to(TEMPLATES_DIR)}:{line_no}"
+        for path in _template_files()
+        for line_no, line in enumerate(path.read_text().splitlines(), 1)
+        if _ON_HANDLER.search(line)
+    ]
+    assert not offenders, offenders
+
+
+def test_templates_have_no_inline_executable_scripts():
+    offenders = [
+        f"{path.relative_to(TEMPLATES_DIR)}:{line_no}: {match}"
+        for path in _template_files()
+        for line_no, line in enumerate(path.read_text().splitlines(), 1)
+        for match in _SCRIPT_OPEN.findall(line)
+        if "src=" not in match.lower() and "application/json" not in match.lower()
+    ]
+    assert not offenders, offenders
