@@ -1,7 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @plugin "daisyui";
 @source "../templates/**/*.html";
+
+@font-face {
+    font-family: 'Inter';
+    src: url('/static/fonts/InterVariable.woff2') format('woff2');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Inter';
+    src: url('/static/fonts/InterVariable-Italic.woff2') format('woff2');
+    font-weight: 100 900;
+    font-style: italic;
+    font-display: swap;
+}
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;

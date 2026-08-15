@@ -59,7 +59,7 @@
                     fetch('/api/v1/sboms/' + sbomDelId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                     delete_sbom_modal.close();
                 ">Delete</button>
-                <button class="btn btn-outline" onclick="document.getElementById('delete_sbom_modal').close()">Cancel</button>
+                <button class="btn btn-outline" data-close-modal="delete_sbom_modal">Cancel</button>
             </div>
         </div>
     </dialog>

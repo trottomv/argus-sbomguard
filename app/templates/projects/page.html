@@ -45,7 +45,7 @@
                 <div class="modal-action">
                     <button type="submit" class="btn btn-primary"
                             x-text="editId ? 'Save' : 'Create'"></button>
-                    <button type="button" class="btn btn-outline" onclick="my_modal_1.close()">Cancel</button>
+                    <button type="button" class="btn btn-outline" data-close-modal="my_modal_1">Cancel</button>
                 </div>
             </form>
         </div>
@@ -59,7 +59,7 @@
                 <button class="btn btn-error" @click="
                     fetch('/api/v1/projects/' + delId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
                 ">Delete</button>
-                <button class="btn btn-outline" onclick="delete_modal.close()">Cancel</button>
+                <button class="btn btn-outline" data-close-modal="delete_modal">Cancel</button>
             </div>
         </div>
     </dialog>

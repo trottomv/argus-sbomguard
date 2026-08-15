@@ -20,7 +20,7 @@
         <div class="modal-action">
             <a class="btn btn-outline" target="_blank"
                :href="detail.cve_id.startsWith('CVE') ? 'https://nvd.nist.gov/vuln/detail/' + detail.cve_id : 'https://github.com/advisories/' + detail.cve_id">View Advisory &nearhk;</a>
-            <button class="btn btn-outline" onclick="document.getElementById('detail_modal').close()">Close</button>
+            <button class="btn btn-outline" data-close-modal="detail_modal">Close</button>
         </div>
     </div>
 </dialog>
