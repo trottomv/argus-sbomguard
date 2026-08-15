@@ -22,7 +22,7 @@ PERMISSIONS_POLICY = (
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Set security headers on responses.
+    """Set security and caching headers on responses.
 
     Page-oriented policies (CSP, X-Frame-Options, Referrer-Policy,
     Permissions-Policy) are only sent on ``text/html`` responses. The CSP
@@ -30,11 +30,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     Alpine.js evaluates its declarative attributes via ``new Function``, which
     requires ``unsafe-eval`` (see the #83 follow-up for the Alpine CSP build).
     ``X-Content-Type-Options: nosniff`` is set on every response.
+
+    Caching: the private area (authenticated pages and JSON API responses)
+    is ``Cache-Control: no-store`` so sensitive data is never cached; static
+    assets are ``public`` with a bounded ``max-age`` (they are revalidated via
+    ETag and are not content-hashed, so ``immutable`` would risk stale deploys).
     """
 
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
+        if request.url.path.startswith("/static"):
+            response.headers["Cache-Control"] = "public, max-age=604800"
+        else:
+            response.headers["Cache-Control"] = "no-store"
         content_type = response.headers.get("content-type", "")
         if content_type.lower().startswith("text/html"):
             response.headers["Content-Security-Policy"] = CSP_DIRECTIVES
