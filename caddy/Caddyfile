@@ -73,9 +73,10 @@
 				match {
 					path /api/v1/*
 				}
-				key    {remote_host} {http.request.header.X-API-Key}
-				events {$API_RATE_LIMIT}
-				window 1m
+				key         {remote_host}
+				events      {$API_RATE_LIMIT}
+				window      1m
+				ipv6_prefix 64
 			}
 		}
 		import waf_rules
