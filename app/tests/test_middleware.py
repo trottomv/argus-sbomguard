@@ -94,6 +94,7 @@ async def test_security_headers_present_on_pages(client):
     assert resp.headers["x-frame-options"] == "DENY"
     assert resp.headers["referrer-policy"] == "strict-origin-when-cross-origin"
     assert "geolocation=()" in resp.headers["permissions-policy"]
+    assert resp.headers["cache-control"] == "no-store"
 
 
 @pytest.mark.asyncio
@@ -110,6 +111,7 @@ async def test_static_assets_served_locally(client):
         resp = await client.get(path)
         assert resp.status_code == 200
         assert resp.headers["x-content-type-options"] == "nosniff"
+        assert resp.headers["cache-control"] == "public, max-age=604800"
         assert "content-security-policy" not in resp.headers
         assert "x-frame-options" not in resp.headers
         assert "referrer-policy" not in resp.headers
@@ -122,6 +124,7 @@ async def test_json_api_gets_only_nosniff(client):
     assert resp.status_code == 200
     assert "application/json" in resp.headers["content-type"]
     assert resp.headers["x-content-type-options"] == "nosniff"
+    assert resp.headers["cache-control"] == "no-store"
     assert "content-security-policy" not in resp.headers
     assert "x-frame-options" not in resp.headers
     assert "referrer-policy" not in resp.headers
