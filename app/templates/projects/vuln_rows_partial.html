@@ -1,16 +1,17 @@
 {% for vuln in items %}
 <tr class="hover:bg-base-200 cursor-pointer"
-    x-on:click='openDetail({
-        cve_id: {{ vuln.cve_id | tojson }},
-        severity: {{ vuln.severity | tojson }},
-        cvss: {{ (vuln.cvss_score or "") | tojson }},
-        cvss_vector: {{ vuln.cvss_vector | tojson }},
-        summary: {{ (vuln.summary or "") | tojson }},
-        published: {{ vuln.published | tojson }},
-        dependency: {{ (vuln.dependency_name or "") | tojson }},
-        urls: {{ vuln.urls | tojson }},
-        fixed: {{ vuln.fix_versions | tojson }}
-    })'>
+    data-detail='{{ {
+        'cve_id': vuln.cve_id,
+        'severity': vuln.severity,
+        'cvss': (vuln.cvss_score or ""),
+        'cvss_vector': vuln.cvss_vector,
+        'summary': (vuln.summary or ""),
+        'published': vuln.published,
+        'dependency': (vuln.dependency_name or ""),
+        'urls': vuln.urls,
+        'fixed': vuln.fix_versions
+    } | tojson }}'
+    x-on:click="openDetail($event)">
     <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
     <td>
         {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}

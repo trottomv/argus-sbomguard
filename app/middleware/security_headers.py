@@ -4,7 +4,7 @@ from starlette.responses import Response
 
 CSP_DIRECTIVES = (
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-eval'; "
+    "script-src 'self'; "
     "style-src 'self' 'unsafe-inline'; "
     "font-src 'self'; "
     "img-src 'self' data:; "
@@ -26,10 +26,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
     Page-oriented policies (CSP, X-Frame-Options, Referrer-Policy,
     Permissions-Policy) are only sent on ``text/html`` responses. The CSP
-    forbids inline scripts and event-handler attributes (no ``unsafe-inline``);
-    Alpine.js evaluates its declarative attributes via ``new Function``, which
-    requires ``unsafe-eval`` (see the #83 follow-up for the Alpine CSP build).
-    ``X-Content-Type-Options: nosniff`` is set on every response.
+    forbids inline scripts, event-handler attributes and ``unsafe-eval``;
+    Alpine runs the CSP-friendly build with its components registered via
+    ``Alpine.data()``. ``X-Content-Type-Options: nosniff`` is set on every
+    response.
 
     Caching: the private area (authenticated pages and JSON API responses)
     is ``Cache-Control: no-store`` so sensitive data is never cached; static

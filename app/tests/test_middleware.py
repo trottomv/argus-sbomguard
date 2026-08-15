@@ -88,7 +88,7 @@ async def test_security_headers_present_on_pages(client):
     csp = resp.headers["content-security-policy"]
     assert "script-src 'self'" in csp
     assert "script-src 'self' 'unsafe-inline'" not in csp
-    assert "'unsafe-eval'" in csp
+    assert "'unsafe-eval'" not in csp
     assert "fonts.googleapis.com" not in csp
     assert "fonts.gstatic.com" not in csp
     assert resp.headers["x-frame-options"] == "DENY"
@@ -101,7 +101,8 @@ async def test_security_headers_present_on_pages(client):
 async def test_static_assets_served_locally(client):
     for path in (
         "/static/js/htmx.min.js",
-        "/static/js/alpine.min.js",
+        "/static/js/alpine-csp.min.js",
+        "/static/js/alpine-components.js",
         "/static/js/chart.umd.min.js",
         "/static/js/app.js",
         "/static/js/dashboard.js",

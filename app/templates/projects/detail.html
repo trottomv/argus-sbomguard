@@ -1,15 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ project.name }} - Argus SBOM Guard{% endblock title %}
 {% block content %}
-<div class="space-y-6" x-data="{
-    sbomDelId: null,
-    sbomDelVer: '',
-    svcDelId: null,
-    svcDelName: '',
-    svcError: '',
-    detail: { cve_id: '', severity: '', cvss: '', cvss_vector: '', summary: '', published: '', urls: [], affected: [], fixed: [], dependency: '' },
-    openDetail(v) { this.detail = v; document.getElementById('detail_modal').showModal(); }
-}">
+<div class="space-y-6" x-data="projectDetail" data-project-id="{{ project.id }}">
     <div class="flex items-center justify-between">
         <div>
             <a href="/projects" class="text-sm opacity-60 hover:opacity-100">&larr; Projects</a>
@@ -35,35 +27,29 @@
         </div>
     </div>
 
-    <dialog id="delete_project_modal" class="modal" @click="if($event.target === $el) $el.close()">
+    <dialog id="delete_project_modal" class="modal" @click.self="$el.close()">
         <div class="modal-box">
             <h3 class="font-bold text-lg">Delete Project</h3>
             <p class="py-4">Delete <strong>{{ project.name }}</strong> and all its SBOMs?</p>
             <div class="modal-action">
-                <button class="btn btn-error" @click="
-                    fetch('/api/v1/projects/{{ project.id }}', {method:'DELETE'}).then(r => { if(r.ok) window.location='/projects' });
-                    document.getElementById('delete_project_modal').close();
-                ">Delete</button>
+                <button class="btn btn-error" @click="confirmDeleteProject()">Delete</button>
                 <button class="btn btn-outline" data-close-modal="delete_project_modal">Cancel</button>
             </div>
         </div>
     </dialog>
 
-    <dialog id="delete_sbom_modal" class="modal" @click="if($event.target === $el) $el.close()">
+    <dialog id="delete_sbom_modal" class="modal" @click.self="$el.close()">
         <div class="modal-box">
             <h3 class="font-bold text-lg">Delete SBOM</h3>
             <p class="py-4">Delete SBOM version <strong x-text="sbomDelVer || 'N/A'"></strong>?</p>
             <div class="modal-action">
-                <button class="btn btn-error" @click="
-                    fetch('/api/v1/sboms/' + sbomDelId, {method:'DELETE'}).then(r => { if(r.ok) location.reload() });
-                    document.getElementById('delete_sbom_modal').close();
-                ">Delete</button>
+                <button class="btn btn-error" @click="confirmDeleteSbom()">Delete</button>
                 <button class="btn btn-outline" data-close-modal="delete_sbom_modal">Cancel</button>
             </div>
         </div>
     </dialog>
 
-    <dialog id="delete_service_modal" class="modal" @click="if($event.target === $el) $el.close()" @close="svcError = ''">
+    <dialog id="delete_service_modal" class="modal" @click.self="$el.close()" @close="svcError = ''">
         <div class="modal-box">
             <h3 class="font-bold text-lg">Delete Service</h3>
             <p class="py-4">Delete service <strong x-text="svcDelName || 'N/A'"></strong>? Its SBOMs will not be deleted.</p>
@@ -73,13 +59,7 @@
                 <button class="btn btn-ghost btn-xs ml-auto" @click="svcError = ''">&#x2715;</button>
             </div>
             <div class="modal-action">
-                <button class="btn btn-error" @click="
-                    svcError = '';
-                    fetch('/api/v1/services/' + svcDelId, {method:'DELETE'}).then(r => {
-                        if(r.ok) location.reload();
-                        else r.json().then(j => svcError = j.detail || 'Failed to delete service');
-                    }).catch(() => svcError = 'Network error');
-                ">Delete</button>
+                <button class="btn btn-error" @click="confirmDeleteService()">Delete</button>
                 <button class="btn btn-outline" data-close-modal="delete_service_modal">Cancel</button>
             </div>
         </div>
@@ -145,7 +125,8 @@
                         {{ service.name }}
                     </a>
                     <button class="btn btn-ghost btn-xs text-error hover:text-error-content"
-                            @click="svcDelId='{{ service.id }}'; svcDelName='{{ service.name }}'; delete_service_modal.showModal()"
+                            data-id="{{ service.id }}" data-name="{{ service.name }}"
+                            @click="openDeleteService($event)"
                             title="Delete service">&#x2715;</button>
                 </span>
                 {% endfor %}
@@ -194,7 +175,7 @@
                             <td>{{ sbom.created_at | format_dt('%Y-%m-%d %H:%M') }}</td>
                             <td>
                                 <button class="btn btn-ghost btn-sm text-error"
-                                        @click="sbomDelId='{{ sbom.id }}'; sbomDelVer='{{ sbom.version or 'N/A' }}'; delete_sbom_modal.showModal()">
+                                        @click="openDeleteSbom('{{ sbom.id }}', {{ (sbom.version or 'N/A') | tojson }})">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
                             </td>
@@ -242,17 +223,18 @@
                     <tbody id="project-vuln-tbody">
                         {% for vuln in project_vulns %}
                         <tr class="hover:bg-base-200 cursor-pointer"
-                            x-on:click='openDetail({
-                                cve_id: {{ vuln.cve_id | tojson }},
-                                severity: {{ vuln.severity | tojson }},
-                                cvss: {{ (vuln.cvss_score or "") | tojson }},
-                                cvss_vector: {{ vuln.cvss_vector | tojson }},
-                                summary: {{ (vuln.summary or "") | tojson }},
-                                published: {{ vuln.published | tojson }},
-                                dependency: {{ (vuln.dependency_name or "") | tojson }},
-                                urls: {{ vuln.urls | tojson }},
-                                fixed: {{ vuln.fix_versions | tojson }}
-                            })'>
+                            data-detail='{{ {
+                                'cve_id': vuln.cve_id,
+                                'severity': vuln.severity,
+                                'cvss': (vuln.cvss_score or ""),
+                                'cvss_vector': vuln.cvss_vector,
+                                'summary': (vuln.summary or ""),
+                                'published': vuln.published,
+                                'dependency': (vuln.dependency_name or ""),
+                                'urls': vuln.urls,
+                                'fixed': vuln.fix_versions
+                            } | tojson }}'
+                            x-on:click="openDetail($event)">
                             <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
                             <td>
                                 {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}
