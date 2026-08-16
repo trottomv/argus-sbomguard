@@ -22,6 +22,7 @@ def _restore_root_logger():
 
 def _emit_record(logger: logging.Logger, message: str) -> str:
     logger.handlers = []
+    logger.propagate = False
     stream = io.StringIO()
     handler = logging.StreamHandler(stream)
     handler.setFormatter(JsonFormatter())
@@ -38,12 +39,16 @@ def test_json_formatter_emits_parseable_single_line():
     assert payload["logger"] == "test.json"
     assert payload["message"] == "boom"
     assert payload["timestamp"]
+    assert payload["module"] == "test_logging_config"
+    assert payload["pid"] > 0
+    assert payload["thread"]
 
 
 def test_json_formatter_includes_exc_info():
     logger = logging.getLogger("test.exc")
     logger.handlers = []
-    stream = __import__("io").StringIO()
+    logger.propagate = False
+    stream = io.StringIO()
     handler = logging.StreamHandler(stream)
     handler.setFormatter(JsonFormatter())
     logger.addHandler(handler)
@@ -84,6 +89,14 @@ def test_setup_logging_replaces_existing_handlers():
     setup_logging("info", "json")
     assert len(root.handlers) == 1
     assert isinstance(root.handlers[0].formatter, JsonFormatter)
+
+
+def test_setup_logging_routes_uvicorn_loggers_to_root():
+    setup_logging()
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.asgi", "uvicorn.access"):
+        uvicorn_logger = logging.getLogger(name)
+        assert uvicorn_logger.propagate is True
+        assert uvicorn_logger.handlers == []
 
 
 def test_log_format_setting_accepts_json_and_text():

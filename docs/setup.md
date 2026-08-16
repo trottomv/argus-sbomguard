@@ -52,6 +52,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(24))"   # RABBITMQ_PASSW
 | `APP_ENV` | `development` | `development` / `demo` / `production` (also used as the Docker image tag). Non-development requires a strong `SECRET_KEY` |
 | `APP_VERSION` | `0.0.6-beta` | GHCR image tag used by the remote stack (`docker-compose.remote.yml`) |
 | `LOG_LEVEL` | `info` | Application log level |
+| `LOG_FORMAT` | `json` | Structured log output format: `json` (default, single-line JSON) or `text` |
 | `GRPC_PORT` | `50051` | gRPC server port |
 | `SMTP_HOST` | (empty) | SMTP server (Mailpit in dev: `mailpit`, port `1025`) |
 | `SMTP_PORT` | `587` | SMTP port |
