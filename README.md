@@ -47,7 +47,7 @@ docker compose up -d
 docker compose exec app alembic upgrade head
 ```
 
-Open [http://localhost:8000](http://localhost:8000) → login with `admin@argus.local` (default), one-time code sent to [Mailpit](http://localhost:8025). To display the code directly on the login page (dev/demo without SMTP), set `SHOW_LOGIN_CODE_IN_RESPONSE=true`.
+Open [http://localhost:8000](http://localhost:8000) → login with `admin@argus.local` (default), one-time code sent to [Mailpit](http://localhost:8025). To display the code directly on the login page (dev/demo), set `SHOW_LOGIN_CODE_IN_RESPONSE=true`.
 
 ## Who Is Argus For?
 

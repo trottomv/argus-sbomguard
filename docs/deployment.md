@@ -226,11 +226,11 @@ Expected: `200`. If you get a TLS warning instead, DNS has not propagated yet
 2. Enter `ADMIN_EMAIL` from your `.env`.
 3. Check the inbox for the one-time code and enter it.
 
-!!! tip "Test without SMTP"
-    If you are trying the deployment before configuring SMTP, temporarily set
-    `APP_ENV=demo` and `SHOW_LOGIN_CODE_IN_RESPONSE=true`, then watch the login
-    page — but **never** run `APP_ENV=production` with the code shown in the
-    response.
+!!! tip "Show the login code without email"
+    To avoid waiting for the email while testing, temporarily set
+    `APP_ENV=demo` and `SHOW_LOGIN_CODE_IN_RESPONSE=true`; the one-time code is
+    then shown directly on the login page regardless of SMTP — but **never** run
+    `APP_ENV=production` with the code shown in the response.
 
 ## Maintenance
 
@@ -292,6 +292,6 @@ the simpler and safer option.
 |---------|--------------|-----|
 | `curl` to the domain fails with a certificate error | DNS not propagated / certificate not yet issued | Wait a few minutes, verify the `A` record resolves (`dig +short argus.example.com`), then restart Caddy: `docker compose restart proxy` |
 | App logs show `secret_key must be set...` | `SECRET_KEY` left at default | Generate a strong value (Step 4) and restart: `docker compose up -d` |
-| Login code never arrives | SMTP not configured | Set `SMTP_*` in `.env`, or use `APP_ENV=demo` + `SHOW_LOGIN_CODE_IN_RESPONSE=true` for testing |
+| Login code never arrives | Email not delivered | Check the SMTP `SMTP_*` settings and Mailpit, or use `APP_ENV=demo` + `SHOW_LOGIN_CODE_IN_RESPONSE=true` to show the code on the login page |
 | Requests are blocked with `403` | WAF rule fired | Check `docker compose logs proxy`; review the allowed methods/URI patterns in [`caddy/Caddyfile`](https://github.com/trottomv/argus-sbomguard/blob/main/caddy/Caddyfile) |
 | App keeps restarting with a DB error | Migrations failed to apply | Check `docker compose logs app` — migrations retry up to 10 times before the app continues |
