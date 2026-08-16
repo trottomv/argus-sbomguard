@@ -64,7 +64,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(24))"   # RABBITMQ_PASSW
 | `ADMIN_EMAIL` | `admin@argus.local` | Admin user created on first start |
 | `LOGIN_TOKEN_EXPIRE_MINUTES` | `15` | Email code validity |
 | `SESSION_MAX_AGE_HOURS` | `1` | Session cookie lifetime |
-| `SHOW_LOGIN_CODE_IN_RESPONSE` | `false` | Show the one-time login code directly on the login page (dev/demo without SMTP). **Rejected when `APP_ENV=production`** |
+| `SHOW_LOGIN_CODE_IN_RESPONSE` | `false` | Show the one-time login code directly on the login page (dev/demo). **Rejected when `APP_ENV=production`** |
 | `DISPLAY_TIMEZONE` | `UTC` | Timezone for UI dates |
 | `DOMAIN` | (empty) | Public domain for TLS (Caddy + Let's Encrypt) |
 | `LETSENCRYPT_EMAIL` | `admin@argus.local` | Email for Let's Encrypt |
