@@ -62,6 +62,16 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_version: str = _read_version_file()
     log_level: str = "info"
+    # Structured log output format: "json" (default) or "text".
+    log_format: str = "json"
+
+    @field_validator("log_format")
+    @classmethod
+    def _validate_log_format(cls, v: str) -> str:
+        if v not in {"json", "text"}:
+            raise ValueError(f"log_format must be 'json' or 'text', got {v!r}")
+        return v
+
     # Surface the one-time login code directly in the login page response.
     # Only for dev/demo setups without SMTP; rejected when app_env is production.
     show_login_code_in_response: bool = False

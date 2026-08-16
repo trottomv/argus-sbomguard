@@ -9,6 +9,9 @@ import time
 import alembic.command as alembic_command
 import alembic.config as alembic_config
 
+from config import settings
+from logging_config import setup_logging
+
 MAX_RETRIES = 10
 RETRY_DELAY_SECONDS = 2
 
@@ -42,11 +45,7 @@ def _run_migrations() -> None:
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    setup_logging(settings.log_level, settings.log_format)
     args = sys.argv[1:]
     if args and args[0] == "uvicorn":
         _run_migrations()

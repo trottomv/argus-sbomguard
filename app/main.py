@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,6 +9,7 @@ from sqlalchemy import text
 from api import alerts, api_keys, auth, dashboard, projects, sboms, services, vulnerabilities
 from config import settings
 from database import async_session_factory, engine
+from logging_config import setup_logging
 from middleware import AuthMiddleware
 from middleware.security_headers import SecurityHeadersMiddleware
 from services.auth import seed_admin_user
@@ -18,10 +18,7 @@ from services.grpc_server import start_grpc_server
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logging.basicConfig(
-        level=getattr(logging, settings.log_level.upper(), logging.INFO),
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+    setup_logging(settings.log_level, settings.log_format)
     async with async_session_factory() as db:
         await seed_admin_user(db)
         await db.commit()
