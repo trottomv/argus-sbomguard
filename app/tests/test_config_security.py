@@ -8,6 +8,15 @@ from config import Settings
 _PLACEHOLDER = "change-me-to-a-random-secret"
 
 
+@pytest.fixture(autouse=True)
+def _isolate_from_env(monkeypatch):
+    # The test stack loads .env via env_file, so a SHOW_LOGIN_CODE_IN_RESPONSE
+    # flag set for the dev app would otherwise leak into every Settings() here
+    # and break these default/validity assertions. Drop it so they are
+    # deterministic regardless of the developer's .env.
+    monkeypatch.delenv("SHOW_LOGIN_CODE_IN_RESPONSE", raising=False)
+
+
 def test_placeholder_secret_key_rejected_outside_development():
     with pytest.raises(ValidationError):
         Settings(app_env="production", secret_key=_PLACEHOLDER)
