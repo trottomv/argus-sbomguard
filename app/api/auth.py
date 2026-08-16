@@ -38,12 +38,12 @@ async def login_request(
     if user:
         code = await create_login_token(db, user.id)
         await db.commit()
-        result = await send_login_email(email, code)
+        await send_login_email(email, code)
         # The raw code is only surfaced in the response when explicitly enabled
         # via SHOW_LOGIN_CODE_IN_RESPONSE (dev/demo setups without SMTP). It is
         # never shown in other environments.
-        if settings.show_login_code_in_response and isinstance(result, str):
-            dev_code = result
+        if settings.show_login_code_in_response:
+            dev_code = code
 
     return templates.TemplateResponse(
         request,
