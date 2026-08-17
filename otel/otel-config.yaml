@@ -1,0 +1,65 @@
+# OpenTelemetry Collector configuration.
+#
+# The Collector is the observability hub:
+#   - it scrapes host metrics from the host filesystem mounted at /hostfs;
+#   - it receives OTLP traces pushed by the application (optional);
+#   - it exposes a Prometheus-compatible /metrics endpoint (on :9464, reached
+#     from the outside only through the Caddy proxy);
+#   - it can forward everything to one or more OTLP backends, configured via
+#     the OTEL_FORWARD_ENDPOINT env var (default points at the optional Jaeger
+#     service).
+
+receivers:
+  hostmetrics:
+    collection_interval: 30s
+    root_path: /hostfs
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      filesystem:
+        exclude_mount_points:
+          match_type: regexp
+          mount_points:
+            - /proc/.*
+            - /sys/.*
+            - /dev/.*
+            - /media/.*
+            - /mnt/.*
+            - /var/lib/kubelet/.*
+            - /var/lib/docker/.*
+            - /var/lib/containerd/.*
+      load:
+      network:
+
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:9464
+
+  # Forward to an arbitrary OTLP/HTTP backend (e.g. Jaeger, Logfire, another
+  # Collector...). The endpoint is injected by docker-compose; default points at
+  # the optional Jaeger service (plaintext, so insecure=true). For an external
+  # HTTPS backend set OTEL_FORWARD_TLS_INSECURE=false to keep TLS verification.
+  otlphttp/forward:
+    endpoint: ${env:OTEL_FORWARD_ENDPOINT}
+    tls:
+      insecure: ${env:OTEL_FORWARD_TLS_INSECURE}
+
+service:
+  pipelines:
+    metrics:
+      receivers: [hostmetrics, otlp]
+      processors: [batch]
+      exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/forward]

@@ -14,6 +14,12 @@ from middleware import AuthMiddleware
 from middleware.security_headers import SecurityHeadersMiddleware
 from services.auth import seed_admin_user
 from services.grpc_server import start_grpc_server
+from services.otel import (
+    init_tracing,
+    instrument_fastapi,
+    instrument_httpx,
+    shutdown_tracing,
+)
 
 
 @asynccontextmanager
@@ -28,6 +34,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         await grpc_server.stop(5)
+        shutdown_tracing()
 
 
 app = FastAPI(
@@ -40,6 +47,15 @@ app = FastAPI(
 
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(AuthMiddleware)
+
+# Instrument FastAPI and httpx at module load, so the middleware stack is
+# patched before uvicorn builds it and the OpenTelemetry spans are captured.
+# init_tracing() sets the global provider first (no-op when disabled), and each
+# helper is itself a no-op when tracing is off. This wiring is exercised when
+# main is imported by the test suite.
+init_tracing()
+instrument_fastapi(app)
+instrument_httpx()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

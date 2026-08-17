@@ -18,6 +18,7 @@ Software Bill of Materials (SBOMs) and tracking vulnerabilities.
 | Auth | Passwordless email login + signed cookies |
 | gRPC | grpcio + protobuf |
 | Vuln scanner | Grype CLI + OSV API |
+| Observability | OpenTelemetry Collector (hostmetrics + OTLP) |
 
 ## Service Architecture
 
@@ -53,6 +54,11 @@ Software Bill of Materials (SBOMs) and tracking vulnerabilities.
 │        │ │      │ │ Beat)     │
 └────────┘ └──────┘ └───────────┘
 ```
+
+The OTel Collector sits alongside the stack as the observability hub: it scrapes
+`hostmetrics` from the host filesystem (`/hostfs`), exposes `GET /metrics`
+through Caddy, receives optional OTLP traces from the app, and can forward to an
+arbitrary OTLP backend. See [Observability](../guide/observability.md).
 
 ## Request Flow
 

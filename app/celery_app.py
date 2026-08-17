@@ -1,6 +1,7 @@
 from celery import Celery
 
 from config import settings
+from services.otel import init_tracing, instrument_httpx
 
 celery_app = Celery(
     "argus",
@@ -34,3 +35,8 @@ celery_app.conf.update(
 )
 
 celery_app.autodiscover_tasks(["services"])
+
+# The worker/beat processes never import main.py, so initialize tracing here
+# (idempotent: a no-op in the FastAPI process, which already initialized it).
+init_tracing()
+instrument_httpx()

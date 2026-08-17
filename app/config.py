@@ -106,6 +106,20 @@ class Settings(BaseSettings):
     # Readiness
     readiness_timeout_seconds: float = 5.0
 
+    # Observability (OpenTelemetry)
+    # Enable pushing OpenTelemetry traces to the OTel Collector via OTLP/HTTP.
+    # /metrics is always served by the OTel Collector (hostmetrics), so this only
+    # controls application-level trace export. Defaults to off.
+    otel_traces_enabled: bool = False
+    # Service name reported in the OpenTelemetry resource.
+    otel_service_name: str = "argus-sbomguard"
+    # OTLP/HTTP endpoint the application pushes traces to. The app always talks
+    # to the in-stack Collector, which is responsible for forwarding to the
+    # final backend. The explicit /v1/traces path is required: the OTLP HTTP
+    # exporter posts to the endpoint path verbatim. Traces are only exported
+    # when otel_traces_enabled and this is set.
+    otel_exporter_otlp_endpoint: str = "http://otel-collector:4318/v1/traces"
+
     # Display
     display_timezone: str = "UTC"
 
