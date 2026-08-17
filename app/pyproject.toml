@@ -26,6 +26,11 @@ dependencies = [
     "packageurl-python~=0.17.0",
     "aiosmtplib~=5.1.0",
     "itsdangerous~=2.2.0",
+    "opentelemetry-api~=1.44.0",
+    "opentelemetry-sdk~=1.44.0",
+    "opentelemetry-exporter-otlp-proto-http~=1.44.0",
+    "opentelemetry-instrumentation-fastapi==0.65b0",
+    "opentelemetry-instrumentation-httpx==0.65b0",
 ]
 
 [project.optional-dependencies]

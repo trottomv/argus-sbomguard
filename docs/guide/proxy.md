@@ -86,3 +86,21 @@ docker compose logs -f proxy
 ## Health
 
 The proxy responds to `/healthz` with `200 OK` before applying WAF rules — useful for load balancer liveness checks. `/readyz` is proxied to the app so it reflects real readiness (DB + RabbitMQ).
+
+`/metrics` is routed directly to the OTel Collector (bypassing rate limiting and the WAF) so Prometheus can scrape it without being throttled or blocked. See [Observability](observability.md).
+
+!!! warning "Security: `/metrics` is unauthenticated"
+
+    `/metrics` exposes **host metrics** (CPU, memory, disk, network, host name)
+    scraped by the Collector from the host filesystem, and is intentionally left
+    unauthenticated so a Prometheus scraper can poll it without credentials.
+    If the `DOMAIN` is publicly reachable, anyone can read infrastructure
+    details from `https://<DOMAIN>/metrics`. For public deployments:
+
+    - restrict scraping to a private network / VPN where possible, or
+    - put the Collector behind a firewall rule that only allows your Prometheus
+      instance, or
+    - accept the exposure (the metrics contain no application secrets).
+
+    There is currently no token/`basic_auth` option for `/metrics`; it is an
+    all-or-nothing public path.

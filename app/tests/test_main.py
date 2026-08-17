@@ -17,10 +17,14 @@ async def test_lifespan_starts_and_stops_grpc(db_session, monkeypatch):
 
     grpc_server = AsyncMock()
     grpc_server.stop = AsyncMock(return_value=None)
-    with patch("main.start_grpc_server", new_callable=AsyncMock, return_value=grpc_server) as start:
+    with (
+        patch("main.start_grpc_server", new_callable=AsyncMock, return_value=grpc_server) as start,
+        patch("main.shutdown_tracing") as shutdown,
+    ):
         async with main.lifespan(main.app):
             start.assert_awaited_once()
         grpc_server.stop.assert_awaited_once_with(5)
+        shutdown.assert_called_once()
 
 
 @pytest.mark.asyncio

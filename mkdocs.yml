@@ -68,6 +68,7 @@ nav:
       - Vulnerabilities: guide/vulnerabilities.md
       - Alerts & Notifications: guide/alerts.md
       - Reverse Proxy + WAF: guide/proxy.md
+      - Observability: guide/observability.md
   - Development:
       - Contributing: development/contributing.md
       - Architecture: development/architecture.md

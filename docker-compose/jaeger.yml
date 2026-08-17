@@ -1,0 +1,27 @@
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.76.0
+    container_name: argussbomguard_jaeger
+    profiles:
+      - jaeger
+    environment:
+      # Keep trace data in memory for the dev/demo lifetime. Use COLLECTOR_OTLP_ENABLED
+      # defaults; Jaeger all-in-one exposes OTLP on :4318 by default.
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+      - "4318:4318"
+    healthcheck:
+      # Real liveness probe: wget the query UI (serves 200 once the service is
+      # actually accepting requests), not just a binary-exists check.
+      test: ["CMD", "sh", "-c", "wget -q -O /dev/null http://localhost:16686/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-3}

@@ -1,0 +1,37 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.129.1
+    container_name: argussbomguard_otel
+    command:
+      - --config=/etc/otelcol-contrib/config.yaml
+    volumes:
+      - ../otel/otel-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - /:/hostfs:ro
+      - /proc:/hostfs/proc:ro
+      - /sys:/hostfs/sys:ro
+    expose:
+      - "9464"
+      - "4318"
+    environment:
+      # Where the Collector forwards OTLP traces. Defaults to the optional
+      # Jaeger service (jaeger profile) for a local trace dashboard; override to
+      # point at any other OTLP backend (e.g. Logfire). Distinct from the app's
+      # OTEL_EXPORTER_OTLP_ENDPOINT: the app always pushes to this Collector.
+      OTEL_FORWARD_ENDPOINT: ${OTEL_FORWARD_ENDPOINT:-http://jaeger:4318}
+      # Skip TLS verification when forwarding to the plaintext in-stack Jaeger.
+      # Set to false when OTEL_FORWARD_ENDPOINT is an external HTTPS backend.
+      OTEL_FORWARD_TLS_INSECURE: ${OTEL_FORWARD_TLS_INSECURE:-true}
+    healthcheck:
+      # The distroless contrib image has no shell/curl, so validate the config
+      # (exit 0 when valid). Real liveness is covered by start_period + restart.
+      test: ["CMD", "/otelcol-contrib", "validate", "--config", "/etc/otelcol-contrib/config.yaml"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-3}

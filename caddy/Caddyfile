@@ -56,6 +56,10 @@
 	route @grpc {
 		reverse_proxy h2c://app:50051
 	}
+	@metrics path /metrics
+	route @metrics {
+		reverse_proxy otel-collector:9464
+	}
 	route {
 		import health
 		rate_limit {
