@@ -8,7 +8,7 @@ include:
 
 services:
   app:
-    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.6-beta}
+    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.7-beta}
     deploy:
       resources:
         limits:
@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
   worker:
-    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.6-beta}
+    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.7-beta}
     deploy:
       resources:
         limits:
@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
 
   scheduler:
-    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.6-beta}
+    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.7-beta}
     deploy:
       resources:
         limits:
