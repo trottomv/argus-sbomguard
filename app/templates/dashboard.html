@@ -9,7 +9,7 @@
             <p class="text-sm text-ctp-overlay0 mt-0.5">Overview of your SBOM landscape</p>
         </div>
         <a href="/projects" class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-plus"></use></svg>
             New Project
         </a>
     </div>
@@ -22,7 +22,7 @@
                     <p class="text-3xl font-bold text-ctp-text mt-1">{{ project_count }}</p>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                    <svg class="w-5 h-5 text-indigo-400" aria-hidden="true" focusable="false"><use href="#icon-folder"></use></svg>
                 </div>
             </div>
         </a>
@@ -33,7 +33,7 @@
                     <p class="text-3xl font-bold text-ctp-text mt-1">{{ sbom_count }}</p>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <svg class="w-5 h-5 text-violet-400" aria-hidden="true" focusable="false"><use href="#icon-file-text"></use></svg>
                 </div>
             </div>
         </a>
@@ -44,7 +44,7 @@
                     <p class="text-3xl font-bold text-ctp-red mt-1">{{ critical }}</p>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-ctp-red/10 border border-ctp-red/20 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-ctp-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                    <svg class="w-5 h-5 text-ctp-red" aria-hidden="true" focusable="false"><use href="#icon-triangle-alert"></use></svg>
                 </div>
             </div>
         </a>
@@ -55,7 +55,7 @@
                     <p class="text-3xl font-bold text-ctp-peach mt-1">{{ high }}</p>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-ctp-peach/10 border border-ctp-peach/20 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-ctp-peach" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01"/></svg>
+                    <svg class="w-5 h-5 text-ctp-peach" aria-hidden="true" focusable="false"><use href="#icon-circle-alert"></use></svg>
                 </div>
             </div>
         </a>
@@ -69,8 +69,8 @@
                     :disabled="refreshing"
                     title="Recompute today's snapshot metrics"
                     @click="refresh()">
-                <svg x-show="!refreshing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                <svg x-show="refreshing" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <svg x-show="!refreshing" class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-refresh-cw"></use></svg>
+                <svg x-show="refreshing" class="w-4 h-4 animate-spin" aria-hidden="true" focusable="false"><use href="#icon-refresh-cw"></use></svg>
                 <span x-text="refreshing ? 'Refreshing…' : 'Refresh'"></span>
             </button>
         </div>
@@ -137,7 +137,7 @@
                     <p class="text-3xl font-bold text-ctp-blue mt-1">{{ fixed_count }}</p>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-ctp-green/10 border border-ctp-green/20 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-ctp-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/></svg>
+                    <svg class="w-5 h-5 text-ctp-green" aria-hidden="true" focusable="false"><use href="#icon-check"></use></svg>
                 </div>
             </div>
         </div>
@@ -173,7 +173,7 @@
                         {% else %}
                         <tr>
                             <td colspan="4" class="py-8 text-center text-ctp-overlay0">
-                                <svg class="w-10 h-10 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                <svg class="w-10 h-10 mx-auto mb-2 opacity-50" aria-hidden="true" focusable="false"><use href="#icon-file-text"></use></svg>
                                 <p class="text-sm">No SBOMs uploaded yet</p>
                             </td>
                         </tr>

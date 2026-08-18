@@ -2,7 +2,7 @@
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold">Projects</h1>
         <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
-                @click="openNew()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Add Project</button>
+                @click="openNew()"><svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-plus"></use></svg> Add Project</button>
     </div>
 
     <dialog id="my_modal_1" class="modal">
@@ -68,14 +68,14 @@
             <button class="btn btn-ghost btn-sm text-error absolute top-2 right-2 opacity-0 group-hover:opacity-100"
                     data-id="{{ project.id }}" data-name="{{ project.name }}"
                     @click.stop="openDelete($event)">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-trash-2"></use></svg>
             </button>
             <button class="btn btn-ghost btn-sm absolute top-2 right-10 opacity-0 group-hover:opacity-100"
                     data-id="{{ project.id }}" data-name="{{ project.name }}"
                     data-description="{{ project.description or '' }}" data-repo-url="{{ project.repo_url or '' }}"
                     data-platform="{{ project.platform or '' }}"
                     @click.stop="openEdit($event)">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-pencil"></use></svg>
             </button>
         </div>
         {% else %}
