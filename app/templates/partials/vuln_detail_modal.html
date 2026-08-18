@@ -19,7 +19,9 @@
         </div>
         <div class="modal-action">
             <a class="btn btn-outline" target="_blank"
-               :href="detail.cve_id.startsWith('CVE') ? 'https://nvd.nist.gov/vuln/detail/' + detail.cve_id : 'https://github.com/advisories/' + detail.cve_id">View Advisory &nearhk;</a>
+               :href="detail.cve_id.startsWith('CVE') ? 'https://nvd.nist.gov/vuln/detail/' + detail.cve_id : 'https://github.com/advisories/' + detail.cve_id">View Advisory
+                <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-arrow-up-right"></use></svg>
+            </a>
             <button class="btn btn-outline" data-close-modal="detail_modal">Close</button>
         </div>
     </div>
