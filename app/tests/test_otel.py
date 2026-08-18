@@ -121,3 +121,19 @@ def test_instrument_httpx_attaches_when_enabled(monkeypatch):
     with patch.object(otel, "HTTPXClientInstrumentor") as instr:
         otel.instrument_httpx()
         instr.return_value.instrument.assert_called_once_with()
+
+
+def test_instrument_celery_noop_when_disabled():
+    with patch.object(otel, "CeleryInstrumentor") as instr:
+        otel.instrument_celery()
+        instr.return_value.instrument.assert_not_called()
+
+
+def test_instrument_celery_attaches_when_enabled(monkeypatch):
+    monkeypatch.setattr(otel.settings, "otel_traces_enabled", True)
+    monkeypatch.setattr(
+        otel.settings, "otel_exporter_otlp_endpoint", "http://otel-collector:4318/v1/traces"
+    )
+    with patch.object(otel, "CeleryInstrumentor") as instr:
+        otel.instrument_celery()
+        instr.return_value.instrument.assert_called_once_with()

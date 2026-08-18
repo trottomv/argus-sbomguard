@@ -1,7 +1,8 @@
 from celery import Celery
+from celery.signals import worker_process_shutdown, worker_shutdown
 
 from config import settings
-from services.otel import init_tracing, instrument_httpx
+from services.otel import init_tracing, instrument_celery, instrument_httpx, shutdown_tracing
 
 celery_app = Celery(
     "argus",
@@ -38,5 +39,22 @@ celery_app.autodiscover_tasks(["services"])
 
 # The worker/beat processes never import main.py, so initialize tracing here
 # (idempotent: a no-op in the FastAPI process, which already initialized it).
+# The web process also imports this module (via services.tasks): the celery
+# instrumentation attached there is what injects the trace context into queued
+# tasks, so the worker's task span links back to the originating HTTP request.
 init_tracing()
+instrument_celery()
 instrument_httpx()
+
+
+@worker_shutdown.connect
+@worker_process_shutdown.connect
+def _flush_traces_on_shutdown(*args, **kwargs) -> None:
+    """Flush buffered spans when the worker (or a pool child) stops.
+
+    Without this, the ``BatchSpanProcessor`` export interval (~5s) means the
+    most recent task spans are lost on worker stop (deploys, restarts).
+    ``shutdown_tracing`` is a no-op when tracing is disabled and safe to call
+    on an already-shut-down provider.
+    """
+    shutdown_tracing()

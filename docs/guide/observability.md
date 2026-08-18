@@ -67,11 +67,13 @@ To see traces in Jaeger:
 4. Open `http://localhost:16686`, select the `argus-sbomguard` service and find
    your traces.
 
-FastAPI request handling (in the web/app process) and outbound `httpx` calls
-(e.g. Slack notifications, run from the Celery worker) are instrumented
-automatically, so each HTTP request and notification produces a distributed
-trace. The worker initializes tracing itself, so it does not need to go through
-the web process.
+FastAPI request handling (in the web/app process), Celery task execution
+(run by the worker) and outbound `httpx` calls (e.g. Slack notifications)
+are instrumented automatically, so each HTTP request, background task and
+notification produces a distributed trace. Task failures are recorded on the
+task span, and the calls a task makes become children of its span, so you can
+follow an SBOM scan or an alert delivery end to end. The worker initializes
+tracing itself, so it does not need to go through the web process.
 
 ## Using another OTLP backend (e.g. Logfire)
 
