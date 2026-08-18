@@ -127,6 +127,7 @@ mike list
 
 ## Pull requests
 - Only open a PR when explicitly requested by the user. Never open one proactively.
+- To auto-close an issue on merge, the PR body (and/or the merge commit message) MUST reference it with a closing keyword: `Closes #XX`, `Fixes #XX`, or `Resolves #XX`. Do NOT write "implement #XX" in the PR body — GitHub only auto-closes on those keywords. Use `Closes #107` (etc.) so issues close automatically after merge.
 
 ## Git workflow
 
