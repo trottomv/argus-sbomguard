@@ -1,15 +1,15 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from api import alerts, api_keys, auth, dashboard, projects, sboms, services, vulnerabilities
 from config import settings
 from database import async_session_factory, engine
-from logging_config import setup_logging
+from logging_config import log_exception, setup_logging
 from middleware import AuthMiddleware
 from middleware.security_headers import SecurityHeadersMiddleware
 from services.auth import seed_admin_user
@@ -47,6 +47,28 @@ app = FastAPI(
 
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(AuthMiddleware)
+
+
+@app.exception_handler(Exception)
+def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Log unhandled exceptions as structured events and return a generic 500.
+
+    Product-agnostic error tracking: the exception (type, message, traceback)
+    and the request context are emitted as a single structured ``event=exception``
+    log line, which any log aggregator or error tracker can consume. The client
+    only ever sees a generic ``Internal Server Error`` response — internals are
+    never leaked. Registered for ``Exception``, so the handler is wired into
+    Starlette's ``ServerErrorMiddleware`` and also catches errors raised by the
+    middleware stack, not just by route handlers.
+
+    Note: because this handler is the outermost catch-all, an ``HTTPException``
+    raised by a *middleware* (rather than by a route or dependency, which are
+    handled by ``ExceptionMiddleware``) would be converted into a generic 500.
+    Keep middleware from raising ``HTTPException`` — return a response instead.
+    """
+    log_exception(exc, request=request)
+    return PlainTextResponse("Internal Server Error", status_code=500)
+
 
 # Instrument FastAPI and httpx at module load, so the middleware stack is
 # patched before uvicorn builds it and the OpenTelemetry spans are captured.
