@@ -54,6 +54,14 @@ async def test_healthz(client):
 
 
 @pytest.mark.asyncio
+async def test_favicon(client):
+    resp = await client.get("/favicon.ico")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "image/vnd.microsoft.icon"
+    assert resp.content[:4] == b"\x00\x00\x01\x00"
+
+
+@pytest.mark.asyncio
 async def test_readyz_ok(client):
     resp = await client.get("/readyz")
     assert resp.status_code == 200

@@ -100,6 +100,8 @@ async def test_security_headers_present_on_pages(client):
 @pytest.mark.asyncio
 async def test_static_assets_served_locally(client):
     for path in (
+        "/favicon.ico",
+        "/static/favicon.ico",
         "/static/js/htmx.min.js",
         "/static/js/alpine-csp.min.js",
         "/static/js/alpine-components.js",

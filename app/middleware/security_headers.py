@@ -35,12 +35,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     is ``Cache-Control: no-store`` so sensitive data is never cached; static
     assets are ``public`` with a bounded ``max-age`` (they are revalidated via
     ETag and are not content-hashed, so ``immutable`` would risk stale deploys).
+    The ``/favicon.ico`` route is cached like static assets so the browser's
+    automatic favicon probe is not re-downloaded on every page load.
     """
 
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
-        if request.url.path.startswith("/static"):
+        if request.url.path.startswith("/static") or request.url.path == "/favicon.ico":
             response.headers["Cache-Control"] = "public, max-age=604800"
         else:
             response.headers["Cache-Control"] = "no-store"
