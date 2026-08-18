@@ -254,22 +254,116 @@ docker compose logs -f proxy    # Caddy + WAF
 
 ### Backups
 
-The only state you must back up is the PostgreSQL volume. Dump it while the
-stack is running:
+The only state you must back up is the PostgreSQL volume. The bundled script
+dumps the database (`pg_dump`), compresses it with gzip, and prunes old backups
+(default: keep the 7 most recent). It can run while the stack is up:
 
 ```bash
-docker compose exec postgres pg_dump -U argus argus > argus-backup-$(date +%F).sql
+./scripts/backup.sh
 ```
 
-To restore:
+Everything DB-related (`pg_dump`, `psql`, `gzip`) runs inside the `postgres`
+container, and encryption inside the `app` container — the host only needs
+`docker` and a standard shell.
+
+Backups are written to `backups/` (gitignored) as `argus_<timestamp>.sql.gz`
+(or `.sql.gz.enc` when encryption is enabled). The script honours `COMPOSE_FILE`,
+`BACKUP_DIR`, `BACKUP_RETENTION` and `BACKUP_ENCRYPTION_KEY` from `.env`.
+Override the retention or output directory with environment variables:
 
 ```bash
-docker compose exec -T postgres psql -U argus argus < argus-backup.sql
+BACKUP_RETENTION=30 ./scripts/backup.sh
+BACKUP_DIR=/var/backups/argus ./scripts/backup.sh
 ```
+
+Set `BACKUP_RETENTION=0` to keep every backup.
+
+#### Encrypted backups (optional)
+
+Backups contain sensitive data (user emails, SBOMs, projects), so enable
+encryption with a dedicated key, independent from `SECRET_KEY`:
+
+```bash
+echo "BACKUP_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> .env
+docker compose up -d   # recreate the app container so the key reaches it
+```
+
+Backups are then written encrypted (`argus_*.sql.gz.enc`) using the `app`
+container's `openssl` (AES-256-CBC + PBKDF2, 600,000 iterations). Restore works
+the same way — the key must still be set in `.env`.
+
+!!! warning "Not authenticated"
+    `openssl enc` supports no AEAD ciphers (no bcrypt/GCM), so encrypted backups
+    are checked for integrity by decrypting and running `gzip -t`, which catches
+    accidental corruption but not deliberate tampering. For authenticated
+    encryption use a dedicated tool such as `age`.
 
 !!! tip "RabbitMQ data"
     RabbitMQ stores queued tasks only; a clean restart simply starts from an
     empty queue. No backup needed.
+
+### Restoring
+
+To restore a backup, pass the file to the restore script. `--reset` drops and
+recreates the database first — required when restoring into an existing
+deployment, since the dump does not overwrite existing tables:
+
+```bash
+docker compose stop app worker scheduler   # free database connections
+./scripts/restore.sh backups/argus_20260818_123456.sql.gz --reset
+docker compose start app worker scheduler
+```
+
+The script accepts `.sql`, `.sql.gz` and encrypted `.sql.gz.enc` files. Stop the
+app stack first, or the restore fails with `database is being accessed by other
+users`. Encrypted backups require `BACKUP_ENCRYPTION_KEY` set in `.env`;
+decryption runs in a throwaway app container (`docker compose run`), so it works
+even with the stack stopped.
+
+!!! danger "Destructive"
+    `--reset` destroys the current database contents before restoring. Only use
+    it when you intend to replace the live data (or on a staging copy).
+
+### Restore drill
+
+Practice restoring regularly so an incident never involves a first-time restore.
+The drill below restores a backup into the live stack — this intentionally
+destroys current data, so run it on a staging copy or accept the data loss.
+
+1. Create a backup:
+
+   ```bash
+   ./scripts/backup.sh
+   ```
+
+2. Stop the app so nothing holds database connections:
+
+   ```bash
+   docker compose stop app worker scheduler
+   ```
+
+3. Restore the most recent backup (drops and recreates the database):
+
+   ```bash
+   latest=$(ls -t backups/argus_*.sql.gz* | head -1)
+   ./scripts/restore.sh "$latest" --reset
+   ```
+
+4. Start the stack:
+
+   ```bash
+   docker compose start app worker scheduler
+   ```
+
+5. Verify the data survived — sign in and open a project, or query directly:
+
+   ```bash
+   docker compose exec -T postgres psql -U argus argus -c "select count(*) from projects;"
+   ```
+
+   The count should match the backup you restored. Finish the drill by running
+   another `./scripts/backup.sh` so the restored state is captured by the
+   retention-pruned set.
 
 ## Publishing behind an existing reverse proxy
 
