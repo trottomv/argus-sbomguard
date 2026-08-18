@@ -116,6 +116,55 @@ filesystem_utilization
 system_network_io
 ```
 
+## Error tracking (product-agnostic)
+
+Unhandled exceptions never depend on a third-party error-tracking vendor.
+Instead, Argus emits every unhandled HTTP exception as a **structured JSON log
+line** that any log aggregator, SIEM or error tracker can consume. Because it
+rides the standard `LOG_FORMAT=json` pipeline, no extra dependency, exporter or
+vendor is involved.
+
+Each event looks like:
+
+```json
+{
+  "timestamp": "2026-08-18T09:30:00.123456+00:00",
+  "level": "ERROR",
+  "logger": "app",
+  "message": "kaboom",
+  "module": "api.projects",
+  "line": 42,
+  "pid": 1,
+  "thread": "MainThread",
+  "event": "exception",
+  "type": "RuntimeError",
+  "traceback": "Traceback (most recent call last):\n  ...\nRuntimeError: kaboom",
+  "trace_id": "19af8d0c1b3a4e5f6a7b8c9d0e1f2a3b",
+  "span_id": "1234567890abcdef",
+  "request_method": "GET",
+  "request_path": "/api/v1/projects",
+  "request_query": "page=2",
+  "request_client": "10.0.0.5"
+}
+```
+
+- `event=exception` identifies the line as an error event.
+- `type`, `message` and `traceback` describe the exception; `message` is the
+  exception text.
+- `trace_id` and `span_id` (hex, present when application traces are enabled)
+  let you jump from the error event to the matching span in Jaeger or any
+  OpenTelemetry backend — even though error events and traces use separate
+  pipelines, they stay joinable.
+- `request_*` fields carry the request context (method, path, query string and
+  the immediate peer address uvicorn observed — behind the reverse proxy that
+  is the Caddy/WAF hop, not the end client) so you can correlate the error
+  with the affected endpoint and request.
+
+The handler is registered for `Exception`, so it is wired into Starlette's
+outermost `ServerErrorMiddleware`: it catches errors raised by the middleware
+stack as well as by route handlers. The client only ever receives a generic
+`Internal Server Error` 500 response — internals are never leaked.
+
 ## Configuration reference
 
 | Setting | Default | Description |

@@ -50,3 +50,40 @@ async def test_lifespan_seeds_admin_user(db_session, monkeypatch):
         .all()
     )
     assert rows
+
+
+@pytest.mark.asyncio
+async def test_unhandled_exception_logged_and_returns_500(caplog):
+    from httpx import ASGITransport, AsyncClient
+
+    import main
+
+    def boom():
+        raise RuntimeError("kaboom")
+
+    main.app.add_api_route("/api/v1/boom", boom, methods=["GET"])
+    try:
+        transport = ASGITransport(app=main.app, raise_app_exceptions=False)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/boom")
+    finally:
+        main.app.router.routes[:] = [
+            route
+            for route in main.app.router.routes
+            if getattr(route, "path", None) != "/api/v1/boom"
+        ]
+
+    assert response.status_code == 500
+    assert response.text == "Internal Server Error"
+    assert response.headers["content-type"].startswith("text/plain")
+
+    events = [record for record in caplog.records if getattr(record, "event", None) == "exception"]
+    assert events
+    record = events[0]
+    assert record.levelname == "ERROR"
+    assert record.type == "RuntimeError"
+    assert record.getMessage() == "kaboom"
+    assert "RuntimeError: kaboom" in record.traceback
+    assert record.request_method == "GET"
+    assert record.request_path == "/api/v1/boom"
+    assert record.request_client
