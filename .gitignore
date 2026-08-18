@@ -230,6 +230,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 /sboms/
+# PostgreSQL backups (scripts/backup.sh)
+/backups/
 .tokensave
 
 # Generated protobuf

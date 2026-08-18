@@ -116,6 +116,16 @@ db-make msg:
 db-history:
     docker compose exec app alembic history
 
+# ---- Backup & Restore ----
+
+# create a compressed PostgreSQL backup (pg_dump + gzip, retention-pruned)
+db-backup:
+    bash scripts/backup.sh
+
+# restore a PostgreSQL backup; pass --reset to drop and recreate the database first
+db-restore file args:
+    bash scripts/restore.sh "{{file}}" {{args}}
+
 # ---- Shell ----
 
 # open a shell in the app container
