@@ -21,8 +21,8 @@ def test_check_alerts_is_scheduled_in_beat():
 def test_celery_app_import_initializes_tracing():
     """The worker/beat never import main.py, so celery_app must bootstrap OTel.
 
-    This is what lets the Celery worker trace outbound httpx calls (e.g. Slack
-    notifications) that originate in tasks.
+    This is what lets the Celery worker trace task execution and outbound
+    httpx calls (e.g. Slack notifications) that originate in tasks.
     """
     import importlib
 
@@ -30,8 +30,20 @@ def test_celery_app_import_initializes_tracing():
 
     with (
         patch.object(services.otel, "init_tracing") as init,
-        patch.object(services.otel, "instrument_httpx") as instrument,
+        patch.object(services.otel, "instrument_celery") as instrument_celery,
+        patch.object(services.otel, "instrument_httpx") as instrument_httpx,
     ):
         importlib.reload(importlib.import_module("celery_app"))
         init.assert_called_once()
-        instrument.assert_called_once()
+        instrument_celery.assert_called_once()
+        instrument_httpx.assert_called_once()
+
+
+def test_worker_shutdown_flushes_traces():
+    """The worker must flush buffered spans on shutdown so recent task traces
+    survive deploys/restarts."""
+    import celery_app
+
+    with patch.object(celery_app, "shutdown_tracing") as shutdown:
+        celery_app._flush_traces_on_shutdown()
+        shutdown.assert_called_once()

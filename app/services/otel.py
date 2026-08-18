@@ -10,15 +10,17 @@ Export is gated by two settings: ``otel_traces_enabled`` and a non-empty
 ``otel_exporter_otlp_endpoint``. Both must be set for tracing to be active,
 which keeps the codebase instrumentation-ready while staying silent by default.
 
-When enabled, FastAPI request handling and outbound ``httpx`` calls (e.g. Slack
-notifications) are automatically instrumented, so every HTTP request produces a
-distributed trace that can be visualised in Jaeger.
+When enabled, FastAPI request handling, outbound ``httpx`` calls (e.g. Slack
+notifications) and Celery task execution are automatically instrumented, so
+every HTTP request and every background task produces a distributed trace that
+can be visualised in Jaeger.
 """
 
 import logging
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.celery import CeleryInstrumentor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.sdk.resources import Resource
@@ -82,6 +84,22 @@ def instrument_httpx() -> None:
         return
     HTTPXClientInstrumentor().instrument()
     logger.info("OpenTelemetry httpx instrumentation attached")
+
+
+def instrument_celery() -> None:
+    """Instrument Celery task execution for tracing.
+
+    Uses the official Celery instrumentation (signal hooks) so every task run
+    produces a span: the ``task_prerun``/``task_postrun``/``task_failure``
+    signals are traced, task failures are recorded on the span, and outbound
+    calls made inside a task become children of the task span. No-op when
+    tracing is disabled.
+    """
+    if not settings.otel_traces_enabled or not settings.otel_exporter_otlp_endpoint:
+        logger.debug("OpenTelemetry celery instrumentation skipped (tracing disabled)")
+        return
+    CeleryInstrumentor().instrument()
+    logger.info("OpenTelemetry celery instrumentation attached")
 
 
 def shutdown_tracing() -> None:
