@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from api import alerts, api_keys, auth, dashboard, projects, sboms, services, vulnerabilities
+from api import alerts, api_keys, auth, pages, projects, sboms, services, vulnerabilities
 from config import settings
 from database import async_session_factory, engine
 from logging_config import log_exception, setup_logging
@@ -93,7 +93,11 @@ app.include_router(sboms.router)
 app.include_router(services.router)
 app.include_router(vulnerabilities.router)
 app.include_router(alerts.router)
-app.include_router(dashboard.router)
+app.include_router(pages.dashboard.router)
+app.include_router(pages.projects.router)
+app.include_router(pages.vulnerabilities.router)
+app.include_router(pages.sboms.router)
+app.include_router(pages.settings.router)
 app.include_router(api_keys.router)
 
 
