@@ -118,13 +118,15 @@ db-history:
 
 # ---- Backup & Restore ----
 
-# create a compressed PostgreSQL backup (pg_dump + gzip, retention-pruned)
+# create a compressed PostgreSQL backup in the backup container
+# (pg_dump + gzip, retention-pruned; encrypted when BACKUP_ENCRYPTION_KEY is set)
 db-backup:
-    bash scripts/backup.sh
+    docker compose run --no-tty --rm --no-deps backup /usr/local/bin/backup.sh
 
-# restore a PostgreSQL backup; pass --reset to drop and recreate the database first
+# restore a PostgreSQL backup from the backup container; pass the file name
+# relative to BACKUP_DIR and --reset to drop and recreate the database first
 db-restore file args:
-    bash scripts/restore.sh "{{file}}" {{args}}
+    docker compose run --no-tty --rm --no-deps backup /usr/local/bin/restore.sh /backups/{{file}} {{args}}
 
 # ---- Shell ----
 

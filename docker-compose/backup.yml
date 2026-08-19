@@ -1,0 +1,25 @@
+services:
+  backup:
+    image: argus-sbomguard-backup:${APP_ENV:-development}
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: ${POSTGRES_USER:-argus}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-argus}
+      PGDATABASE: ${POSTGRES_DB:-argus}
+      BACKUP_DIR: /backups
+      BACKUP_RETENTION: ${BACKUP_RETENTION:-7}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+    # The BACKUP_DIR host mount is declared in the stack entry points
+    # (docker-compose.{development,remote}.yml) so relative paths resolve
+    # against the project root.
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    # The image runs as uid 70 (postgres); root (numeric, no passwd entry needed)
+    # writes to the BACKUP_DIR host mount owned by the host user.
+    user: "0"
+    # Idle so the service is exec-able; backup/restore run on demand via
+    # 'docker compose run --rm --no-deps backup /usr/local/bin/{backup,restore}.sh'
+    command: ["-c", "tail -f /dev/null"]

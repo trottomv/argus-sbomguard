@@ -1,43 +1,29 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
+# Best-effort pipefail (busybox ash, dash and bash support it; harmless otherwise).
+set -o pipefail 2>/dev/null || true
 
-cd "$(dirname "$0")/.."
-
-# Honour the deployed stack: configuration is read from .env when present (docker
-# compose does this automatically; the script must agree on the stack and keys).
-# Only these keys are consumed, the file is never sourced.
-if [ -f .env ]; then
-    while IFS='=' read -r key value; do
-        case "$key" in
-            COMPOSE_FILE|BACKUP_ENCRYPTION_KEY)
-                value="${value//\"/}"
-                value="${value//$'\r'/}"
-                if [ "${!key+x}" != x ] && [ -n "$value" ]; then
-                    export "$key=$value"
-                fi
-                ;;
-        esac
-    done < .env
-fi
-: "${COMPOSE_FILE:=docker-compose.development.yml}"
-export COMPOSE_FILE
+# Ecosystem-agnostic PostgreSQL restore. Pure script: no docker or k8s awareness.
+# Runs wherever psql, gunzip and (optionally) openssl are installed — e.g. the
+# 'backup' compose service or a k8s Job. Connection comes from DATABASE_URL or
+# the libpq PG* variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE).
+# --reset drops and recreates the database (no active connections allowed).
 
 usage() {
-    echo "Usage: $0 <backup-file> [--reset]"
-    echo
-    echo "Restore a PostgreSQL backup created by scripts/backup.sh."
-    echo
-    echo "  <backup-file>  .sql, .sql.gz or encrypted .sql.gz.enc backup to restore"
-    echo "  --reset        drop and recreate the database before restoring"
-    echo "                 (required when the database already exists, e.g. during"
-    echo "                 a restore drill or after a failed restore)"
-    echo
-    echo "Encrypted backups require BACKUP_ENCRYPTION_KEY set in .env (and the app"
-    echo "image present) — decryption runs in a throwaway app container, so it also"
-    echo "works after the stack has been stopped."
-    echo
-    echo "Stop the app, worker and scheduler first, or the restore fails with"
-    echo "'database is being accessed by other users'."
+    cat <<EOF
+Usage: $0 <backup-file> [--reset]
+
+Restore a PostgreSQL backup created by backup.sh.
+
+  <backup-file>  .sql, .sql.gz or encrypted .sql.gz.enc backup to restore
+  --reset        drop and recreate the database before restoring
+                 (required when the database already exists, e.g. during
+                 a restore drill or after a failed restore)
+
+Connection comes from DATABASE_URL or the libpq PG* variables. Encrypted
+backups require BACKUP_ENCRYPTION_KEY. --reset drops the database, so no
+active connections may exist (stop/scale down the app first).
+EOF
 }
 
 if [ "$#" -lt 1 ]; then
@@ -52,38 +38,86 @@ reset=0
 for arg in "$@"; do
     case "$arg" in
         --reset) reset=1 ;;
-        *) echo >&2 "Unknown option: $arg"; echo; usage; exit 1 ;;
+        *) echo "restore: unknown option: $arg" >&2; echo; usage; exit 1 ;;
     esac
 done
 
 if [ ! -f "$backup_file" ]; then
-    echo >&2 "Backup file not found: $backup_file"
+    echo "restore: backup file not found: $backup_file" >&2
     exit 1
 fi
 
-command -v docker >/dev/null 2>&1 || { echo >&2 "docker is required but not installed"; exit 1; }
-
-if [[ "$backup_file" == *.enc ]] && [ -z "${BACKUP_ENCRYPTION_KEY:-}" ]; then
-    echo >&2 "BACKUP_ENCRYPTION_KEY is required to restore an encrypted backup"
+if ! command -v psql >/dev/null 2>&1; then
+    echo "restore: psql is required but not installed" >&2
     exit 1
 fi
 
-# psql, gunzip and gzip run inside the postgres container; openssl decryption
-# runs in a throwaway app container (docker compose run), so it also works after
-# the stack was stopped for the restore. The host only needs docker.
+case "$backup_file" in
+    *.enc)
+        if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ]; then
+            echo "restore: BACKUP_ENCRYPTION_KEY is required to restore an encrypted backup" >&2
+            exit 1
+        fi
+        if ! command -v openssl >/dev/null 2>&1; then
+            echo "restore: openssl is required but not installed" >&2
+            exit 1
+        fi
+        ;;
+esac
+
+psql_cmd() {
+    if [ -n "${DATABASE_URL:-}" ]; then
+        psql "$DATABASE_URL" "$@"
+    else
+        psql "$@"
+    fi
+}
+
 if [ "$reset" -eq 1 ]; then
-    echo "Resetting database (drop + recreate)..."
-    docker compose exec -T postgres sh -c 'set -o pipefail; psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"$POSTGRES_DB\"" -c "CREATE DATABASE \"$POSTGRES_DB\" OWNER \"$POSTGRES_USER\""'
+    if [ -n "${DATABASE_URL:-}" ]; then
+        # Split off the query string so the maintenance URL keeps connection
+        # options (e.g. sslmode=require) instead of silently dropping them.
+        url="${DATABASE_URL%%\?*}"
+        query=""
+        case "$DATABASE_URL" in
+            *\?*) query="?${DATABASE_URL#*\?}" ;;
+        esac
+        dbname="${url##*/}"
+        maint="${url%/*}/postgres${query}"
+        echo "restore: resetting database '$dbname'"
+        psql "$maint" -v ON_ERROR_STOP=1 \
+            -c "DROP DATABASE IF EXISTS \"$dbname\"" \
+            -c "CREATE DATABASE \"$dbname\""
+    else
+        dbname="${PGDATABASE:-postgres}"
+        echo "restore: resetting database '$dbname'"
+        psql -d postgres -v ON_ERROR_STOP=1 \
+            -c "DROP DATABASE IF EXISTS \"$dbname\"" \
+            -c "CREATE DATABASE \"$dbname\""
+    fi
 fi
 
-echo "Restoring from $backup_file..."
-if [[ "$backup_file" == *.enc ]]; then
-    docker compose run --rm --no-deps -T --entrypoint openssl app enc -d -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass env:BACKUP_ENCRYPTION_KEY < "$backup_file" \
-        | docker compose exec -T postgres sh -c 'set -o pipefail; gunzip -c | psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1'
-elif [[ "$backup_file" == *.gz ]]; then
-    docker compose exec -T postgres sh -c 'set -o pipefail; gunzip -c | psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' < "$backup_file"
-else
-    docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' < "$backup_file"
-fi
+# pg_dump resets the search_path to an empty one for restore safety, but SQL
+# function bodies that reference extension functions unqualified (e.g. unaccent
+# in public.slugify) then fail to inline when a generated column is recreated.
+# Re-add public to the search_path right after pg_dump's reset so such functions
+# resolve regardless of whether the dump predates schema-qualified references.
+SEARCH_PATH_INJECT="s|^SELECT pg_catalog.set_config('search_path', '', false);|&\\nSELECT pg_catalog.set_config('search_path', 'public, pg_catalog', false);|"
 
-echo "Restore complete."
+echo "restore: restoring from $backup_file"
+case "$backup_file" in
+    *.enc)
+        openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass env:BACKUP_ENCRYPTION_KEY < "$backup_file" \
+            | gunzip -c \
+            | sed "$SEARCH_PATH_INJECT" \
+            | psql_cmd -v ON_ERROR_STOP=1
+        ;;
+    *.gz)
+        gunzip -c "$backup_file" | sed "$SEARCH_PATH_INJECT" | psql_cmd -v ON_ERROR_STOP=1
+        ;;
+    *)
+        sed "$SEARCH_PATH_INJECT" "$backup_file" | psql_cmd -v ON_ERROR_STOP=1
+        ;;
+esac
+
+echo "restore: complete"

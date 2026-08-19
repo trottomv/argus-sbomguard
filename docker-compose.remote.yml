@@ -2,11 +2,19 @@ include:
   - docker-compose/postgresql.yml
   - docker-compose/rabbitmq.yml
   - docker-compose/app.yml
+  - docker-compose/backup.yml
   - docker-compose/caddy.yml
   - docker-compose/otel.yml
   - docker-compose/jaeger.yml
 
 services:
+  backup:
+    image: ghcr.io/trottomv/argus-sbomguard-backup:${APP_VERSION:-0.0.7-beta}
+    volumes:
+      - type: bind
+        source: ${BACKUP_DIR:-./backups}
+        target: /backups
+
   app:
     image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-0.0.7-beta}
     deploy:
