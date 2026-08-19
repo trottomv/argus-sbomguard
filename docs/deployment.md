@@ -254,29 +254,42 @@ docker compose logs -f proxy    # Caddy + WAF
 
 ### Backups
 
-The only state you must back up is the PostgreSQL volume. The bundled script
-dumps the database (`pg_dump`), compresses it with gzip, and prunes old backups
-(default: keep the 7 most recent). It can run while the stack is up:
+The only state you must back up is the PostgreSQL volume. Backup and restore are
+pure, ecosystem-agnostic scripts (`scripts/backup.sh` / `scripts/restore.sh`)
+that speak only to `pg_dump`/`psql` over the network — they know nothing about
+docker or Kubernetes. The stack ships a `backup` service (an image based on the
+postgres image, plus `openssl`) that runs them with the database connection and
+`BACKUP_*` settings injected from `.env`.
+
+Create a backup with the shortcut, while the stack is up:
 
 ```bash
-./scripts/backup.sh
+just db-backup
 ```
 
-Everything DB-related (`pg_dump`, `psql`, `gzip`) runs inside the `postgres`
-container, and encryption inside the `app` container — the host only needs
-`docker` and a standard shell.
-
-Backups are written to `backups/` (gitignored) as `argus_<timestamp>.sql.gz`
-(or `.sql.gz.enc` when encryption is enabled). The script honours `COMPOSE_FILE`,
-`BACKUP_DIR`, `BACKUP_RETENTION` and `BACKUP_ENCRYPTION_KEY` from `.env`.
-Override the retention or output directory with environment variables:
+or directly:
 
 ```bash
-BACKUP_RETENTION=30 ./scripts/backup.sh
-BACKUP_DIR=/var/backups/argus ./scripts/backup.sh
+docker compose run --no-tty --rm --no-deps backup /usr/local/bin/backup.sh
+```
+
+The script dumps the database (`pg_dump`), compresses it with gzip, prunes old
+backups (default: keep the 7 most recent, `BACKUP_RETENTION=0` keeps all), and
+writes to the host directory `BACKUP_DIR` (default `backups/`, gitignored) as
+`argus_<timestamp>.sql.gz` (or `.sql.gz.enc` when encryption is enabled). Set
+`BACKUP_DIR` to a path outside the repo for real deployments:
+
+```bash
+BACKUP_DIR=/var/backups/argus docker compose up -d backup   # recreate the mount
 ```
 
 Set `BACKUP_RETENTION=0` to keep every backup.
+
+!!! note "File ownership"
+    The backup container runs as root (numeric uid 0) so it can write to the
+    host `BACKUP_DIR` mount, which is normally owned by the host user. Backups
+    are therefore root-owned: manage them with `sudo`, or run
+    `sudo chown -R "$(id -u):$(id -g)" "$BACKUP_DIR"` after a backup.
 
 #### Encrypted backups (optional)
 
@@ -285,10 +298,10 @@ encryption with a dedicated key, independent from `SECRET_KEY`:
 
 ```bash
 echo "BACKUP_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> .env
-docker compose up -d   # recreate the app container so the key reaches it
+docker compose up -d backup   # recreate the backup container with the new key
 ```
 
-Backups are then written encrypted (`argus_*.sql.gz.enc`) using the `app`
+Backups are then written encrypted (`argus_*.sql.gz.enc`) using the backup
 container's `openssl` (AES-256-CBC + PBKDF2, 600,000 iterations). Restore works
 the same way — the key must still be set in `.env`.
 
@@ -304,21 +317,27 @@ the same way — the key must still be set in `.env`.
 
 ### Restoring
 
-To restore a backup, pass the file to the restore script. `--reset` drops and
+Restore a backup by name (relative to `BACKUP_DIR`). `--reset` drops and
 recreates the database first — required when restoring into an existing
 deployment, since the dump does not overwrite existing tables:
 
 ```bash
-docker compose stop app worker scheduler   # free database connections
-./scripts/restore.sh backups/argus_20260818_123456.sql.gz --reset
+docker compose stop app worker scheduler      # free database connections
+just db-restore argus_20260818_123456.sql.gz --reset
 docker compose start app worker scheduler
+```
+
+or directly:
+
+```bash
+docker compose run -T --rm --no-deps backup \
+    /usr/local/bin/restore.sh /backups/argus_20260818_123456.sql.gz --reset
 ```
 
 The script accepts `.sql`, `.sql.gz` and encrypted `.sql.gz.enc` files. Stop the
 app stack first, or the restore fails with `database is being accessed by other
-users`. Encrypted backups require `BACKUP_ENCRYPTION_KEY` set in `.env`;
-decryption runs in a throwaway app container (`docker compose run`), so it works
-even with the stack stopped.
+users`. Encrypted backups require `BACKUP_ENCRYPTION_KEY` set in `.env` (and the
+backup container recreated).
 
 !!! danger "Destructive"
     `--reset` destroys the current database contents before restoring. Only use
@@ -333,7 +352,7 @@ destroys current data, so run it on a staging copy or accept the data loss.
 1. Create a backup:
 
    ```bash
-   ./scripts/backup.sh
+   just db-backup
    ```
 
 2. Stop the app so nothing holds database connections:
@@ -346,7 +365,8 @@ destroys current data, so run it on a staging copy or accept the data loss.
 
    ```bash
    latest=$(ls -t backups/argus_*.sql.gz* | head -1)
-   ./scripts/restore.sh "$latest" --reset
+   latest=${latest#backups/}
+   just db-restore "$latest" --reset
    ```
 
 4. Start the stack:
@@ -362,8 +382,75 @@ destroys current data, so run it on a staging copy or accept the data loss.
    ```
 
    The count should match the backup you restored. Finish the drill by running
-   another `./scripts/backup.sh` so the restored state is captured by the
+   another `just db-backup` so the restored state is captured by the
    retention-pruned set.
+
+### Backups on Kubernetes
+
+Because the scripts are ecosystem-agnostic, the same backup image runs on
+Kubernetes: give the pod the database connection, the `BACKUP_*` settings, and a
+mounted volume, and schedule it with a `CronJob`. The image must be published to
+a registry first (`docker compose build backup && docker push
+ghcr.io/trottomv/argus-sbomguard-backup:<tag>`).
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: argus-db-backup
+spec:
+  schedule: "0 2 * * *"   # daily at 02:00
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: ghcr.io/trottomv/argus-sbomguard-backup:0.0.7-beta
+              command: ["/usr/local/bin/backup.sh"]
+              env:
+                - name: PGHOST
+                  value: postgres
+                - name: PGPORT
+                  value: "5432"
+                - name: PGUSER
+                  value: argus
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: argus-db
+                      key: password
+                - name: PGDATABASE
+                  value: argus
+                - name: BACKUP_DIR
+                  value: /backups
+                - name: BACKUP_RETENTION
+                  value: "7"
+                - name: BACKUP_ENCRYPTION_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: argus-backup-key
+                      key: key
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+              resources:
+                limits:
+                  memory: 512Mi
+                  cpu: "1"
+                requests:
+                  memory: 256Mi
+                  cpu: "0.5"
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: argus-backups
+```
+
+For a restore, run the same image as a one-off `Job` with
+`command: ["/usr/local/bin/restore.sh", "/backups/<file>", "--reset"]` after
+scaling the app down.
 
 ## Publishing behind an existing reverse proxy
 

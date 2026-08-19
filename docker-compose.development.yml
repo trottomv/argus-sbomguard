@@ -3,6 +3,7 @@ include:
   - docker-compose/rabbitmq.yml
   - docker-compose/mailpit.yml
   - docker-compose/app.yml
+  - docker-compose/backup.yml
   - docker-compose/caddy.yml
   - docker-compose/otel.yml
   - docker-compose/jaeger.yml
@@ -16,6 +17,15 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+
+  backup:
+    build:
+      context: .
+      dockerfile: backup/Dockerfile
+    volumes:
+      - type: bind
+        source: ${BACKUP_DIR:-./backups}
+        target: /backups
 
   app:
     build:

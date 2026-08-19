@@ -18,6 +18,21 @@ permissions:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: app
+            context: app
+            file: app/Dockerfile
+            target: remote
+            image: ghcr.io/${{ github.repository }}
+            description: Open-source SBOM-based vulnerability management platform.
+          - name: backup
+            context: .
+            file: backup/Dockerfile
+            image: ghcr.io/${{ github.repository }}-backup
+            description: PostgreSQL backup/restore tooling image (pg_dump + openssl).
     steps:
       - uses: actions/checkout@v7
 
@@ -38,24 +53,24 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ matrix.image }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
           labels: |
-            org.opencontainers.image.description=Open-source SBOM-based vulnerability management platform.
+            org.opencontainers.image.description=${{ matrix.description }}
           annotations: |
-            org.opencontainers.image.description=Open-source SBOM-based vulnerability management platform.
+            org.opencontainers.image.description=${{ matrix.description }}
         env:
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
 
-      - name: Build and push app image
+      - name: Build and push image
         id: build
         uses: docker/build-push-action@v7
         with:
-          context: app
-          file: app/Dockerfile
-          target: remote
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
           pull: true
           push: true
@@ -72,7 +87,7 @@ jobs:
 
       - name: Sign image with cosign
         env:
-          IMAGE: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+          IMAGE: ${{ matrix.image }}@${{ steps.build.outputs.digest }}
         run: |
           cosign sign --yes \
             "${IMAGE}"
