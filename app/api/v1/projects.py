@@ -6,7 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas import (
+from api.constants import API_V1_PREFIX
+from api.v1.schemas import (
     PageResponse,
     ProjectCreate,
     ProjectResponse,
@@ -21,7 +22,9 @@ from models.vulnerability import VulnerabilitySnapshot
 from services.pagination import PROJECT_PER_PAGE, PROJECT_SBOM_HISTORY_PER_PAGE, Page, paginate
 
 router = APIRouter(
-    prefix="/api/v1/projects", tags=["projects"], dependencies=[Depends(api_key_required)]
+    prefix=f"{API_V1_PREFIX}/projects",
+    tags=["projects"],
+    dependencies=[Depends(api_key_required)],
 )
 
 

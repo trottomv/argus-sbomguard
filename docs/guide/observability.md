@@ -134,7 +134,7 @@ Each event looks like:
   "level": "ERROR",
   "logger": "app",
   "message": "kaboom",
-  "module": "api.projects",
+  "module": "api.v1.projects",
   "line": 42,
   "pid": 1,
   "thread": "MainThread",

@@ -6,7 +6,8 @@ from fastapi.responses import Response
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas import (
+from api.constants import API_V1_PREFIX
+from api.v1.schemas import (
     DependencyResponse,
     DiffItemResponse,
     SBOMDetailResponse,
@@ -23,7 +24,9 @@ from models.vulnerability import SBOMVulnerability, Vulnerability, Vulnerability
 from services.sbom_parser import store_sbom
 from services.tasks import scan_sbom
 
-router = APIRouter(prefix="/api/v1/sboms", tags=["sboms"], dependencies=[Depends(api_key_required)])
+router = APIRouter(
+    prefix=f"{API_V1_PREFIX}/sboms", tags=["sboms"], dependencies=[Depends(api_key_required)]
+)
 
 
 @router.post("/upload", status_code=201, response_model=SBOMUploadResponse)

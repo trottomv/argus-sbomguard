@@ -13,7 +13,7 @@ from services.auth import (
 )
 from templating import templates
 
-router = APIRouter(tags=["auth"])
+router = APIRouter(tags=["auth"], include_in_schema=False)
 
 
 @router.get("/login", response_class=HTMLResponse)

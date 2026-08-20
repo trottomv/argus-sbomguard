@@ -13,7 +13,7 @@ from services.pagination import VULN_PER_PAGE, Page, paginate
 from services.vulnerability_queries import apply_vuln_ordering, build_vuln_subquery
 from templating import templates
 
-router = APIRouter(tags=["vulnerabilities"])
+router = APIRouter(tags=["vulnerabilities"], include_in_schema=False)
 
 
 @router.get("/vulnerabilities", response_class=HTMLResponse)

@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas import (
+from api.constants import API_V1_PREFIX
+from api.v1.schemas import (
     PageResponse,
     VulnerabilityResponse,
     VulnerabilitySummaryResponse,
@@ -21,7 +22,7 @@ from services.pagination import VULN_PER_PAGE, Page, paginate
 from services.vulnerability_queries import apply_vuln_ordering, build_vuln_subquery
 
 router = APIRouter(
-    prefix="/api/v1/vulnerabilities",
+    prefix=f"{API_V1_PREFIX}/vulnerabilities",
     tags=["vulnerabilities"],
     dependencies=[Depends(api_key_required)],
 )

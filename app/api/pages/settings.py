@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +11,7 @@ from models.project import Project
 from services.auth import create_api_key, list_api_keys, revoke_api_key
 from templating import templates
 
-router = APIRouter(tags=["settings"])
+router = APIRouter(tags=["settings"], include_in_schema=False)
 
 
 @router.get("/settings", response_class=HTMLResponse)
@@ -44,11 +44,26 @@ async def create_api_key_web(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    form = await request.form()
-    label = form.get("label", "")
+    if request.headers.get("content-type", "").startswith("application/json"):
+        payload = await request.json()
+        label = str(payload.get("label", ""))
+    else:
+        form = await request.form()
+        label = str(form.get("label", ""))
 
-    key, raw = await create_api_key(db, uuid.UUID(user.id), label=str(label))
+    key, raw = await create_api_key(db, uuid.UUID(user.id), label=label)
     await db.commit()
+
+    if request.headers.get("content-type", "").startswith("application/json"):
+        return JSONResponse(
+            status_code=201,
+            content={
+                "id": str(key.id),
+                "key": raw,
+                "key_prefix": key.key_prefix,
+                "label": key.label,
+            },
+        )
 
     api_keys = await list_api_keys(db)
     ctx = {
