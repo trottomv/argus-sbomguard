@@ -102,7 +102,7 @@ docker compose exec app alembic upgrade head
 
 | Service | Port | URL |
 |---------|------|-----|
-| App (FastAPI) | 8000 | [http://localhost:8000](http://localhost:8000) (Swagger: [/api/docs](http://localhost:8000/api/docs)) |
+| App (FastAPI) | 8000 | [http://localhost:8000](http://localhost:8000) (API docs: [/api/docs](http://localhost:8000/api/docs)) |
 | gRPC | 50051 | — |
 | PostgreSQL | 5432 | — |
 | RabbitMQ | 5672, 15672 | [http://localhost:15672](http://localhost:15672) |

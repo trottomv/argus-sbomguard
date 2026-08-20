@@ -185,6 +185,10 @@ docs-release: docs-deps
 docs-default: docs-deps
     PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mike set-default --push latest
 
+# regenerate the committed OpenAPI schema from a running instance
+docs-openapi:
+    @bash scripts/generate_openapi.sh
+
 # list published docs versions
 docs-list: docs-deps
     PATH="{{_docs-venv-bin}}:$PATH" {{_docs-venv-bin}}/mike list

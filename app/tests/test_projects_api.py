@@ -119,7 +119,7 @@ async def test_rename_project_requires_alphanumeric(client):
 def test_is_slug_conflict_helper():
     from sqlalchemy.exc import IntegrityError
 
-    from api.projects import _is_slug_conflict
+    from api.v1.projects import _is_slug_conflict
 
     class SlugOrig:
         constraint_name = "ix_projects_slug"

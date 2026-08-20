@@ -11,7 +11,7 @@ from models.vulnerability import SBOMVulnerability, VulnerabilityStatus
 from services.pagination import SBOM_PER_PAGE, Page, paginate
 from templating import templates
 
-router = APIRouter(tags=["sboms"])
+router = APIRouter(tags=["sboms"], include_in_schema=False)
 
 
 @router.get("/sboms", response_class=HTMLResponse)

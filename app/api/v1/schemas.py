@@ -157,25 +157,6 @@ class ServiceResponse(BaseModel):
 # API keys
 
 
-class ApiKeyCreate(BaseModel):
-    label: str = ""
-
-
-class ApiKeyResponse(BaseModel):
-    id: uuid.UUID
-    key_prefix: str
-    label: str
-    created_at: datetime | None
-    last_used_at: datetime | None = None
-    expires_at: datetime | None = None
-
-    model_config = {"from_attributes": True}
-
-
-class ApiKeyCreatedResponse(ApiKeyResponse):
-    key: str
-
-
 # Vulnerabilities
 
 

@@ -206,7 +206,7 @@
                     document.getElementById('gen_key_modal').showModal();
                 },
                 submitKey() {
-                    fetch('/api/v1/api-keys', {
+                    fetch('/settings/api-keys', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ label: this.newKeyLabel })

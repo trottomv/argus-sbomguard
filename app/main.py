@@ -6,7 +6,8 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from api import alerts, api_keys, auth, pages, projects, sboms, services, vulnerabilities
+from api import auth, pages
+from api.v1 import alerts, projects, sboms, services, vulnerabilities
 from config import settings
 from database import async_session_factory, engine
 from logging_config import log_exception, setup_logging
@@ -41,8 +42,9 @@ app = FastAPI(
     title="Argus SBOM Guard",
     version=settings.app_version,
     lifespan=lifespan,
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    docs_url=None,
+    redoc_url="/api/docs",
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
@@ -98,7 +100,6 @@ app.include_router(pages.projects.router)
 app.include_router(pages.vulnerabilities.router)
 app.include_router(pages.sboms.router)
 app.include_router(pages.settings.router)
-app.include_router(api_keys.router)
 
 
 @app.get("/healthz")

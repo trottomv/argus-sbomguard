@@ -7,7 +7,7 @@ async def test_create_alert(client):
     pid = proj.json()["id"]
 
     resp = await client.post(
-        "/api/v1/alerts",
+        "/api/v1/alert-rules",
         json={
             "project_id": pid,
             "severity_threshold": "critical",
@@ -25,7 +25,7 @@ async def test_create_alert(client):
 @pytest.mark.asyncio
 async def test_create_alert_project_not_found(client):
     resp = await client.post(
-        "/api/v1/alerts",
+        "/api/v1/alert-rules",
         json={
             "project_id": "00000000-0000-0000-0000-000000000000",
             "severity_threshold": "high",
@@ -40,11 +40,11 @@ async def test_list_alerts(client):
     pid = proj.json()["id"]
 
     await client.post(
-        "/api/v1/alerts",
+        "/api/v1/alert-rules",
         json={"project_id": pid, "notification_type": "slack"},
     )
 
-    resp = await client.get("/api/v1/alerts")
+    resp = await client.get("/api/v1/alert-rules")
     assert resp.status_code == 200
     data = resp.json()
     assert "items" in data
@@ -55,7 +55,7 @@ async def test_list_alerts(client):
 
 @pytest.mark.asyncio
 async def test_list_alerts_pagination(client):
-    resp = await client.get("/api/v1/alerts?page=1&per_page=5")
+    resp = await client.get("/api/v1/alert-rules?page=1&per_page=5")
     assert resp.status_code == 200
     data = resp.json()
     assert data["page"] == 1
@@ -68,19 +68,19 @@ async def test_delete_alert(client):
     pid = proj.json()["id"]
 
     create = await client.post(
-        "/api/v1/alerts",
+        "/api/v1/alert-rules",
         json={"project_id": pid, "notification_type": "slack"},
     )
     aid = create.json()["id"]
 
-    resp = await client.delete(f"/api/v1/alerts/{aid}")
+    resp = await client.delete(f"/api/v1/alert-rules/{aid}")
     assert resp.status_code == 200
     assert resp.json()["status"] == "deleted"
 
 
 @pytest.mark.asyncio
 async def test_delete_alert_not_found(client):
-    resp = await client.delete("/api/v1/alerts/00000000-0000-0000-0000-000000000000")
+    resp = await client.delete("/api/v1/alert-rules/00000000-0000-0000-0000-000000000000")
     assert resp.status_code == 404
 
 
@@ -89,7 +89,7 @@ async def test_update_alert(client):
     proj = await client.post("/api/v1/projects", json={"name": "alert-update"})
     pid = proj.json()["id"]
     create = await client.post(
-        "/api/v1/alerts",
+        "/api/v1/alert-rules",
         json={
             "project_id": pid,
             "severity_threshold": "high",
@@ -100,7 +100,7 @@ async def test_update_alert(client):
     aid = create.json()["id"]
 
     resp = await client.patch(
-        f"/api/v1/alerts/{aid}",
+        f"/api/v1/alert-rules/{aid}",
         json={
             "project_id": pid,
             "severity_threshold": "critical",
@@ -116,11 +116,11 @@ async def test_update_alert(client):
 async def test_update_alert_project_not_found(client):
     proj = await client.post("/api/v1/projects", json={"name": "alert-upd-pnf"})
     pid = proj.json()["id"]
-    create = await client.post("/api/v1/alerts", json={"project_id": pid})
+    create = await client.post("/api/v1/alert-rules", json={"project_id": pid})
     aid = create.json()["id"]
 
     resp = await client.patch(
-        f"/api/v1/alerts/{aid}",
+        f"/api/v1/alert-rules/{aid}",
         json={"project_id": "00000000-0000-0000-0000-000000000000"},
     )
     assert resp.status_code == 404
@@ -129,7 +129,7 @@ async def test_update_alert_project_not_found(client):
 @pytest.mark.asyncio
 async def test_update_alert_not_found(client):
     resp = await client.patch(
-        "/api/v1/alerts/00000000-0000-0000-0000-000000000000",
+        "/api/v1/alert-rules/00000000-0000-0000-0000-000000000000",
         json={"enabled": False},
     )
     assert resp.status_code == 404

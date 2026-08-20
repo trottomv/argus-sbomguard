@@ -1,7 +1,12 @@
 # API Reference
 
-Full OpenAPI / Swagger UI available at [http://localhost:8000/api/docs](http://localhost:8000/api/docs)
-and ReDoc at [http://localhost:8000/api/redoc](http://localhost:8000/api/redoc).
+The `/api/v1` contract is **frozen** for the current major version. See the
+[Versioning & Deprecation Policy](versioning.md) for stability guarantees,
+deprecation rules, and removal timelines.
+
+The machine-readable OpenAPI schema is served at `/api/openapi.json`
+([committed copy](openapi.json) for offline browsing). Browse it in the docs at
+[ReDoc](http://localhost:8000/api/docs).
 
 ## Authentication
 
@@ -55,22 +60,14 @@ generated from the project name (e.g. `Argus SBOM Guard` → `argus-sbom-guard`)
 | `GET` | `/api/v1/vulnerabilities/active` | List active (open) vulns |
 | `GET` | `/api/v1/vulnerabilities/summary` | Vulnerability counts by severity |
 
-### Alerts
+### Alert Rules
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/v1/alerts` | List alert configs |
-| `POST` | `/api/v1/alerts` | Create alert config |
-| `PATCH` | `/api/v1/alerts/{id}` | Update alert config |
-| `DELETE` | `/api/v1/alerts/{id}` | Delete alert config |
-
-### API Keys
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/v1/api-keys` | List API keys |
-| `POST` | `/api/v1/api-keys` | Generate new API key |
-| `DELETE` | `/api/v1/api-keys/{id}` | Revoke API key |
+| `GET` | `/api/v1/alert-rules` | List alert rules |
+| `POST` | `/api/v1/alert-rules` | Create alert rule |
+| `PATCH` | `/api/v1/alert-rules/{id}` | Update alert rule |
+| `DELETE` | `/api/v1/alert-rules/{id}` | Delete alert rule |
 
 ## Pagination
 

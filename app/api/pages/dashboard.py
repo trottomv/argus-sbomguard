@@ -17,7 +17,7 @@ from models.vulnerability import (
 from services.tasks import snapshot_metrics
 from templating import templates
 
-router = APIRouter(tags=["dashboard"])
+router = APIRouter(tags=["dashboard"], include_in_schema=False)
 
 
 @router.get("/", response_class=HTMLResponse)

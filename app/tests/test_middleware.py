@@ -98,6 +98,15 @@ async def test_security_headers_present_on_pages(client):
 
 
 @pytest.mark.asyncio
+async def test_docs_pages_skip_csp(client):
+    resp = await client.get("/api/docs")
+    assert resp.status_code == 200
+    assert "content-security-policy" not in resp.headers
+    assert resp.headers["x-frame-options"] == "DENY"
+    assert resp.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+
+
+@pytest.mark.asyncio
 async def test_static_assets_served_locally(client):
     for path in (
         "/favicon.ico",

@@ -4,14 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas import ServiceResponse
+from api.constants import API_V1_PREFIX
+from api.v1.schemas import ServiceResponse
 from database import get_db
 from middleware.api_key import api_key_required
 from models.sbom import SBOM
 from models.service import Service
 
 router = APIRouter(
-    prefix="/api/v1/services",
+    prefix=f"{API_V1_PREFIX}/services",
     tags=["services"],
     dependencies=[Depends(api_key_required)],
 )

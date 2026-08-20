@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas import (
+from api.constants import API_V1_PREFIX
+from api.v1.schemas import (
     ActionResponse,
     AlertConfigCreate,
     AlertConfigResponse,
@@ -18,7 +19,9 @@ from models.project import Project
 from services.pagination import ALERT_PER_PAGE, Page, paginate
 
 router = APIRouter(
-    prefix="/api/v1/alerts", tags=["alerts"], dependencies=[Depends(api_key_required)]
+    prefix=f"{API_V1_PREFIX}/alert-rules",
+    tags=["alert-rules"],
+    dependencies=[Depends(api_key_required)],
 )
 
 

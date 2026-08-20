@@ -21,7 +21,7 @@ from services.pagination import (
 )
 from templating import format_dt, templates
 
-router = APIRouter(tags=["projects"])
+router = APIRouter(tags=["projects"], include_in_schema=False)
 
 
 async def _get_project_vulns(
