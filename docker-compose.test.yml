@@ -24,6 +24,7 @@ services:
     user: "0:0"
     volumes:
       - ./app:/app
+      - ./docs:/docs
     depends_on:
       postgres:
         condition: service_healthy
