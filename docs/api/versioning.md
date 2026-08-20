@@ -60,9 +60,8 @@ The machine-readable contract for the current version is published at:
 GET /api/openapi.json
 ```
 
-Interactive viewers are available at `/api/docs` (Swagger UI) and `/api/redoc`
-(ReDoc). A static copy is committed at [`openapi.json`](openapi.json) for
-offline browsing. The schema's `info.version` reflects the application version
-that generated it. The canonical schema is always generated from the running
-application — regenerate the committed copy with
-`scripts/generate_openapi.sh` whenever the API changes.
+Browse it at `/api/docs` (ReDoc). A static copy is committed at
+[`openapi.json`](openapi.json) for offline browsing. The schema's
+`info.version` reflects the application version that generated it. The canonical
+schema is always generated from the running application — regenerate the
+committed copy with `scripts/generate_openapi.sh` whenever the API changes.

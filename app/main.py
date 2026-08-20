@@ -43,8 +43,8 @@ app = FastAPI(
     version=settings.app_version,
     lifespan=lifespan,
     openapi_url="/api/openapi.json",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
+    docs_url=None,
+    redoc_url="/api/docs",
 )
 
 app.add_middleware(SecurityHeadersMiddleware)

@@ -5,9 +5,8 @@ The `/api/v1` contract is **frozen** for the current major version. See the
 deprecation rules, and removal timelines.
 
 The machine-readable OpenAPI schema is served at `/api/openapi.json`
-([committed copy](openapi.json) for offline browsing). Interactive viewers:
-[Swagger UI](http://localhost:8000/api/docs) and
-[ReDoc](http://localhost:8000/api/redoc).
+([committed copy](openapi.json) for offline browsing). Browse it in the docs at
+[ReDoc](http://localhost:8000/api/docs).
 
 ## Authentication
 

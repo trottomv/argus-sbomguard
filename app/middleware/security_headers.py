@@ -15,11 +15,11 @@ CSP_DIRECTIVES = (
     "frame-ancestors 'none'"
 )
 
-# FastAPI's Swagger UI and ReDoc pages need inline scripts, blob: workers and
-# resources from third-party hosts (jsDelivr, Google Fonts, cdn.redoc.ly) that
-# the strict CSP above forbids. These public documentation pages are excluded
-# from the CSP; every other page keeps the strict policy.
-DOCS_PATHS = {"/api/docs", "/api/redoc"}
+# FastAPI's ReDoc page needs inline scripts, blob: workers and resources from
+# third-party hosts (jsDelivr, Google Fonts, cdn.redoc.ly) that the strict CSP
+# above forbids. This public documentation page is excluded from the CSP; every
+# other page keeps the strict policy.
+DOCS_PATHS = {"/api/docs"}
 
 PERMISSIONS_POLICY = (
     "geolocation=(), microphone=(), camera=(), payment=(), usb=(), "
@@ -34,10 +34,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     Permissions-Policy) are only sent on ``text/html`` responses. The CSP
     forbids inline scripts, event-handler attributes and ``unsafe-eval``;
     Alpine runs the CSP-friendly build with its components registered via
-    ``Alpine.data()``. The API docs pages (``/api/docs``, ``/api/redoc``) are
-    excluded from the CSP — FastAPI loads their assets from third-party CDNs and
-    they need inline scripts and blob: workers — but keep the other security
-    headers. ``X-Content-Type-Options: nosniff`` is set on every response.
+    ``Alpine.data()``. The API docs page (``/api/docs``, which serves ReDoc)
+    is excluded from the CSP — FastAPI loads its assets from third-party CDNs
+    and it needs inline scripts and blob: workers — but keeps the other
+    security headers. ``X-Content-Type-Options: nosniff`` is set on every
+    response.
 
     Caching: the private area (authenticated pages and JSON API responses)
     is ``Cache-Control: no-store`` so sensitive data is never cached; static
