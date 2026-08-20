@@ -15,6 +15,12 @@ CSP_DIRECTIVES = (
     "frame-ancestors 'none'"
 )
 
+# FastAPI's Swagger UI and ReDoc pages need inline scripts, blob: workers and
+# resources from third-party hosts (jsDelivr, Google Fonts, cdn.redoc.ly) that
+# the strict CSP above forbids. These public documentation pages are excluded
+# from the CSP; every other page keeps the strict policy.
+DOCS_PATHS = {"/api/docs", "/api/redoc"}
+
 PERMISSIONS_POLICY = (
     "geolocation=(), microphone=(), camera=(), payment=(), usb=(), "
     "magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=()"
@@ -28,8 +34,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     Permissions-Policy) are only sent on ``text/html`` responses. The CSP
     forbids inline scripts, event-handler attributes and ``unsafe-eval``;
     Alpine runs the CSP-friendly build with its components registered via
-    ``Alpine.data()``. ``X-Content-Type-Options: nosniff`` is set on every
-    response.
+    ``Alpine.data()``. The API docs pages (``/api/docs``, ``/api/redoc``) are
+    excluded from the CSP — FastAPI loads their assets from third-party CDNs and
+    they need inline scripts and blob: workers — but keep the other security
+    headers. ``X-Content-Type-Options: nosniff`` is set on every response.
 
     Caching: the private area (authenticated pages and JSON API responses)
     is ``Cache-Control: no-store`` so sensitive data is never cached; static
@@ -48,7 +56,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "no-store"
         content_type = response.headers.get("content-type", "")
         if content_type.lower().startswith("text/html"):
-            response.headers["Content-Security-Policy"] = CSP_DIRECTIVES
+            if request.url.path not in DOCS_PATHS:
+                response.headers["Content-Security-Policy"] = CSP_DIRECTIVES
             response.headers["X-Frame-Options"] = "DENY"
             response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
             response.headers["Permissions-Policy"] = PERMISSIONS_POLICY
