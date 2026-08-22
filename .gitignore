@@ -234,6 +234,9 @@ __marimo__/
 /backups/
 .tokensave
 
+# Locally-downloaded tool installers (e.g. cosign .deb)
+*.deb
+
 # Generated protobuf
 app/protos/generated/
 

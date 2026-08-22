@@ -102,9 +102,27 @@ app.include_router(pages.sboms.router)
 app.include_router(pages.settings.router)
 
 
+def _build_provenance() -> dict[str, str]:
+    """Build provenance (repository, commit, environment) metadata."""
+    return {
+        "service": "argus-sbomguard",
+        "version": settings.app_version,
+        "git_sha": settings.build_git_sha,
+        "build_date": settings.build_date,
+        "source_url": settings.build_source_url,
+        "build_env": settings.build_env,
+        "environment": settings.app_env,
+    }
+
+
 @app.get("/healthz")
 async def healthz():
-    return {"status": "ok", "service": "argus-sbomguard", "version": settings.app_version}
+    return {"status": "ok", **_build_provenance()}
+
+
+@app.get("/version")
+async def version():
+    return _build_provenance()
 
 
 @app.get("/readyz")

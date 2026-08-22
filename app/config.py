@@ -61,6 +61,14 @@ class Settings(BaseSettings):
     # image tag (argussbomguard:${APP_ENV}).
     app_env: str = "development"
     app_version: str = _read_version_file()
+    # Build provenance (repository, commit, environment). CI bakes these into
+    # the image via build args (BUILD_GIT_SHA / BUILD_DATE / BUILD_SOURCE_URL /
+    # BUILD_ENV); they fall back to "unknown" outside a release build. The
+    # deployment environment is reported separately via app_env.
+    build_git_sha: str = "unknown"
+    build_date: str = "unknown"
+    build_source_url: str = "unknown"
+    build_env: str = "unknown"
     log_level: str = "info"
     # Structured log output format: "json" (default) or "text".
     log_format: str = "json"

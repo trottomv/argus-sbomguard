@@ -144,6 +144,14 @@ shell-db:
 scan-all:
     @bash scripts/scan-all.sh
 
+# verify the cosign (Sigstore) signature of a released image
+# (requires cosign on PATH; see docs/development/supply-chain.md)
+verify-image image:
+    @command -v cosign >/dev/null 2>&1 || { echo "cosign required (brew install cosign)"; exit 1; }
+    cosign verify {{image}} \
+        --certificate-identity-regexp "https://github.com/trottomv/argus-sbomguard/.github/workflows/build.yml@refs/" \
+        --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
 # regenerate gRPC protobuf stubs
 proto:
     docker compose run --rm --no-deps --entrypoint python app -m grpc_tools.protoc -Iprotos --python_out=/app/protos/generated --grpc_python_out=/app/protos/generated protos/sbom.proto

@@ -28,11 +28,17 @@ jobs:
             target: remote
             image: ghcr.io/${{ github.repository }}
             description: Open-source SBOM-based vulnerability management platform.
+            build_args: |
+              BUILD_GIT_SHA=${{ github.sha }}
+              BUILD_DATE=${{ env.BUILD_DATE }}
+              BUILD_SOURCE_URL=https://github.com/${{ github.repository }}
+              BUILD_ENV=ci
           - name: backup
             context: .
             file: backup/Dockerfile
             image: ghcr.io/${{ github.repository }}-backup
             description: PostgreSQL backup/restore tooling image (pg_dump + openssl).
+            build_args: ""
     steps:
       - uses: actions/checkout@v7
 
@@ -49,6 +55,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute build date
+        run: echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v6
@@ -59,6 +68,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
           labels: |
             org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.created=${{ env.BUILD_DATE }}
           annotations: |
             org.opencontainers.image.description=${{ matrix.description }}
         env:
@@ -79,6 +89,7 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           provenance: true
           sbom: true
+          build-args: ${{ matrix.build_args }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -91,3 +102,11 @@ jobs:
         run: |
           cosign sign --yes \
             "${IMAGE}"
+
+      - name: Verify image signature
+        env:
+          IMAGE: ${{ matrix.image }}@${{ steps.build.outputs.digest }}
+        run: |
+          cosign verify "${IMAGE}" \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/build.yml@refs/" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
