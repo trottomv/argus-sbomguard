@@ -53,7 +53,11 @@
                 <div class="flex items-center justify-between text-xs text-ctp-overlay0">
                     <div class="flex items-center gap-2">
                         <span class="inline-block w-2 h-2 rounded-full bg-ctp-green shadow-sm shadow-ctp-green/30"></span>
-                        v{{ request.state.app_version }} &middot; AGPL v3
+                        v{{ request.state.app_version }}
+                        {% if request.state.source_url and request.state.git_sha and request.state.git_sha != "unknown" %}
+                        &middot; <a href="{{ request.state.source_url }}/commit/{{ request.state.git_sha }}" target="_blank" class="hover:text-ctp-text transition-colors" title="Build commit">{{ request.state.git_sha[:7] }}</a>
+                        {% endif %}
+                        &middot; AGPL v3
                     </div>
                     <div class="flex items-center gap-3">
                         <a href="https://trottomv.github.io/argus-sbomguard" target="_blank" class="hover:text-ctp-text transition-colors" title="Documentation">

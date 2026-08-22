@@ -10,6 +10,26 @@ async def test_healthz(client):
     data = resp.json()
     assert data["status"] == "ok"
     assert data["service"] == "argus-sbomguard"
+    assert "version" in data
+    assert "git_sha" in data
+    assert "build_date" in data
+    assert "source_url" in data
+    assert "environment" in data
+
+
+@pytest.mark.asyncio
+async def test_version_endpoint(client):
+    resp = await client.get("/version")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data == {
+        "service": "argus-sbomguard",
+        "version": main.settings.app_version,
+        "git_sha": main.settings.build_git_sha,
+        "build_date": main.settings.build_date,
+        "source_url": main.settings.build_source_url,
+        "environment": main.settings.app_env,
+    }
 
 
 @pytest.mark.asyncio

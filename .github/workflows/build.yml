@@ -64,6 +64,9 @@ jobs:
         env:
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
 
+      - name: Compute build date
+        run: echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+
       - name: Build and push image
         id: build
         uses: docker/build-push-action@v7
@@ -79,6 +82,11 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           provenance: true
           sbom: true
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+            BUILD_GIT_SHA=${{ github.sha }}
+            BUILD_DATE=${{ env.BUILD_DATE }}
+            BUILD_SOURCE_URL=https://github.com/${{ github.repository }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -91,3 +99,11 @@ jobs:
         run: |
           cosign sign --yes \
             "${IMAGE}"
+
+      - name: Verify image signature
+        env:
+          IMAGE: ${{ matrix.image }}@${{ steps.build.outputs.digest }}
+        run: |
+          cosign verify "${IMAGE}" \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/build.yml@refs/" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com

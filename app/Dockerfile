@@ -21,12 +21,27 @@ FROM dhi.io/python:${PYTHON_VERSION}-alpine-dev@sha256:8c3820102033dff6a1e5de0fa
 ARG APP_USER=appuser
 ARG UV_VERSION=~=0.12.0
 ARG PIP_VERSION=~=26.2.0
+# Build provenance (repository, commit, environment) baked into the image.
+# CI (build.yml) passes these as build args; local builds fall back to
+# "unknown". APP_VERSION is only used for OCI labels — the runtime version
+# stays sourced from app/VERSION.md (single source of truth).
+ARG APP_VERSION=0.0.0-dev
+ARG BUILD_GIT_SHA=unknown
+ARG BUILD_DATE=unknown
+ARG BUILD_SOURCE_URL=unknown
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/protos/generated \
-    APP_USER=${APP_USER}
+    APP_USER=${APP_USER} \
+    BUILD_GIT_SHA=${BUILD_GIT_SHA} \
+    BUILD_DATE=${BUILD_DATE} \
+    BUILD_SOURCE_URL=${BUILD_SOURCE_URL}
+LABEL org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.revision="${BUILD_GIT_SHA}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.source="${BUILD_SOURCE_URL}"
 WORKDIR /app
 
 RUN apk add --no-cache build-base \

@@ -76,7 +76,7 @@ async def test_middleware_redirects_htmx_requests_with_header(client):
 
 @pytest.mark.asyncio
 async def test_middleware_allows_public_paths(client):
-    for path in ("/healthz", "/readyz"):
+    for path in ("/healthz", "/readyz", "/version"):
         resp = await client.get(path)
         assert resp.status_code in (200, 503)
 

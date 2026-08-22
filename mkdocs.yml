@@ -74,6 +74,7 @@ nav:
       - Architecture: development/architecture.md
       - Testing: development/testing.md
       - Upgrade & Rollback: development/upgrades.md
+      - Supply Chain & Provenance: development/supply-chain.md
   - API Reference:
       - Reference: api/reference.md
       - Versioning & Deprecation: api/versioning.md
