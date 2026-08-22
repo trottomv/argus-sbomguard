@@ -44,8 +44,7 @@ curl -s http://localhost:8000/version
 ```
 
 The same fields (plus `status`) are returned by `/healthz`. The UI sidebar
-shows the version and links the short commit SHA back to the source
-repository.
+shows the version number; the full provenance is available on `/version`.
 
 ## Image attestations
 
