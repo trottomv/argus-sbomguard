@@ -18,6 +18,21 @@ docker compose exec app alembic upgrade head
 pip install pre-commit && pre-commit install
 ```
 
+### Optional host tools
+
+Used by `just` recipes (not required for the dev stack itself):
+
+```bash
+# just — task runner (test-stack, scan-all, …)
+brew install just
+
+# cosign — verify the Sigstore signature of released images (just verify-image)
+brew install cosign
+```
+
+`cosign` is only needed for `just verify-image`; `pre-commit`, `uv` and `docker`
+are required by the workflows above.
+
 ## Project Structure
 
 ```
