@@ -48,4 +48,6 @@ def test_openapi_schema_excludes_backoffice_pages():
     paths = set(schema["paths"])
     for path in ("/", "/login", "/projects", "/sboms", "/settings", "/vulnerabilities"):
         assert path not in paths
-    assert all(path.startswith(f"{API_V1_PREFIX}/") for path in paths - {"/healthz", "/readyz"})
+    assert all(
+        path.startswith(f"{API_V1_PREFIX}/") for path in paths - {"/healthz", "/readyz", "/version"}
+    )

@@ -10,7 +10,7 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-PUBLIC_PATHS = {"/login", "/login/verify", "/healthz", "/readyz", "/favicon.ico"}
+PUBLIC_PATHS = {"/login", "/login/verify", "/healthz", "/readyz", "/version", "/favicon.ico"}
 
 _SESSION_MAX_AGE = settings.session_max_age_hours * 3600
 
@@ -59,6 +59,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             request.state.user = session_user
 
         request.state.app_version = settings.app_version
+        request.state.build_date = settings.build_date
+        request.state.git_sha = settings.build_git_sha
+        request.state.source_url = settings.build_source_url
 
         if (
             path in PUBLIC_PATHS
