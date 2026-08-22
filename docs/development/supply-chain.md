@@ -36,7 +36,7 @@ curl -s http://localhost:8000/version
 {
   "service": "argus-sbomguard",
   "version": "0.0.7-beta",
-  "git_sha": "1edf171",
+  "git_sha": "1edf17104c2b1a5f7d26a1f19e6cf2d96e2e0aa4",
   "build_date": "2026-08-22T09:15:00Z",
   "source_url": "https://github.com/trottomv/argus-sbomguard",
   "environment": "production"
