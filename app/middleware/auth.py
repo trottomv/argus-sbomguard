@@ -59,9 +59,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
             request.state.user = session_user
 
         request.state.app_version = settings.app_version
-        request.state.build_date = settings.build_date
-        request.state.git_sha = settings.build_git_sha
-        request.state.source_url = settings.build_source_url
 
         if (
             path in PUBLIC_PATHS
