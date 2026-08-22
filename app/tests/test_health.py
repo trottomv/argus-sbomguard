@@ -28,6 +28,7 @@ async def test_version_endpoint(client):
         "git_sha": main.settings.build_git_sha,
         "build_date": main.settings.build_date,
         "source_url": main.settings.build_source_url,
+        "build_env": main.settings.build_env,
         "environment": main.settings.app_env,
     }
 
