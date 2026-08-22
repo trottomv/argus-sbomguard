@@ -17,12 +17,14 @@ tag, the image is built with:
 | Git commit | `github.sha` | `org.opencontainers.image.revision` | `git_sha` |
 | Build date | CI timestamp (UTC) | `org.opencontainers.image.created` | `build_date` |
 | Source repo | `github.repository` | `org.opencontainers.image.source` | `source_url` |
-| Environment | `APP_ENV` setting | — | `environment` |
+| Build environment | CI (`ci`) | — | `build_env` |
+| Deployment environment | `APP_ENV` setting | — | `environment` |
 
-The first four are baked into the image at build time via
+The first five are baked into the image at build time via
 [`app/Dockerfile`](../../app/Dockerfile) (`BUILD_GIT_SHA`, `BUILD_DATE`,
-`BUILD_SOURCE_URL`); the environment is reported from the `APP_ENV` runtime
-setting. In local (non-CI) builds the baked fields fall back to `unknown`.
+`BUILD_SOURCE_URL`, `BUILD_ENV`); the deployment environment is reported
+from the `APP_ENV` runtime setting. In local (non-CI) builds the baked
+fields fall back to `unknown`.
 
 ## Provenance at runtime
 
@@ -39,6 +41,7 @@ curl -s http://localhost:8000/version
   "git_sha": "1edf17104c2b1a5f7d26a1f19e6cf2d96e2e0aa4",
   "build_date": "2026-08-22T09:15:00Z",
   "source_url": "https://github.com/trottomv/argus-sbomguard",
+  "build_env": "ci",
   "environment": "production"
 }
 ```
@@ -68,7 +71,7 @@ Inspect the signature of a released image:
 ```bash
 cosign verify \
   ghcr.io/trottomv/argus-sbomguard:<tag> \
-  --certificate-identity-regexp "https://github.com/trottomv/argus-sbomguard/.github/workflows/build.yml@refs/tags/*" \
+  --certificate-identity-regexp "https://github.com/trottomv/argus-sbomguard/.github/workflows/build.yml@refs/" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -78,13 +81,13 @@ Verify the SBOM and SLSA provenance attestations:
 cosign verify-attestation \
   ghcr.io/trottomv/argus-sbomguard:<tag> \
   --type https://spdx.dev/Document \
-  --certificate-identity-regexp "https://github.com/trottomv/argus-sbomguard/.github/workflows/build.yml@refs/tags/*" \
+  --certificate-identity-regexp "https://github.com/trottomv/argus-sbomguard/.github/workflows/build.yml@refs/" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
 cosign verify-attestation \
   ghcr.io/trottomv/argus-sbomguard:<tag> \
   --type https://slsa.dev/provenance/v1 \
-  --certificate-identity-regexp "https://github.com/trottomv/argus-sbomguard/.github/workflows/build.yml@refs/tags/*" \
+  --certificate-identity-regexp "https://github.com/trottomv/argus-sbomguard/.github/workflows/build.yml@refs/" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 

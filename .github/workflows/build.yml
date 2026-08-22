@@ -28,11 +28,17 @@ jobs:
             target: remote
             image: ghcr.io/${{ github.repository }}
             description: Open-source SBOM-based vulnerability management platform.
+            build_args: |
+              BUILD_GIT_SHA=${{ github.sha }}
+              BUILD_DATE=${{ env.BUILD_DATE }}
+              BUILD_SOURCE_URL=https://github.com/${{ github.repository }}
+              BUILD_ENV=ci
           - name: backup
             context: .
             file: backup/Dockerfile
             image: ghcr.io/${{ github.repository }}-backup
             description: PostgreSQL backup/restore tooling image (pg_dump + openssl).
+            build_args: ""
     steps:
       - uses: actions/checkout@v7
 
@@ -83,10 +89,7 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           provenance: true
           sbom: true
-          build-args: |
-            BUILD_GIT_SHA=${{ github.sha }}
-            BUILD_DATE=${{ env.BUILD_DATE }}
-            BUILD_SOURCE_URL=https://github.com/${{ github.repository }}
+          build-args: ${{ matrix.build_args }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

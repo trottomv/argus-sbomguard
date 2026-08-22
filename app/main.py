@@ -110,6 +110,7 @@ def _build_provenance() -> dict[str, str]:
         "git_sha": settings.build_git_sha,
         "build_date": settings.build_date,
         "source_url": settings.build_source_url,
+        "build_env": settings.build_env,
         "environment": settings.app_env,
     }
 

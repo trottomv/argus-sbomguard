@@ -149,7 +149,7 @@ scan-all:
 verify-image image:
     @command -v cosign >/dev/null 2>&1 || { echo "cosign required (brew install cosign)"; exit 1; }
     cosign verify {{image}} \
-        --certificate-identity-regexp "https://github.com/trottomv/argus-sbomguard/.github/workflows/build.yml@refs/tags/*" \
+        --certificate-identity-regexp "https://github.com/trottomv/argus-sbomguard/.github/workflows/build.yml@refs/" \
         --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
 # regenerate gRPC protobuf stubs
