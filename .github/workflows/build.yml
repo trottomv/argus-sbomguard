@@ -49,6 +49,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute build date
+        run: echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v6
@@ -59,13 +62,11 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
           labels: |
             org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.created=${{ env.BUILD_DATE }}
           annotations: |
             org.opencontainers.image.description=${{ matrix.description }}
         env:
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
-
-      - name: Compute build date
-        run: echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
 
       - name: Build and push image
         id: build
@@ -83,7 +84,6 @@ jobs:
           provenance: true
           sbom: true
           build-args: |
-            APP_VERSION=${{ steps.meta.outputs.version }}
             BUILD_GIT_SHA=${{ github.sha }}
             BUILD_DATE=${{ env.BUILD_DATE }}
             BUILD_SOURCE_URL=https://github.com/${{ github.repository }}
