@@ -73,6 +73,7 @@ nav:
       - Contributing: development/contributing.md
       - Architecture: development/architecture.md
       - Testing: development/testing.md
+      - Upgrade & Rollback: development/upgrades.md
   - API Reference:
       - Reference: api/reference.md
       - Versioning & Deprecation: api/versioning.md

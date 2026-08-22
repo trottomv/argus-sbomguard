@@ -244,6 +244,10 @@ docker compose pull
 docker compose up -d
 ```
 
+Migrations run automatically on startup. For the full checklist — pre-upgrade
+dump, migration verification, and the rollback procedure — see the
+[Upgrade & Rollback Runbook](development/upgrades.md).
+
 ### Logs
 
 ```bash
