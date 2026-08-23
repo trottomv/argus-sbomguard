@@ -24,24 +24,41 @@ async def do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = None
     """
     target_date = date.fromisoformat(snapshot_date) if snapshot_date else date.today()
 
+    # A vulnerability is "open" only while it is not fixed anywhere (fixed wins):
+    # this keeps open and fixed disjoint and makes today and historical paths agree.
     if target_date == date.today():
-        open_vulns = await db.execute(
-            select(Vulnerability.severity)
+        total_result = await db.execute(
+            select(Vulnerability.id, Vulnerability.severity)
             .join(SBOMVulnerability)
-            .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
+            .where(
+                SBOMVulnerability.status == VulnerabilityStatus.OPEN,
+                Vulnerability.severity.isnot(None),
+            )
             .distinct(Vulnerability.id)
         )
-        severities = [severity.lower() for severity in open_vulns.scalars().all()]
+        total_dict = {row[0]: row[1] for row in total_result}
+
+        fixed_before = await db.execute(
+            select(SBOMVulnerability.vulnerability_id)
+            .where(
+                SBOMVulnerability.status == VulnerabilityStatus.FIXED,
+                SBOMVulnerability.fixed_at.isnot(None),
+            )
+            .distinct()
+        )
     else:
         # For historical days, compute: all vulns created <= date - fixed before date
         total_result = await db.execute(
             select(Vulnerability.id, Vulnerability.severity)
             .join(SBOMVulnerability)
             .join(SBOM)
-            .where(func.date(SBOM.created_at) <= target_date)
+            .where(
+                func.date(SBOM.created_at) <= target_date,
+                Vulnerability.severity.isnot(None),
+            )
             .distinct(Vulnerability.id)
         )
-        total_dict = {vuln_id: severity.lower() for vuln_id, severity in total_result}
+        total_dict = {row[0]: row[1] for row in total_result}
 
         fixed_before = await db.execute(
             select(SBOMVulnerability.vulnerability_id)
@@ -52,10 +69,11 @@ async def do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = None
             )
             .distinct()
         )
-        fixed_ids = {row[0] for row in fixed_before}
-        severities = [
-            severity for vuln_id, severity in total_dict.items() if vuln_id not in fixed_ids
-        ]
+
+    fixed_ids = {row[0] for row in fixed_before}
+    severities = [
+        severity.lower() for vuln_id, severity in total_dict.items() if vuln_id not in fixed_ids
+    ]
 
     critical_count = sum(
         1 for severity in severities if severity == VulnerabilitySeverity.CRITICAL.value.lower()
