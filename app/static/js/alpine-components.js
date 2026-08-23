@@ -245,7 +245,7 @@
                     document.getElementById('alert_modal').showModal();
                 },
                 submitAlert() {
-                    var url = this.editAlertId ? '/api/v1/alerts/' + this.editAlertId : '/api/v1/alerts';
+                    var url = this.editAlertId ? '/api/v1/alert-rules/' + this.editAlertId : '/api/v1/alert-rules';
                     var method = this.editAlertId ? 'PATCH' : 'POST';
                     var body = {
                         project_id: this.alertProject,
@@ -262,7 +262,7 @@
                     document.getElementById('delete_alert_modal').showModal();
                 },
                 confirmDeleteAlert() {
-                    fetch('/api/v1/alerts/' + this.delAlertId, { method: 'DELETE' }).then(function (r) {
+                    fetch('/api/v1/alert-rules/' + this.delAlertId, { method: 'DELETE' }).then(function (r) {
                         if (r.ok) window.location.reload();
                     });
                     document.getElementById('delete_alert_modal').close();
