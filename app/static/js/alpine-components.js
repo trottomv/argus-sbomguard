@@ -186,12 +186,12 @@
             return {
                 keyId: null,
                 keyLabel: '',
-                editAlertId: null,
+                editAlertRuleId: null,
                 alertProject: '',
                 alertSeverity: 'high',
                 alertType: 'email',
                 alertEnabled: true,
-                delAlertId: null,
+                delAlertRuleId: null,
                 createdKey: '',
                 showCreatedKey: false,
                 newKeyLabel: '',
@@ -227,26 +227,26 @@
                     });
                     document.getElementById('revoke_key_modal').close();
                 },
-                openNewAlert() {
-                    this.editAlertId = null;
+                openNewAlertRule() {
+                    this.editAlertRuleId = null;
                     this.alertProject = '';
                     this.alertSeverity = 'high';
                     this.alertType = 'email';
                     this.alertEnabled = true;
                     document.getElementById('alert_modal').showModal();
                 },
-                openEditAlert(event) {
+                openEditAlertRule(event) {
                     var el = event.currentTarget;
-                    this.editAlertId = el.dataset.id;
+                    this.editAlertRuleId = el.dataset.id;
                     this.alertProject = el.dataset.project;
                     this.alertSeverity = el.dataset.severity;
                     this.alertType = el.dataset.type;
                     this.alertEnabled = el.dataset.enabled === 'true';
                     document.getElementById('alert_modal').showModal();
                 },
-                submitAlert() {
-                    var url = this.editAlertId ? '/api/v1/alert-rules/' + this.editAlertId : '/api/v1/alert-rules';
-                    var method = this.editAlertId ? 'PATCH' : 'POST';
+                submitAlertRule() {
+                    var url = this.editAlertRuleId ? '/api/v1/alert-rules/' + this.editAlertRuleId : '/api/v1/alert-rules';
+                    var method = this.editAlertRuleId ? 'PATCH' : 'POST';
                     var body = {
                         project_id: this.alertProject,
                         severity_threshold: this.alertSeverity,
@@ -257,12 +257,12 @@
                         if (r.ok) window.location.reload();
                     });
                 },
-                openDeleteAlert(event) {
-                    this.delAlertId = event.currentTarget.dataset.id;
+                openDeleteAlertRule(event) {
+                    this.delAlertRuleId = event.currentTarget.dataset.id;
                     document.getElementById('delete_alert_modal').showModal();
                 },
-                confirmDeleteAlert() {
-                    fetch('/api/v1/alert-rules/' + this.delAlertId, { method: 'DELETE' }).then(function (r) {
+                confirmDeleteAlertRule() {
+                    fetch('/api/v1/alert-rules/' + this.delAlertRuleId, { method: 'DELETE' }).then(function (r) {
                         if (r.ok) window.location.reload();
                     });
                     document.getElementById('delete_alert_modal').close();

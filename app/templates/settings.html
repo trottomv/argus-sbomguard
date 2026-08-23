@@ -36,7 +36,7 @@
             <h3 class="font-bold text-lg">Delete Alert Rule</h3>
             <p class="py-4">Delete this alert rule?</p>
             <div class="modal-action">
-                <button class="btn btn-error" @click="confirmDeleteAlert()">Delete</button>
+                <button class="btn btn-error" @click="confirmDeleteAlertRule()">Delete</button>
                 <button class="btn btn-outline" data-close-modal="delete_alert_modal">Cancel</button>
             </div>
         </div>
@@ -107,12 +107,12 @@
         <div>
             <h2 class="text-lg font-bold text-ctp-text">Alert Configurations</h2>
             <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
-                    @click="openNewAlert()"><svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-plus"></use></svg> New Alert Rule</button>
+                    @click="openNewAlertRule()"><svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-plus"></use></svg> New Alert Rule</button>
 
             <dialog id="alert_modal" class="modal">
                 <div class="modal-box">
-                    <h3 class="font-bold text-lg" x-text="editAlertId ? 'Edit Alert Rule' : 'New Alert Rule'"></h3>
-                    <form @submit.prevent="submitAlert()" class="space-y-4 mt-4">
+                    <h3 class="font-bold text-lg" x-text="editAlertRuleId ? 'Edit Alert Rule' : 'New Alert Rule'"></h3>
+                    <form @submit.prevent="submitAlertRule()" class="space-y-4 mt-4">
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend">Project</legend>
                             <select x-model="alertProject" class="select w-full" required>
@@ -144,7 +144,7 @@
                         </fieldset>
                         <div class="modal-action">
                             <button type="submit" class="btn btn-primary"
-                                    x-text="editAlertId ? 'Save' : 'Create'"></button>
+                                    x-text="editAlertRuleId ? 'Save' : 'Create'"></button>
                             <button type="button" class="btn btn-outline" data-close-modal="alert_modal">Cancel</button>
                         </div>
                     </form>
@@ -182,12 +182,12 @@
                                             data-severity="{{ alert.severity_threshold }}"
                                             data-type="{{ alert.notification_type }}"
                                             data-enabled="{{ 'true' if alert.enabled else 'false' }}"
-                                            @click="openEditAlert($event)">
+                                            @click="openEditAlertRule($event)">
                                         <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-pencil"></use></svg>
                                     </button>
                                     <button class="btn btn-ghost btn-sm text-error"
                                             data-id="{{ alert.id }}"
-                                            @click="openDeleteAlert($event)">
+                                            @click="openDeleteAlertRule($event)">
                                         <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-trash-2"></use></svg>
                                     </button>
                                 </div>
