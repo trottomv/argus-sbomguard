@@ -248,3 +248,103 @@ async def test_snapshot_metrics_global_distinct_across_projects(db_session):
     # Same CVE open in two projects is counted once platform-wide
     assert snaps[0].critical_count == 1
     assert snaps[0].fixed_count == 0
+
+
+@pytest.mark.asyncio
+async def test_snapshot_metrics_fixed_wins_over_open(db_session):
+    projects = [Project(name=f"fw-{i}") for i in range(2)]
+    db_session.add_all(projects)
+    await db_session.flush()
+
+    sboms = [
+        SBOM(
+            project_id=project.id,
+            format=SBOMFormat.CYCLONEDX,
+            raw_sbom={"bomFormat": "CycloneDX"},
+            sha256=f"f{i}" * 32,
+        )
+        for i, project in enumerate(projects)
+    ]
+    db_session.add_all(sboms)
+    await db_session.flush()
+
+    vuln = Vulnerability(
+        cve_id="CVE-2026-9701", source="grype", severity=VulnerabilitySeverity.CRITICAL
+    )
+    db_session.add(vuln)
+    await db_session.flush()
+
+    db_session.add(
+        SBOMVulnerability(
+            sbom_id=sboms[0].id,
+            dependency_purl="pkg:npm/a@1.0.0",
+            vulnerability_id=vuln.id,
+            status=VulnerabilityStatus.OPEN,
+            detected_at=datetime.now(UTC),
+        )
+    )
+    db_session.add(
+        SBOMVulnerability(
+            sbom_id=sboms[1].id,
+            dependency_purl="pkg:npm/b@1.0.0",
+            vulnerability_id=vuln.id,
+            status=VulnerabilityStatus.FIXED,
+            detected_at=datetime.now(UTC),
+            fixed_at=datetime.now(UTC),
+        )
+    )
+    await db_session.commit()
+
+    await do_snapshot_metrics(db_session, date.today().isoformat())
+
+    snap = (
+        await db_session.execute(
+            select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id.is_(None))
+        )
+    ).scalar_one()
+    # Open in one project but fixed in another: counted as fixed, not open
+    assert snap.critical_count == 0
+    assert snap.fixed_count == 1
+
+
+@pytest.mark.asyncio
+async def test_snapshot_metrics_null_severity_ignored(db_session):
+    project = Project(name="null-sev")
+    db_session.add(project)
+    await db_session.flush()
+
+    sbom = SBOM(
+        project_id=project.id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="n" * 64,
+    )
+    db_session.add(sbom)
+    await db_session.flush()
+
+    vuln = Vulnerability(cve_id="CVE-2026-9801", source="grype", severity=None)
+    db_session.add(vuln)
+    await db_session.flush()
+    db_session.add(
+        SBOMVulnerability(
+            sbom_id=sbom.id,
+            dependency_purl="pkg:npm/c@1.0.0",
+            vulnerability_id=vuln.id,
+            status=VulnerabilityStatus.OPEN,
+            detected_at=datetime.now(UTC),
+        )
+    )
+    await db_session.commit()
+
+    await do_snapshot_metrics(db_session, date.today().isoformat())
+
+    snap = (
+        await db_session.execute(
+            select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id.is_(None))
+        )
+    ).scalar_one()
+    assert snap.critical_count == 0
+    assert snap.high_count == 0
+    assert snap.medium_count == 0
+    assert snap.low_count == 0
+    assert snap.fixed_count == 0
