@@ -4,6 +4,9 @@ from datetime import UTC, datetime
 
 import pytest
 
+from models.project import Project
+from models.sbom import SBOM, SBOMFormat
+from models.service import Service
 from models.vulnerability import (
     SBOMVulnerability,
     Vulnerability,
@@ -108,3 +111,72 @@ async def test_active_vulnerabilities_filters_and_sort(client, db_session):
     assert resp.json()["items"][0]["cve_id"] == "CVE-2026-0102"
     assert resp.json()["items"][0]["projects"] == ["vuln-active"]
     assert resp.json()["items"][0]["services"] == ["svc"]
+
+
+@pytest.mark.asyncio
+async def test_active_vulnerabilities_services_exclude_fixed(client, db_session):
+    project = Project(name="vuln-svc-fixed")
+    db_session.add(project)
+    await db_session.flush()
+
+    svc_a = Service(project_id=project.id, name="svc-a")
+    svc_b = Service(project_id=project.id, name="svc-b")
+    db_session.add_all([svc_a, svc_b])
+    await db_session.flush()
+
+    sbom_a = SBOM(
+        project_id=project.id,
+        service_id=svc_a.id,
+        version="v1",
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="d" * 64,
+    )
+    sbom_b = SBOM(
+        project_id=project.id,
+        service_id=svc_b.id,
+        version="v1",
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="e" * 64,
+    )
+    db_session.add_all([sbom_a, sbom_b])
+    await db_session.flush()
+
+    vuln = Vulnerability(
+        cve_id="CVE-2026-4003",
+        source="grype",
+        severity=VulnerabilitySeverity.CRITICAL,
+        cvss_score=9.8,
+        summary="svc label test",
+    )
+    db_session.add(vuln)
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            SBOMVulnerability(
+                sbom_id=sbom_a.id,
+                dependency_purl="pkg:npm/lodash@4.17.20",
+                vulnerability_id=vuln.id,
+                status=VulnerabilityStatus.OPEN,
+                detected_at=datetime.now(UTC),
+            ),
+            SBOMVulnerability(
+                sbom_id=sbom_b.id,
+                dependency_purl="pkg:npm/lodash@4.17.20",
+                vulnerability_id=vuln.id,
+                status=VulnerabilityStatus.FIXED,
+                fixed_at=datetime.now(UTC),
+                detected_at=datetime.now(UTC),
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    resp = await client.get("/api/v1/vulnerabilities/active")
+    assert resp.status_code == 200
+    items = [item for item in resp.json()["items"] if item["cve_id"] == "CVE-2026-4003"]
+    assert len(items) == 1
+    assert items[0]["services"] == ["svc-a"]
+    assert items[0]["projects"] == ["vuln-svc-fixed"]

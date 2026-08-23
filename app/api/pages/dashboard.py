@@ -25,22 +25,10 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     project_count = (await db.execute(select(func.count(Project.id)))).scalar() or 0
     sbom_count = (await db.execute(select(func.count(SBOM.id)))).scalar() or 0
 
-    fixed_ids_subq = (
-        select(SBOMVulnerability.vulnerability_id)
-        .where(
-            SBOMVulnerability.status == VulnerabilityStatus.FIXED,
-            SBOMVulnerability.fixed_at.isnot(None),
-        )
-        .distinct()
-    ).subquery()
-
     vuln_subq = (
         select(Vulnerability.id, Vulnerability.severity)
         .join(SBOMVulnerability)
-        .where(
-            SBOMVulnerability.status == VulnerabilityStatus.OPEN,
-            ~Vulnerability.id.in_(select(fixed_ids_subq.c.vulnerability_id)),
-        )
+        .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
         .distinct()
     ).subquery()
 
