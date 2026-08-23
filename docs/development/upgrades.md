@@ -79,6 +79,8 @@ finishing.
    `sudo`, or `sudo chown -R "$(id -u):$(id -g)" "$BACKUP_DIR"` afterwards.
 6. **Copy the backup off-box** (`scp`, `rsync`, object storage). If the server
    itself is affected by the incident, an on-server backup may be unreachable.
+   This is the same rule the [Disaster Recovery](../operations/disaster-recovery.md#the-off-box-copy)
+   plan depends on.
 
 ## Upgrade procedure
 
@@ -226,8 +228,8 @@ specific migration:
   only drops columns/functions or reverts types is usually safe; one that
   transforms data may fail or lose data under the old constraints.
 - **Assume nothing across releases** — the chain is not stable before the first
-  stable release (see [Pre-stable migration chain](#pre-stable-migration-chain)),
-  so revision numbers in one release may not exist in the next.
+  stable release (see [How upgrades work](#how-upgrades-work)), so revision
+  numbers in one release may not exist in the next.
 
 The downgrade path only matters for [Path B](#path-b-alembic-downgrade-best-effort-schema-only).
 For rollback of any migration, [Path A](#path-a-restore-from-the-pre-upgrade-backup-recommended)

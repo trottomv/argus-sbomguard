@@ -69,6 +69,10 @@ nav:
       - Alerts & Notifications: guide/alerts.md
       - Reverse Proxy + WAF: guide/proxy.md
       - Observability: guide/observability.md
+  - Operations:
+      - Capacity Planning: operations/capacity-planning.md
+      - Disaster Recovery: operations/disaster-recovery.md
+      - Secrets Management: operations/secrets-management.md
   - Development:
       - Contributing: development/contributing.md
       - Architecture: development/architecture.md

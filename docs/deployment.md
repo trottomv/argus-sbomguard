@@ -34,6 +34,10 @@ Disk space is dominated by the Docker images (~2–3 GB) plus the PostgreSQL
 volume, which grows with every SBOM, dependency record, and vulnerability
 snapshot you store. Start with 20 GB and monitor `docker system df`.
 
+For a deeper look at how these numbers scale with your workload — Grype memory
+spikes, backup storage, tuning knobs — see
+[Capacity Planning](operations/capacity-planning.md).
+
 !!! note "Swap"
     If you use a 2 GB machine, a 2 GB swap file gives Grype and PostgreSQL
     comfortable headroom during large scans.
@@ -42,7 +46,7 @@ snapshot you store. Start with 20 GB and monitor `docker system df`.
 
 - A **VPS or dedicated server** (any provider works) with root access over SSH
 - A **domain name** (e.g. `argus.example.com`) whose DNS you control
-- Docker + Docker Compose v2 on the server (installed in [Step 2](#step-2-install-docker))
+- Docker + Docker Compose v2 on the server (installed in [Step 2](#step-2-install-the-container-runtime))
 
 ## Step 1 — Point DNS and open the firewall
 
@@ -264,6 +268,10 @@ that speak only to `pg_dump`/`psql` over the network — they know nothing about
 docker or Kubernetes. The stack ships a `backup` service (an image based on the
 postgres image, plus `openssl`) that runs them with the database connection and
 `BACKUP_*` settings injected from `.env`.
+
+> Backups alone are not a disaster-recovery plan — see
+> [Disaster Recovery](operations/disaster-recovery.md) for RPO/RTO, the off-box
+> copy, and the recovery runbooks.
 
 Create a backup with the shortcut, while the stack is up:
 

@@ -8,8 +8,8 @@ without trusting the registry.
 
 ## What gets recorded
 
-When the [build workflow](../../.github/workflows/build.yml) runs on a `v*`
-tag, the image is built with:
+When the [build workflow](https://github.com/trottomv/argus-sbomguard/blob/main/.github/workflows/build.yml)
+runs on a `v*` tag, the image is built with:
 
 | Field | Source | OCI label | Runtime |
 |-------|--------|-----------|---------|
@@ -21,10 +21,10 @@ tag, the image is built with:
 | Deployment environment | `APP_ENV` setting | — | `environment` |
 
 The first five are baked into the image at build time via
-[`app/Dockerfile`](../../app/Dockerfile) (`BUILD_GIT_SHA`, `BUILD_DATE`,
-`BUILD_SOURCE_URL`, `BUILD_ENV`); the deployment environment is reported
-from the `APP_ENV` runtime setting. In local (non-CI) builds the baked
-fields fall back to `unknown`.
+[`app/Dockerfile`](https://github.com/trottomv/argus-sbomguard/blob/main/app/Dockerfile)
+(`BUILD_GIT_SHA`, `BUILD_DATE`, `BUILD_SOURCE_URL`, `BUILD_ENV`); the
+deployment environment is reported from the `APP_ENV` runtime setting. In local
+(non-CI) builds the baked fields fall back to `unknown`.
 
 ## Provenance at runtime
 
