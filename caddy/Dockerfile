@@ -12,7 +12,7 @@ ARG CADDY_VERSION
 ARG XCADDY_VERSION
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git curl ca-certificates gzip libcap2-bin \
+    && apt-get install -y --no-install-recommends git curl ca-certificates gzip \
     && rm -rf /var/lib/apt/lists/* \
     && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o /tmp/go.tgz \
     && echo "${GO_SHA256}  /tmp/go.tgz" | sha256sum -c - \
@@ -57,8 +57,6 @@ RUN mkdir -p /etc/caddy/crs /data /config && \
     chown -R 65532:65532 /data /config
 
 FROM dhi.io/caddy:2
-
-ENV XDG_DATA_HOME=/data
 
 COPY --from=builder /usr/bin/caddy /usr/local/bin/caddy
 COPY --from=crs /etc/caddy/crs /etc/caddy/crs
