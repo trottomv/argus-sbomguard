@@ -87,7 +87,19 @@ secrets:
 ```
 
 The entrypoint shim (any small wrapper that runs before the real command —
-e.g. `entrypoint.sh`):
+e.g. `entrypoint.sh`). It reads the `*_FILE` variables declared above, so the
+override and the shim stay in sync:
+
+```sh
+# for each secret mapped via a <NAME>_FILE variable, export the value as <NAME>
+for env in $(env | sed -n 's/^\(.*\)_FILE=.*/\1/p'); do
+    f=$(eval "echo \"\$${env}_FILE\"")
+    [ -f "$f" ] && export "$env"="$(cat "$f")"
+done
+exec "$@"
+```
+
+For a fixed set of secrets the explicit form is easier to follow:
 
 ```sh
 for v in SECRET_KEY POSTGRES_PASSWORD RABBITMQ_PASSWORD BACKUP_ENCRYPTION_KEY; do
@@ -96,6 +108,10 @@ for v in SECRET_KEY POSTGRES_PASSWORD RABBITMQ_PASSWORD BACKUP_ENCRYPTION_KEY; d
 done
 exec "$@"
 ```
+
+If you use the explicit form, drop the `environment:` blocks from the override
+above (the secret mounts alone are enough) — otherwise the `*_FILE` variables
+are declared but never read.
 
 Caveats:
 
