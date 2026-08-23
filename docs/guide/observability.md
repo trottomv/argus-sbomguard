@@ -106,8 +106,8 @@ https://<your-domain>/metrics
 ```
 
 This endpoint is **unauthenticated** by design so the scraper needs no
-credentials. See [Reverse Proxy + WAF](proxy.md#security-metrics-is-unauthenticated)
-for the implications on publicly reachable deployments.
+credentials. See [Reverse Proxy + WAF](proxy.md#health) for the implications on
+publicly reachable deployments.
 
 Host metric examples available from the Collector:
 

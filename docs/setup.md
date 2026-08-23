@@ -31,6 +31,10 @@ python3 -c "import secrets; print(secrets.token_urlsafe(24))"   # POSTGRES_PASSW
 python3 -c "import secrets; print(secrets.token_urlsafe(24))"   # RABBITMQ_PASSWORD
 ```
 
+For a full picture of every secret, how to store them (`.env`, Docker secrets,
+Kubernetes Secrets) and how to rotate them, see
+[Secrets Management](operations/secrets-management.md).
+
 ### Variable reference
 
 | Variable | Default | Description |
