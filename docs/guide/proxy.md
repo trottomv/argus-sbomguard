@@ -15,15 +15,13 @@ Client ──:443──→ proxy ──:8000──→ app (FastAPI)
 
 ## Build
 
-The Dockerfile at [`caddy/Dockerfile`](https://github.com/trottomv/argus-sbomguard/blob/main/caddy/Dockerfile) uses `xcaddy` to build Caddy 2.11.3 with the `corazawaf/coraza-caddy` and `mholt/caddy-ratelimit` modules.
+The Dockerfile at [`caddy/Dockerfile`](https://github.com/trottomv/argus-sbomguard/blob/main/caddy/Dockerfile) is a three-stage build:
 
-```dockerfile
-RUN xcaddy build \
-    --with github.com/corazawaf/coraza-caddy \
-    --with github.com/mholt/caddy-ratelimit
-```
+1. **builder** — Docker Hardened Images dev base (`dhi.io/caddy:2-debian-dev`) with a pinned Go toolchain (`1.26.7`, SHA-256 verified); `xcaddy` (pinned to `v0.4.7`) compiles Caddy 2.11.4 with the `corazawaf/coraza-caddy` and `mholt/caddy-ratelimit` modules.
+2. **crs** — unpacks the OWASP CRS v4.4.0 archive to `/etc/caddy/crs/` and prepares the `/data` + `/config` directories (owned by the runtime uid); keeps `tar` out of the runtime.
+3. **runtime** — the official **Docker Hardened Images** base (`dhi.io/caddy:2`, Docker Inc.'s distroless Debian image), with the stage-1 binary copied over the stock caddy.
 
-The OWASP CRS v4.4.0 archive is downloaded and extracted to `/etc/caddy/crs/` at build time.
+Transitive Go modules with known advisories are bumped via `--replace` where the upstream plugin versions allow it. Three residual findings are unfixable without breaking the build: `coraza/v3` (needs 3.3.3, incompatible with `coraza-caddy` v1.2.2), `google/cel-go` (needs 0.29.0, incompatible with Caddy 2.11.4) and `golang.org/x/crypto@v0.52.0` (advisory `GO-2026-5932` has no fixed version upstream).
 
 ## WAF Rules
 
