@@ -28,17 +28,11 @@ jobs:
             target: remote
             image: ghcr.io/${{ github.repository }}
             description: Open-source SBOM-based vulnerability management platform.
-            build_args: |
-              BUILD_GIT_SHA=${{ github.sha }}
-              BUILD_DATE=${{ env.BUILD_DATE }}
-              BUILD_SOURCE_URL=https://github.com/${{ github.repository }}
-              BUILD_ENV=ci
           - name: backup
             context: .
             file: backup/Dockerfile
             image: ghcr.io/${{ github.repository }}-backup
             description: PostgreSQL backup/restore tooling image (pg_dump + openssl).
-            build_args: ""
     steps:
       - uses: actions/checkout@v7
 
@@ -57,6 +51,18 @@ jobs:
 
       - name: Compute build date
         run: echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+
+      - name: Prepare provenance build args
+        if: matrix.name == 'app'
+        run: |
+          {
+            echo "BUILD_ARGS<<EOF"
+            echo "BUILD_GIT_SHA=${{ github.sha }}"
+            echo "BUILD_DATE=${BUILD_DATE}"
+            echo "BUILD_SOURCE_URL=https://github.com/${{ github.repository }}"
+            echo "BUILD_ENV=ci"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
 
       - name: Extract metadata (tags, labels)
         id: meta
@@ -89,7 +95,7 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           provenance: true
           sbom: true
-          build-args: ${{ matrix.build_args }}
+          build-args: ${{ env.BUILD_ARGS }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
