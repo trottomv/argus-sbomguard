@@ -7,10 +7,9 @@ from sbom_pb2 import UploadRequest, UploadResponse
 from sbom_pb2_grpc import SBOMServiceServicer as BaseServicer
 from sbom_pb2_grpc import add_SBOMServiceServicer_to_server
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
 
 from config import settings
+from database import async_session_factory
 from models.project import Project
 from services.auth import validate_api_key
 from services.sbom_parser import store_sbom
@@ -20,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 
 class AuthInterceptor(grpc.aio.ServerInterceptor):
+    def __init__(self, session_factory=None):
+        self._session_factory = session_factory or async_session_factory
+
     async def intercept_service(self, continuation, handler_call_details):
         metadata = dict(handler_call_details.invocation_metadata or [])
         api_key = metadata.get("api-key", "")
@@ -27,9 +29,7 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
         if not api_key:
             return _rejecting_handler(grpc.StatusCode.UNAUTHENTICATED, "api-key metadata required")
 
-        engine = create_async_engine(settings.database_url, echo=False, poolclass=NullPool)
-        session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-        async with session_factory() as db:
+        async with self._session_factory() as db:
             user = await validate_api_key(db, api_key)
             if not user:
                 return _rejecting_handler(grpc.StatusCode.UNAUTHENTICATED, "invalid api-key")
@@ -46,13 +46,7 @@ def _rejecting_handler(code: grpc.StatusCode, detail: str):
 
 class SBOMServiceServicer(BaseServicer):
     def __init__(self, session_factory=None):
-        if session_factory is not None:
-            self._session_factory = session_factory
-        else:
-            engine = create_async_engine(settings.database_url, echo=False, poolclass=NullPool)
-            self._session_factory = async_sessionmaker(
-                engine, class_=AsyncSession, expire_on_commit=False
-            )
+        self._session_factory = session_factory or async_session_factory
 
     async def upload_sbom(
         self, request: UploadRequest, context: grpc.aio.ServicerContext

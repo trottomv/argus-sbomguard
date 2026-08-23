@@ -258,6 +258,9 @@ class TestAuthInterceptor:
 
         return _Details()
 
+    def _interceptor(self, db_session):
+        return AuthInterceptor(session_factory=async_sessionmaker(db_session.bind))
+
     @pytest.mark.asyncio
     async def test_missing_api_key_rejected(self):
         interceptor = AuthInterceptor()
@@ -268,9 +271,8 @@ class TestAuthInterceptor:
         continuation.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_invalid_api_key_rejected(self):
-
-        interceptor = AuthInterceptor()
+    async def test_invalid_api_key_rejected(self, db_session):
+        interceptor = self._interceptor(db_session)
         continuation = AsyncMock()
 
         with patch(
@@ -283,11 +285,11 @@ class TestAuthInterceptor:
         continuation.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_valid_api_key_passes_through(self):
+    async def test_valid_api_key_passes_through(self, db_session):
         from models.auth import User
 
         user = User(email="grpc-key@example.com", is_admin=True)
-        interceptor = AuthInterceptor()
+        interceptor = self._interceptor(db_session)
         continuation = AsyncMock()
         continuation.return_value = "handled"
 
@@ -309,8 +311,10 @@ class TestAuthInterceptor:
 
 
 def test_servicer_default_session_factory():
+    from database import async_session_factory
+
     servicer = SBOMServiceServicer()
-    assert servicer._session_factory is not None
+    assert servicer._session_factory is async_session_factory
 
 
 @pytest.mark.asyncio
