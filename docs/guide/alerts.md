@@ -16,7 +16,7 @@ Argus SBOM Guard can notify you when new vulnerabilities are discovered.
 **API**:
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/alerts \
+curl -X POST http://localhost:8000/api/v1/alert-rules \
   -H "X-API-Key: argus_xxx" \
   -H "Content-Type: application/json" \
   -d '{
@@ -47,16 +47,16 @@ For each enabled alert rule:
 
 ```bash
 # List all alert rules
-curl http://localhost:8000/api/v1/alerts \
+curl http://localhost:8000/api/v1/alert-rules \
   -H "X-API-Key: argus_xxx"
 
 # Update an alert rule
-curl -X PATCH http://localhost:8000/api/v1/alerts/{id} \
+curl -X PATCH http://localhost:8000/api/v1/alert-rules/{id} \
   -H "X-API-Key: argus_xxx" \
   -H "Content-Type: application/json" \
   -d '{"enabled": false}'
 
 # Delete an alert rule
-curl -X DELETE http://localhost:8000/api/v1/alerts/{id} \
+curl -X DELETE http://localhost:8000/api/v1/alert-rules/{id} \
   -H "X-API-Key: argus_xxx"
 ```

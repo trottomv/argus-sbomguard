@@ -39,6 +39,10 @@ Argus turns SBOMs into actionable security intelligence.
 - **Integrations** — REST API and gRPC for programmatic SBOM upload
 - **Dashboard** — Real-time trends and per-project vulnerability metrics
 
+<p align="center">
+  <img src="docs/img/dashboard.png" alt="Argus SBOM Guard dashboard" width="800">
+</p>
+
 ## Quick Start
 
 ```bash
@@ -70,7 +74,7 @@ Open [http://localhost:8000](http://localhost:8000) → login with `admin@argus.
 projects → services → sboms → dependencies
 vulnerabilities ──M:N── sboms (via sbom_vulnerabilities)
 vulnerability_snapshots (daily per-project metrics)
-alert_configs → notifications
+alert_configs → notifications / pull_requests
 users → api_keys / login_tokens
 ```
 
@@ -106,8 +110,8 @@ Key endpoints:
 | `POST` | `/api/v1/sboms/upload` | Upload SBOM (CycloneDX / SPDX) |
 | `GET` | `/api/v1/sboms/{id}/diff/{other_id}` | Diff two SBOM versions |
 | `GET` | `/api/v1/vulnerabilities/active` | List open vulnerabilities |
-| `POST` | `/api/v1/api-keys` | Generate API key |
-| `POST` | `/api/v1/alerts` | Configure alert rules |
+| `GET / POST` | `/api/v1/alert-rules` | List / create alert rules |
+| `PATCH / DELETE` | `/api/v1/alert-rules/{id}` | Update / delete alert rule |
 
 Authentication via `X-API-Key` header (REST) or `api-key` metadata (gRPC).
 
@@ -121,7 +125,7 @@ Authentication via `X-API-Key` header (REST) or `api-key` metadata (gRPC).
 
 ⏳ Dependency graph & impact analysis
 
-⏳ Build provenance (repository, commit, environment)
+✅ Build provenance (repository, commit, environment)
 
 ⏳ Additional notification integrations
 
@@ -131,7 +135,7 @@ Authentication via `X-API-Key` header (REST) or `api-key` metadata (gRPC).
 cp .env.example .env
 docker compose up -d
 docker compose exec app alembic upgrade head
-docker compose exec app pytest -v
+COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app pytest -v
 ```
 
 Full contributing guide at [CONTRIBUTING.md](CONTRIBUTING.md).
