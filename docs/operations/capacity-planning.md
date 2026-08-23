@@ -14,7 +14,7 @@ with your workload.
 | **Disk** | PostgreSQL volume, backup directory, Docker images + container logs | PostgreSQL grows with every SBOM, dependency, vulnerability link and daily snapshot |
 | **RAM** | PostgreSQL, worker (Grype), app | Grype spawns per-SBOM scan processes that spike memory during scans |
 | **CPU** | Worker (Grype), app, PostgreSQL | Grype is CPU-bound; the worker runs `--concurrency=4` by default |
-| **Network** | OSV API, Slack webhook, SMTP | Outbound only, modest — a scan of a large SBOM makes one OSV batch query |
+| **Network** | Grype DB updates, Slack webhook, SMTP | Outbound only, modest. Grype downloads/refreshes its local vulnerability DB on first use; no per-scan external API calls |
 
 RabbitMQ is **transient**: it only holds queued tasks and needs no backup or
 persistent capacity planning
@@ -87,8 +87,9 @@ If the worker is OOM-killed during scans:
   then `docker compose up -d`.
 - Or lower Celery concurrency by overriding the worker command
   (`--concurrency=2`). Fewer concurrent scans = less memory, slower throughput.
-- Or lower `VULN_RESCAN_INTERVAL_SECONDS` to spread rescans over time rather
-  than letting them stack up (default 12 h).
+- Or raise `VULN_RESCAN_INTERVAL_SECONDS` (default 12 h). Every rescan run
+  re-scans **all** latest SBOMs in one batch, so a shorter interval means more
+  frequent full batches and more Grype load, not less.
 
 There is no horizontal scaling knob yet — the stack ships a single worker. If
 scans back up, check the queue depth:
