@@ -251,7 +251,7 @@ async def test_snapshot_metrics_global_distinct_across_projects(db_session):
 
 
 @pytest.mark.asyncio
-async def test_snapshot_metrics_fixed_wins_over_open(db_session):
+async def test_snapshot_metrics_open_anywhere_with_fixed_elsewhere(db_session):
     projects = [Project(name=f"fw-{i}") for i in range(2)]
     db_session.add_all(projects)
     await db_session.flush()
@@ -302,8 +302,9 @@ async def test_snapshot_metrics_fixed_wins_over_open(db_session):
             select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id.is_(None))
         )
     ).scalar_one()
-    # Open in one project but fixed in another: counted as fixed, not open
-    assert snap.critical_count == 0
+    # Open in one service but fixed in another: still counted as open,
+    # and also counted in the fixed metric (they are independent)
+    assert snap.critical_count == 1
     assert snap.fixed_count == 1
 
 
