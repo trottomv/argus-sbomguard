@@ -55,7 +55,7 @@ async def test_snapshot_metrics_historical_date(db_session):
 
     snap = (
         await db_session.execute(
-            select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id == project.id)
+            select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id.is_(None))
         )
     ).scalar_one()
     assert snap.snapshot_date == past
@@ -87,7 +87,7 @@ async def test_snapshot_metrics_upsert_existing(db_session):
     snaps = (
         (
             await db_session.execute(
-                select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id == project.id)
+                select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id.is_(None))
             )
         )
         .scalars()
@@ -137,7 +137,7 @@ async def test_snapshot_metrics_counts_open_severities(db_session):
 
     snap = (
         await db_session.execute(
-            select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id == project.id)
+            select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id.is_(None))
         )
     ).scalar_one()
     assert snap.critical_count == 1
@@ -189,7 +189,62 @@ async def test_snapshot_metrics_fixed_count_deduplicates_by_vulnerability(db_ses
 
     snap = (
         await db_session.execute(
-            select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id == project.id)
+            select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id.is_(None))
         )
     ).scalar_one()
     assert snap.fixed_count == 1
+
+
+@pytest.mark.asyncio
+async def test_snapshot_metrics_global_distinct_across_projects(db_session):
+    projects = [Project(name=f"global-{i}") for i in range(2)]
+    db_session.add_all(projects)
+    await db_session.flush()
+
+    past = date(2026, 4, 1)
+    sboms = [
+        SBOM(
+            project_id=project.id,
+            format=SBOMFormat.CYCLONEDX,
+            raw_sbom={"bomFormat": "CycloneDX"},
+            sha256=f"p{i}" * 32,
+            created_at=datetime(2026, 3, 10, tzinfo=UTC),
+        )
+        for i, project in enumerate(projects)
+    ]
+    db_session.add_all(sboms)
+    await db_session.flush()
+
+    vuln = Vulnerability(
+        cve_id="CVE-2026-9601", source="grype", severity=VulnerabilitySeverity.CRITICAL
+    )
+    db_session.add(vuln)
+    await db_session.flush()
+
+    for i, sbom in enumerate(sboms):
+        db_session.add(
+            SBOMVulnerability(
+                sbom_id=sbom.id,
+                dependency_purl=f"pkg:npm/dep{i}@1.0.0",
+                vulnerability_id=vuln.id,
+                status=VulnerabilityStatus.OPEN,
+                detected_at=datetime(2026, 3, 11, tzinfo=UTC),
+            )
+        )
+    await db_session.commit()
+
+    await do_snapshot_metrics(db_session, past.isoformat())
+
+    snaps = (
+        (
+            await db_session.execute(
+                select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id.is_(None))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(snaps) == 1
+    # Same CVE open in two projects is counted once platform-wide
+    assert snaps[0].critical_count == 1
+    assert snaps[0].fixed_count == 0

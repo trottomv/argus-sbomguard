@@ -70,13 +70,13 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     snapshots = await db.execute(
         select(
             VulnerabilitySnapshot.snapshot_date,
-            func.sum(VulnerabilitySnapshot.critical_count).label("critical"),
-            func.sum(VulnerabilitySnapshot.high_count).label("high"),
-            func.sum(VulnerabilitySnapshot.medium_count).label("medium"),
-            func.sum(VulnerabilitySnapshot.low_count).label("low"),
-            func.sum(VulnerabilitySnapshot.fixed_count).label("fixed"),
+            VulnerabilitySnapshot.critical_count.label("critical"),
+            VulnerabilitySnapshot.high_count.label("high"),
+            VulnerabilitySnapshot.medium_count.label("medium"),
+            VulnerabilitySnapshot.low_count.label("low"),
+            VulnerabilitySnapshot.fixed_count.label("fixed"),
         )
-        .group_by(VulnerabilitySnapshot.snapshot_date)
+        .where(VulnerabilitySnapshot.project_id.is_(None))
         .order_by(VulnerabilitySnapshot.snapshot_date.asc())
         .limit(30)
     )
