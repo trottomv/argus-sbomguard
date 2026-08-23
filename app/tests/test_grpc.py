@@ -262,8 +262,8 @@ class TestAuthInterceptor:
         return AuthInterceptor(session_factory=async_sessionmaker(db_session.bind))
 
     @pytest.mark.asyncio
-    async def test_missing_api_key_rejected(self):
-        interceptor = AuthInterceptor()
+    async def test_missing_api_key_rejected(self, db_session):
+        interceptor = self._interceptor(db_session)
         continuation = AsyncMock()
 
         handler = await interceptor.intercept_service(continuation, self._details(""))

@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 class AuthInterceptor(grpc.aio.ServerInterceptor):
     def __init__(self, session_factory=None):
-        self._session_factory = session_factory or async_session_factory
+        self._session_factory = (
+            session_factory if session_factory is not None else async_session_factory
+        )
 
     async def intercept_service(self, continuation, handler_call_details):
         metadata = dict(handler_call_details.invocation_metadata or [])
@@ -46,7 +48,9 @@ def _rejecting_handler(code: grpc.StatusCode, detail: str):
 
 class SBOMServiceServicer(BaseServicer):
     def __init__(self, session_factory=None):
-        self._session_factory = session_factory or async_session_factory
+        self._session_factory = (
+            session_factory if session_factory is not None else async_session_factory
+        )
 
     async def upload_sbom(
         self, request: UploadRequest, context: grpc.aio.ServicerContext
