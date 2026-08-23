@@ -52,7 +52,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
 
     fixed_count = (
         await db.execute(
-            select(func.count(SBOMVulnerability.vulnerability_id)).where(
+            select(func.count(func.distinct(SBOMVulnerability.vulnerability_id))).where(
                 SBOMVulnerability.status == VulnerabilityStatus.FIXED
             )
         )
