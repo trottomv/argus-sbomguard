@@ -119,13 +119,13 @@ Authentication via `X-API-Key` header (REST) or `api-key` metadata (gRPC).
 
 ✅ CI/CD integration examples
 
+✅ Build provenance (repository, commit, environment)
+
 ⏳ Kubernetes deployment guides
 
 ⏳ Advanced vulnerability workflows
 
 ⏳ Dependency graph & impact analysis
-
-✅ Build provenance (repository, commit, environment)
 
 ⏳ Additional notification integrations
 
