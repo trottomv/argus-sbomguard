@@ -77,7 +77,7 @@ async def do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = None
         )
 
         fixed_result = await db.execute(
-            select(func.count(SBOMVulnerability.vulnerability_id))
+            select(func.count(func.distinct(SBOMVulnerability.vulnerability_id)))
             .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
             .where(
                 SBOM.project_id == project_id,
