@@ -1,6 +1,6 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,15 +39,18 @@ async def do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = None
         )
         total_dict = {row[0]: row[1] for row in total_result}
     else:
-        # Historical days: vulns that are open today and were already carried
-        # by an SBOM existing on or before that date.
+        # Historical days: vulns whose link was open on that date — detected by
+        # then and either still open or fixed only after that date.
+        day_end = datetime.combine(target_date, time.max, tzinfo=UTC)
         total_result = await db.execute(
             select(Vulnerability.id, Vulnerability.severity)
             .join(SBOMVulnerability)
-            .join(SBOM)
             .where(
-                SBOMVulnerability.status == VulnerabilityStatus.OPEN,
-                func.date(SBOM.created_at) <= target_date,
+                SBOMVulnerability.detected_at <= day_end,
+                or_(
+                    SBOMVulnerability.fixed_at.is_(None),
+                    SBOMVulnerability.fixed_at > day_end,
+                ),
                 Vulnerability.severity.isnot(None),
             )
             .distinct(Vulnerability.id)
