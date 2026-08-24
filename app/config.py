@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import computed_field, field_validator, model_validator
+from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 _INSECURE_SECRET_KEY = "change-me-to-a-random-secret"  # nosec
@@ -109,7 +109,7 @@ class Settings(BaseSettings):
     alerts_check_interval_seconds: int = 3600  # every 1 hour
     # Daily vulnerability snapshots are retained for this many days; older rows
     # are pruned on each scheduled run (the dashboard chart shows this window).
-    snapshot_retention_days: int = 30
+    snapshot_retention_days: int = Field(default=30, ge=1)
 
     # gRPC
     grpc_port: int = 50051

@@ -429,13 +429,20 @@ async def test_snapshot_metrics_prunes_older_than_retention(db_session):
     await db_session.commit()
 
     old_date = date.today() - timedelta(days=settings.snapshot_retention_days)
-    db_session.add(VulnerabilitySnapshot(project_id=None, snapshot_date=old_date, critical_count=3))
+    boundary = date.today() - timedelta(days=settings.snapshot_retention_days - 1)
+    db_session.add_all(
+        [
+            VulnerabilitySnapshot(project_id=None, snapshot_date=old_date, critical_count=3),
+            VulnerabilitySnapshot(project_id=None, snapshot_date=boundary, critical_count=1),
+        ]
+    )
     await db_session.commit()
 
     await do_snapshot_metrics(db_session)  # today path prunes
 
     dates = (await db_session.execute(select(VulnerabilitySnapshot.snapshot_date))).scalars().all()
     assert old_date not in dates
+    assert boundary in dates
     assert date.today() in dates
 
 
