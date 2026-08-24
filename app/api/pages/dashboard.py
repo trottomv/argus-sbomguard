@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config import settings
 from database import get_db
 from models.project import Project
 from models.sbom import SBOM
@@ -78,7 +79,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
         )
         .where(VulnerabilitySnapshot.project_id.is_(None))
         .order_by(VulnerabilitySnapshot.snapshot_date.asc())
-        .limit(30)
+        .limit(settings.snapshot_retention_days)
     )
     snap_rows = snapshots.all()
 

@@ -107,6 +107,9 @@ class Settings(BaseSettings):
     # Vulnerabilities
     vuln_rescan_interval_seconds: int = 43200  # every 12 hours
     alerts_check_interval_seconds: int = 3600  # every 1 hour
+    # Daily vulnerability snapshots are retained for this many days; older rows
+    # are pruned on each scheduled run (the dashboard chart shows this window).
+    snapshot_retention_days: int = 30
 
     # gRPC
     grpc_port: int = 50051

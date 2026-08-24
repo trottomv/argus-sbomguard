@@ -1,9 +1,10 @@
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config import settings
 from models.sbom import SBOM, Dependency
 from models.vulnerability import (
     SBOMVulnerability,
@@ -118,5 +119,14 @@ async def do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = None
         )
     )
     await db.execute(stmt)
+
+    if target_date == date.today():
+        # Retention: keep only the last snapshot_retention_days dates on the
+        # scheduled (today) path. Historical backfills are left untouched so
+        # past-day data stays queryable while it is being written.
+        cutoff = date.today() - timedelta(days=settings.snapshot_retention_days - 1)
+        await db.execute(
+            delete(VulnerabilitySnapshot).where(VulnerabilitySnapshot.snapshot_date < cutoff)
+        )
 
     await db.commit()
