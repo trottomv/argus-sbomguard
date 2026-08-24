@@ -126,7 +126,11 @@ async def do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = None
         # past-day data stays queryable while it is being written.
         cutoff = date.today() - timedelta(days=settings.snapshot_retention_days - 1)
         await db.execute(
-            delete(VulnerabilitySnapshot).where(VulnerabilitySnapshot.snapshot_date < cutoff)
+            delete(VulnerabilitySnapshot).where(
+                VulnerabilitySnapshot.snapshot_date < cutoff,
+                # Only the global (project_id IS NULL) rows are written here.
+                VulnerabilitySnapshot.project_id.is_(None),
+            )
         )
 
     await db.commit()

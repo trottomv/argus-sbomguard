@@ -78,10 +78,11 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
             VulnerabilitySnapshot.fixed_count.label("fixed"),
         )
         .where(VulnerabilitySnapshot.project_id.is_(None))
-        .order_by(VulnerabilitySnapshot.snapshot_date.asc())
+        .order_by(VulnerabilitySnapshot.snapshot_date.desc())
         .limit(settings.snapshot_retention_days)
     )
-    snap_rows = snapshots.all()
+    # Newest first from the query; reverse so the chart is chronological.
+    snap_rows = list(reversed(snapshots.all()))
 
     chart_labels = [snap.snapshot_date.strftime("%b %d") for snap in snap_rows]
     chart_critical = [snap.critical or 0 for snap in snap_rows]
