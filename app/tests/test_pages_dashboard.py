@@ -90,7 +90,11 @@ async def test_dashboard_critical_count_is_open_anywhere(client, db_session):
 
     resp = await client.get("/")
     assert resp.status_code == 200
-    match = re.search(r'text-ctp-red mt-1">(\d+)</p>', resp.text)
+    match = re.search(
+        r'<a href="/vulnerabilities\?severity=critical".*?text-ctp-red mt-1">(\d+)</p>',
+        resp.text,
+        re.DOTALL,
+    )
     assert match is not None
     assert match.group(1) == "1"
 
