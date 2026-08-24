@@ -65,6 +65,67 @@ async def test_snapshot_metrics_historical_date(db_session):
 
 
 @pytest.mark.asyncio
+async def test_snapshot_metrics_historical_open_until_fix(db_session):
+    project = Project(name="historical-asof")
+    db_session.add(project)
+    await db_session.flush()
+
+    sbom = SBOM(
+        project_id=project.id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="8" * 64,
+        created_at=datetime(2026, 1, 10, tzinfo=UTC),
+    )
+    db_session.add(sbom)
+    await db_session.flush()
+
+    vuln = Vulnerability(
+        cve_id="CVE-2026-9102", source="grype", severity=VulnerabilitySeverity.MEDIUM
+    )
+    db_session.add(vuln)
+    await db_session.flush()
+    db_session.add(
+        Dependency(sbom_id=sbom.id, name="asof", version="1.0.0", purl="pkg:npm/asof@1.0.0")
+    )
+    db_session.add(
+        SBOMVulnerability(
+            sbom_id=sbom.id,
+            dependency_purl="pkg:npm/asof@1.0.0",
+            vulnerability_id=vuln.id,
+            status=VulnerabilityStatus.FIXED,
+            detected_at=datetime(2026, 1, 10, tzinfo=UTC),
+            fixed_at=datetime(2026, 1, 13, tzinfo=UTC),
+        )
+    )
+    await db_session.commit()
+
+    # Open from Jan 10 until fixed on Jan 13: counted on Jan 11, not on Jan 15
+    await do_snapshot_metrics(db_session, "2026-01-11")
+    snap = (
+        await db_session.execute(
+            select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id.is_(None))
+        )
+    ).scalar_one()
+    assert snap.medium_count == 1
+    assert snap.fixed_count == 0
+
+    await do_snapshot_metrics(db_session, "2026-01-15")
+    snaps = (
+        (
+            await db_session.execute(
+                select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id.is_(None))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    later = next(s for s in snaps if s.snapshot_date == date(2026, 1, 15))
+    assert later.medium_count == 0
+    assert later.fixed_count == 1
+
+
+@pytest.mark.asyncio
 async def test_snapshot_metrics_upsert_existing(db_session):
     project = Project(name="upsert-snapshot")
     db_session.add(project)
@@ -251,7 +312,7 @@ async def test_snapshot_metrics_global_distinct_across_projects(db_session):
 
 
 @pytest.mark.asyncio
-async def test_snapshot_metrics_fixed_wins_over_open(db_session):
+async def test_snapshot_metrics_open_anywhere_with_fixed_elsewhere(db_session):
     projects = [Project(name=f"fw-{i}") for i in range(2)]
     db_session.add_all(projects)
     await db_session.flush()
@@ -302,8 +363,9 @@ async def test_snapshot_metrics_fixed_wins_over_open(db_session):
             select(VulnerabilitySnapshot).where(VulnerabilitySnapshot.project_id.is_(None))
         )
     ).scalar_one()
-    # Open in one project but fixed in another: counted as fixed, not open
-    assert snap.critical_count == 0
+    # Open in one service but fixed in another: still counted as open,
+    # and also counted in the fixed metric (they are independent)
+    assert snap.critical_count == 1
     assert snap.fixed_count == 1
 
 

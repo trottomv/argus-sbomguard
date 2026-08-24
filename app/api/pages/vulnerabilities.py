@@ -44,7 +44,10 @@ async def vulnerabilities_page(
             select(SBOMVulnerability.vulnerability_id, Project.name)
             .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
             .join(Project, SBOM.project_id == Project.id)
-            .where(SBOMVulnerability.vulnerability_id.in_(vuln_ids))
+            .where(
+                SBOMVulnerability.status == VulnerabilityStatus.OPEN,
+                SBOMVulnerability.vulnerability_id.in_(vuln_ids),
+            )
         )
         for vuln_id, project_name in proj_rows:
             project_map.setdefault(vuln_id, set()).add(project_name)
@@ -53,7 +56,10 @@ async def vulnerabilities_page(
             select(SBOMVulnerability.vulnerability_id, Service.name)
             .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
             .outerjoin(Service, SBOM.service_id == Service.id)
-            .where(SBOMVulnerability.vulnerability_id.in_(vuln_ids))
+            .where(
+                SBOMVulnerability.status == VulnerabilityStatus.OPEN,
+                SBOMVulnerability.vulnerability_id.in_(vuln_ids),
+            )
         )
         for vuln_id, service_name in svc_rows:
             if service_name:

@@ -54,7 +54,10 @@ async def active_vulnerabilities(
             await db.execute(
                 select(SBOMVulnerability.vulnerability_id, SBOM.project_id.label("name"))
                 .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
-                .where(SBOMVulnerability.vulnerability_id.in_(vuln_ids))
+                .where(
+                    SBOMVulnerability.status == VulnerabilityStatus.OPEN,
+                    SBOMVulnerability.vulnerability_id.in_(vuln_ids),
+                )
             )
         ).all()
         proj_ids = {row[1] for row in proj_rows}
@@ -78,7 +81,10 @@ async def active_vulnerabilities(
             select(SBOMVulnerability.vulnerability_id, Service.name)
             .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
             .outerjoin(Service, SBOM.service_id == Service.id)
-            .where(SBOMVulnerability.vulnerability_id.in_(vuln_ids))
+            .where(
+                SBOMVulnerability.status == VulnerabilityStatus.OPEN,
+                SBOMVulnerability.vulnerability_id.in_(vuln_ids),
+            )
         )
         for vuln_id, service_name in svc_rows:
             if service_name:

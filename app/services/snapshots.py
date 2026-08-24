@@ -1,6 +1,6 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,8 +24,9 @@ async def do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = None
     """
     target_date = date.fromisoformat(snapshot_date) if snapshot_date else date.today()
 
-    # A vulnerability is "open" only while it is not fixed anywhere (fixed wins):
-    # this keeps open and fixed disjoint and makes today and historical paths agree.
+    # A vulnerability counts as "open" while it has at least one open link,
+    # consistent with the vulnerability list. Open and fixed are independent
+    # metrics: a CVE fixed on one service may still be open on another.
     if target_date == date.today():
         total_result = await db.execute(
             select(Vulnerability.id, Vulnerability.severity)
@@ -37,43 +38,26 @@ async def do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = None
             .distinct(Vulnerability.id)
         )
         total_dict = {row[0]: row[1] for row in total_result}
-
-        fixed_before = await db.execute(
-            select(SBOMVulnerability.vulnerability_id)
-            .where(
-                SBOMVulnerability.status == VulnerabilityStatus.FIXED,
-                SBOMVulnerability.fixed_at.isnot(None),
-            )
-            .distinct()
-        )
     else:
-        # For historical days, compute: all vulns created <= date - fixed before date
+        # Historical days: vulns whose link was open on that date — detected by
+        # then and either still open or fixed only after that date.
+        day_end = datetime.combine(target_date, time.max, tzinfo=UTC)
         total_result = await db.execute(
             select(Vulnerability.id, Vulnerability.severity)
             .join(SBOMVulnerability)
-            .join(SBOM)
             .where(
-                func.date(SBOM.created_at) <= target_date,
+                SBOMVulnerability.detected_at <= day_end,
+                or_(
+                    SBOMVulnerability.fixed_at.is_(None),
+                    SBOMVulnerability.fixed_at > day_end,
+                ),
                 Vulnerability.severity.isnot(None),
             )
             .distinct(Vulnerability.id)
         )
         total_dict = {row[0]: row[1] for row in total_result}
 
-        fixed_before = await db.execute(
-            select(SBOMVulnerability.vulnerability_id)
-            .where(
-                SBOMVulnerability.status == VulnerabilityStatus.FIXED,
-                SBOMVulnerability.fixed_at.isnot(None),
-                func.date(SBOMVulnerability.fixed_at) <= target_date,
-            )
-            .distinct()
-        )
-
-    fixed_ids = {row[0] for row in fixed_before}
-    severities = [
-        severity.lower() for vuln_id, severity in total_dict.items() if vuln_id not in fixed_ids
-    ]
+    severities = [severity.lower() for severity in total_dict.values()]
 
     critical_count = sum(
         1 for severity in severities if severity == VulnerabilitySeverity.CRITICAL.value.lower()
