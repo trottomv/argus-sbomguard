@@ -84,6 +84,9 @@ async def test_active_vulnerabilities_filters_and_sort(client, db_session):
     assert resp.status_code == 200
     assert len(resp.json()["items"]) == 1
 
+    resp = await client.get("/api/v1/vulnerabilities/active?severity=nul%00byte")
+    assert resp.status_code == 200
+
     resp = await client.get(f"/api/v1/vulnerabilities/active?project_id={pid}")
     assert resp.status_code == 200
     assert resp.json()["items"][0]["cve_id"] == "CVE-2026-0102"

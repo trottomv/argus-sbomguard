@@ -62,3 +62,15 @@ async def test_paginate_page_beyond_end(db_session):
     assert page.items == []
     assert page.total == 1
     assert page.page == 99
+
+
+@pytest.mark.asyncio
+async def test_paginate_huge_page_does_not_overflow(db_session):
+    db_session.add(User(email="huge@example.com", is_admin=False))
+    await db_session.commit()
+
+    page = await paginate(db_session, select(User), page=2**63, per_page=10)
+    assert page.items == []
+    assert page.total == 1
+    assert page.page == 2**63
+    assert page.total_pages == 1

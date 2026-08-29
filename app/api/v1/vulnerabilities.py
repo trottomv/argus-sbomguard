@@ -1,9 +1,12 @@
+import uuid
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.constants import API_V1_PREFIX
 from api.v1.schemas import (
+    UNAUTHORIZED_RESPONSE,
     PageResponse,
     VulnerabilityResponse,
     VulnerabilitySummaryResponse,
@@ -28,14 +31,18 @@ router = APIRouter(
 )
 
 
-@router.get("/active", response_model=PageResponse[VulnerabilityResponse])
+@router.get(
+    "/active",
+    response_model=PageResponse[VulnerabilityResponse],
+    responses={**UNAUTHORIZED_RESPONSE},
+)
 async def active_vulnerabilities(
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     per_page: int = Query(VULN_PER_PAGE, ge=1, le=200),
     severity: str = Query(None),
-    project_id: str = Query(None),
-    service_id: str = Query(None),
+    project_id: uuid.UUID | None = Query(None),
+    service_id: uuid.UUID | None = Query(None),
     sort: str = Query("cvss_score"),
     order: str = Query("desc"),
 ):
@@ -113,7 +120,11 @@ async def active_vulnerabilities(
     )
 
 
-@router.get("/summary", response_model=VulnerabilitySummaryResponse)
+@router.get(
+    "/summary",
+    response_model=VulnerabilitySummaryResponse,
+    responses={**UNAUTHORIZED_RESPONSE},
+)
 async def vulnerability_summary(db: AsyncSession = Depends(get_db)):
     vuln_subq = (
         select(Vulnerability.id, Vulnerability.severity)

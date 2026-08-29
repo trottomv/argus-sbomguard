@@ -6,6 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.constants import API_V1_PREFIX
 from api.v1.schemas import (
+    BAD_REQUEST_RESPONSE,
+    NOT_FOUND_RESPONSE,
+    UNAUTHORIZED_RESPONSE,
     ActionResponse,
     AlertConfigCreate,
     AlertConfigResponse,
@@ -25,7 +28,9 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=PageResponse[AlertConfigResponse])
+@router.get(
+    "", response_model=PageResponse[AlertConfigResponse], responses={**UNAUTHORIZED_RESPONSE}
+)
 async def list_alerts(
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
@@ -43,14 +48,19 @@ async def list_alerts(
     )
 
 
-@router.post("", status_code=201, response_model=AlertConfigResponse)
+@router.post(
+    "",
+    status_code=201,
+    response_model=AlertConfigResponse,
+    responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE, **BAD_REQUEST_RESPONSE},
+)
 async def create_alert(data: AlertConfigCreate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Project).where(Project.id == uuid.UUID(data.project_id)))
+    result = await db.execute(select(Project).where(Project.id == data.project_id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Project not found")
 
     alert = AlertConfig(
-        project_id=uuid.UUID(data.project_id),
+        project_id=data.project_id,
         severity_threshold=data.severity_threshold,
         notification_type=data.notification_type,
         config=data.config,
@@ -61,7 +71,11 @@ async def create_alert(data: AlertConfigCreate, db: AsyncSession = Depends(get_d
     return AlertConfigResponse.model_validate(alert)
 
 
-@router.delete("/{alert_id}", response_model=ActionResponse)
+@router.delete(
+    "/{alert_id}",
+    response_model=ActionResponse,
+    responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
+)
 async def delete_alert(alert_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(AlertConfig).where(AlertConfig.id == alert_id))
     alert = result.scalar_one_or_none()
@@ -71,7 +85,11 @@ async def delete_alert(alert_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     return ActionResponse(status="deleted")
 
 
-@router.patch("/{alert_id}", response_model=ActionResponse)
+@router.patch(
+    "/{alert_id}",
+    response_model=ActionResponse,
+    responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE, **BAD_REQUEST_RESPONSE},
+)
 async def update_alert(
     alert_id: uuid.UUID, data: AlertConfigUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -81,10 +99,10 @@ async def update_alert(
         raise HTTPException(status_code=404, detail="Alert not found")
 
     if data.project_id is not None:
-        result = await db.execute(select(Project).where(Project.id == uuid.UUID(data.project_id)))
+        result = await db.execute(select(Project).where(Project.id == data.project_id))
         if not result.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="Project not found")
-        alert.project_id = uuid.UUID(data.project_id)
+        alert.project_id = data.project_id
     if data.severity_threshold is not None:
         alert.severity_threshold = data.severity_threshold
     if data.notification_type is not None:
