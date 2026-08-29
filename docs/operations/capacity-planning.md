@@ -163,14 +163,15 @@ Measured footprint per SBOM is ~30 MB in PostgreSQL. They scan every SBOM once
 on upload, keep 7 backups, and store them off-box:
 
 - **DB growth**: 50 × 30 MB ≈ 1.5 GB/week ≈ 78 GB/year before pruning anything
-  (SBOMs are never auto-pruned — only backups are).
+  (SBOMs are never auto-pruned — only backups and snapshots are).
 - **Backup growth**: DB 1.5 GB after week 1 → backup ~0.7 GB gzipped → 7 × 0.7
   GB ≈ 5 GB at steady state (plus the off-box copy).
 - **Sizing**: 100 GB disk comfortably covers a year of DB + backups + images;
   monitor monthly and adjust. If SBOMs balloon (one 2 GB image SBOM/week),
   re-measure — the per-SBOM model is linear.
 
-!!! note "No auto-pruning of SBOMs"
-    Backups are pruned by `BACKUP_RETENTION`, but uploaded SBOMs, dependencies
-    and snapshots are **not** automatically deleted. Plan disk for sustained
+!!! note "Auto-pruning"
+    Backups are pruned by `BACKUP_RETENTION` and daily vulnerability snapshots
+    are pruned by `SNAPSHOT_RETENTION_DAYS` (default 30), but uploaded SBOMs and
+    dependencies are **not** automatically deleted. Plan disk for sustained
     growth, or delete old SBOMs/projects through the UI to reclaim space.

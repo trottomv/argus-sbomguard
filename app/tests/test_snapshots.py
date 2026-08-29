@@ -447,7 +447,7 @@ async def test_snapshot_metrics_prunes_older_than_retention(db_session):
 
 
 @pytest.mark.asyncio
-async def test_snapshot_metrics_backfill_keeps_old_rows(db_session):
+async def test_snapshot_metrics_backfill_run_does_not_prune(db_session):
     project = Project(name="retention-backfill")
     db_session.add(project)
     await db_session.flush()
