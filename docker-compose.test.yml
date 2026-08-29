@@ -25,6 +25,7 @@ services:
     volumes:
       - ./app:/app
       - ./docs:/docs
+      - ./scripts:/scripts:ro
     depends_on:
       postgres:
         condition: service_healthy
