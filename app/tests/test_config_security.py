@@ -20,6 +20,8 @@ def _isolate_from_env(monkeypatch):
         "OTEL_SERVICE_NAME",
         "OTEL_EXPORTER_OTLP_ENDPOINT",
         "OTEL_FORWARD_ENDPOINT",
+        "SNAPSHOT_RETENTION_DAYS",
+        "SBOM_RETENTION_DAYS",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -123,3 +125,37 @@ def test_otel_settings_override():
     assert settings.otel_traces_enabled is True
     assert settings.otel_service_name == "custom-service"
     assert settings.otel_exporter_otlp_endpoint == "http://otel-collector:4318/v1/traces"
+
+
+def test_retention_defaults():
+    assert Settings().snapshot_retention_days == 30
+    assert Settings().sbom_retention_days == 365
+
+
+def test_sbom_retention_zero_disables():
+    assert Settings(sbom_retention_days=0).sbom_retention_days is None
+
+
+def test_sbom_retention_empty_env_disables(monkeypatch):
+    monkeypatch.setenv("SBOM_RETENTION_DAYS", "")
+    assert Settings().sbom_retention_days is None
+
+
+def test_sbom_retention_negative_rejected():
+    with pytest.raises(ValidationError):
+        Settings(sbom_retention_days=-1)
+
+
+def test_sbom_retention_non_integer_rejected():
+    with pytest.raises(ValidationError):
+        Settings(sbom_retention_days="not-a-number")
+
+
+def test_snapshot_retention_cannot_be_disabled():
+    with pytest.raises(ValidationError):
+        Settings(snapshot_retention_days=0)
+
+
+def test_snapshot_retention_min_is_30():
+    with pytest.raises(ValidationError):
+        Settings(snapshot_retention_days=10)

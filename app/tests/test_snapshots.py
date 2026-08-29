@@ -1,9 +1,8 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy import select
 
-from config import settings
 from models.project import Project
 from models.sbom import SBOM, Dependency, SBOMFormat
 from models.vulnerability import (
@@ -411,58 +410,3 @@ async def test_snapshot_metrics_null_severity_ignored(db_session):
     assert snap.medium_count == 0
     assert snap.low_count == 0
     assert snap.fixed_count == 0
-
-
-@pytest.mark.asyncio
-async def test_snapshot_metrics_prunes_older_than_retention(db_session):
-    project = Project(name="retention-prune")
-    db_session.add(project)
-    await db_session.flush()
-    db_session.add(
-        SBOM(
-            project_id=project.id,
-            format=SBOMFormat.CYCLONEDX,
-            raw_sbom={"bomFormat": "CycloneDX"},
-            sha256="3" * 64,
-        )
-    )
-    await db_session.commit()
-
-    old_date = date.today() - timedelta(days=settings.snapshot_retention_days)
-    boundary = date.today() - timedelta(days=settings.snapshot_retention_days - 1)
-    db_session.add_all(
-        [
-            VulnerabilitySnapshot(project_id=None, snapshot_date=old_date, critical_count=3),
-            VulnerabilitySnapshot(project_id=None, snapshot_date=boundary, critical_count=1),
-        ]
-    )
-    await db_session.commit()
-
-    await do_snapshot_metrics(db_session)  # today path prunes
-
-    dates = (await db_session.execute(select(VulnerabilitySnapshot.snapshot_date))).scalars().all()
-    assert old_date not in dates
-    assert boundary in dates
-    assert date.today() in dates
-
-
-@pytest.mark.asyncio
-async def test_snapshot_metrics_backfill_run_does_not_prune(db_session):
-    project = Project(name="retention-backfill")
-    db_session.add(project)
-    await db_session.flush()
-    db_session.add(
-        SBOM(
-            project_id=project.id,
-            format=SBOMFormat.CYCLONEDX,
-            raw_sbom={"bomFormat": "CycloneDX"},
-            sha256="2" * 64,
-        )
-    )
-    await db_session.commit()
-
-    old_date = date.today() - timedelta(days=settings.snapshot_retention_days + 10)
-    await do_snapshot_metrics(db_session, old_date.isoformat())  # backfill: no prune
-
-    dates = (await db_session.execute(select(VulnerabilitySnapshot.snapshot_date))).scalars().all()
-    assert old_date in dates

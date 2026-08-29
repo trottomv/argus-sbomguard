@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from services.tasks import (
     _make_session,
     check_alerts,
+    prune_old_data,
     rescan_vulnerabilities,
     scan_sbom,
     snapshot_metrics,
@@ -40,6 +41,13 @@ def test_snapshot_metrics_task_runs(monkeypatch):
     _mock_session_factory(monkeypatch)
     with patch("services.tasks._do_snapshot_metrics", new=AsyncMock()) as mock_do:
         snapshot_metrics()
+        mock_do.assert_awaited_once()
+
+
+def test_prune_old_data_task_runs(monkeypatch):
+    _mock_session_factory(monkeypatch)
+    with patch("services.tasks._do_prune_old_data", new=AsyncMock()) as mock_do:
+        prune_old_data()
         mock_do.assert_awaited_once()
 
 

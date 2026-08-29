@@ -24,6 +24,10 @@ celery_app.conf.update(
             "task": "tasks.snapshot_metrics",
             "schedule": 60 * 60,  # every 1 hour
         },
+        "prune-old-data": {
+            "task": "tasks.prune_old_data",
+            "schedule": 24 * 60 * 60,  # every 24 hours
+        },
         "rescan-vulnerabilities": {
             "task": "tasks.rescan_vulnerabilities",
             "schedule": settings.vuln_rescan_interval_seconds,  # every 12h by default

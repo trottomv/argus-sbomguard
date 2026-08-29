@@ -7,6 +7,7 @@ from sqlalchemy.pool import NullPool
 from celery_app import celery_app
 from config import settings
 from services.alerting import do_check_alerts as _do_check_alerts
+from services.retention import do_prune_old_data as _do_prune_old_data
 from services.scanning import do_scan_sbom as _do_scan_sbom
 from services.scanning import latest_sbom_ids as _latest_sbom_ids
 from services.snapshots import do_snapshot_metrics as _do_snapshot_metrics
@@ -62,5 +63,16 @@ def snapshot_metrics(snapshot_date: str | None = None):
     async def _run():
         async with _make_session()() as db:
             await _do_snapshot_metrics(db, snapshot_date)
+
+    asyncio.run(_run())
+
+
+@celery_app.task(name="tasks.prune_old_data")
+def prune_old_data():
+    """Prune expired snapshots and old SBOMs (see services.retention)."""
+
+    async def _run():
+        async with _make_session()() as db:
+            await _do_prune_old_data(db)
 
     asyncio.run(_run())
