@@ -167,7 +167,7 @@ Edit `.env` and set at minimum the following values:
 | `DOMAIN` | `argus.example.com` | Public hostname used for the `A` record; enables TLS via Let's Encrypt |
 | `LETSENCRYPT_EMAIL` | `ops@example.com` | Email Let's Encrypt uses for expiry notifications |
 | `APP_ENV` | `production` | Enables secure cookie + hardened behaviour; also sets the `DATABASE_URL`-independent app mode |
-| `APP_VERSION` | `0.0.7-beta` | GHCR image tag to pull — use the [latest release](https://github.com/trottomv/argus-sbomguard/releases) |
+| `APP_VERSION` | (latest release tag) | GHCR image tag to pull — see the [latest release](https://github.com/trottomv/argus-sbomguard/releases) |
 | `SECRET_KEY` | (generated) | Signs the session cookie. **Required** — the app refuses to start when `APP_ENV != development` |
 | `ADMIN_EMAIL` | `admin@example.com` | Admin account created on first start |
 | `POSTGRES_PASSWORD` | (generated) | Database password — **change the default** |
@@ -419,7 +419,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: backup
-              image: ghcr.io/trottomv/argus-sbomguard-backup:0.0.7-beta
+              image: ghcr.io/trottomv/argus-sbomguard-backup:<release-tag>
               command: ["/usr/local/bin/backup.sh"]
               env:
                 - name: PGHOST
