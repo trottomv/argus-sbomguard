@@ -122,8 +122,9 @@ async def do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = None
 
     if target_date == date.today():
         # Retention: keep only the last snapshot_retention_days dates on the
-        # scheduled (today) path. Historical backfills are left untouched so
-        # past-day data stays queryable while it is being written.
+        # scheduled (today) path. Historical backfills are written untouched so
+        # past-day data stays queryable while it is being written, but any
+        # backfilled row older than the window is pruned on the next scheduled run.
         cutoff = date.today() - timedelta(days=settings.snapshot_retention_days - 1)
         await db.execute(
             delete(VulnerabilitySnapshot).where(
