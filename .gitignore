@@ -52,6 +52,7 @@ coverage.xml
 *,cover
 cov_annotate/
 .hypothesis/
+.schemathesis/
 .pytest_cache/
 cover/
 

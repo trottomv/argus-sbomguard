@@ -47,6 +47,11 @@ async def paginate(
     total_pages = max(1, (total + per_page - 1) // per_page)
 
     offset = max(0, (page - 1) * per_page)
+    # Guard against int64 overflow: an absurdly large `page` value would make the
+    # OFFSET exceed PostgreSQL's signed 64-bit range and raise an asyncpg
+    # DataError (500). Clamping to the row count keeps the query valid and simply
+    # returns an empty page for out-of-range pages.
+    offset = min(offset, total)
     result = await db.execute(query.offset(offset).limit(per_page + 1))
 
     all_items = result.scalars().all() if scalar else result.all()

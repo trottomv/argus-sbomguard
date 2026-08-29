@@ -2,12 +2,16 @@ import json
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import Response
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.constants import API_V1_PREFIX
 from api.v1.schemas import (
+    BAD_REQUEST_RESPONSE,
+    NOT_FOUND_RESPONSE,
+    UNAUTHORIZED_RESPONSE,
     DependencyResponse,
     DiffItemResponse,
     SBOMDetailResponse,
@@ -15,6 +19,7 @@ from api.v1.schemas import (
     SBOMUploadResponse,
     VersionChangeResponse,
     VulnerabilityBriefResponse,
+    _strip_nul_from_strings,
 )
 from database import get_db
 from middleware.api_key import api_key_required
@@ -29,7 +34,23 @@ router = APIRouter(
 )
 
 
-@router.post("/upload", status_code=201, response_model=SBOMUploadResponse)
+def _validation_error(loc: list[str | int], msg: str) -> RequestValidationError:
+    """Build a 422 whose body matches the documented HTTPValidationError schema.
+
+    HTTPException(422, detail="...") produces a string `detail`, which violates
+    the OpenAPI HTTPValidationError (detail: array of ValidationError) and fails
+    Schemathesis' response_schema_conformance. RequestValidationError is rendered
+    by FastAPI with the standard array-shaped body; callers `raise` the result.
+    """
+    return RequestValidationError([{"loc": loc, "msg": msg, "type": "value_error"}])
+
+
+@router.post(
+    "/upload",
+    status_code=201,
+    response_model=SBOMUploadResponse,
+    responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE, **BAD_REQUEST_RESPONSE},
+)
 async def upload_sbom(
     project_id: str = Form(None),
     slug: str = Form(None),
@@ -38,10 +59,18 @@ async def upload_sbom(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
+    # PostgreSQL rejects NUL bytes in text and jsonb values, so strip them from
+    # the multipart fields and the parsed SBOM before they reach a query or an
+    # insert; a NUL in any of them would otherwise surface as a 500.
+    project_id = _strip_nul_from_strings(project_id)
+    slug = _strip_nul_from_strings(slug)
+    version = _strip_nul_from_strings(version)
+    service_name = _strip_nul_from_strings(service_name)
+
     if not project_id and not slug:
-        raise HTTPException(status_code=422, detail="project_id or slug is required")
+        raise _validation_error(["body", "project_id"], "project_id or slug is required")
     if project_id and slug:
-        raise HTTPException(status_code=422, detail="Provide only one of project_id or slug")
+        raise _validation_error(["body", "project_id"], "Provide only one of project_id or slug")
 
     if project_id:
         try:
@@ -59,7 +88,8 @@ async def upload_sbom(
     try:
         raw = json.loads(content)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=422, detail="Invalid JSON") from None
+        raise _validation_error(["body", "file"], "Invalid JSON") from None
+    raw = _strip_nul_from_strings(raw)
 
     sbom = await store_sbom(db, project.id, raw, version, service_name=service_name or None)
     await db.commit()
@@ -74,7 +104,10 @@ async def upload_sbom(
     )
 
 
-@router.get("/{sbom_id}/download")
+@router.get(
+    "/{sbom_id}/download",
+    responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
+)
 async def download_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(SBOM).where(SBOM.id == sbom_id))
     sbom = result.scalar_one_or_none()
@@ -89,7 +122,11 @@ async def download_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.get("/{sbom_id}", response_model=SBOMDetailResponse)
+@router.get(
+    "/{sbom_id}",
+    response_model=SBOMDetailResponse,
+    responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
+)
 async def get_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(SBOM).where(SBOM.id == sbom_id))
     sbom = result.scalar_one_or_none()
@@ -135,7 +172,11 @@ async def get_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.get("/{sbom_id}/diff/{other_id}", response_model=SBOMDiffResponse)
+@router.get(
+    "/{sbom_id}/diff/{other_id}",
+    response_model=SBOMDiffResponse,
+    responses={**UNAUTHORIZED_RESPONSE},
+)
 async def diff_sboms(
     sbom_id: uuid.UUID,
     other_id: uuid.UUID,
@@ -166,7 +207,11 @@ async def diff_sboms(
     )
 
 
-@router.delete("/{sbom_id}", status_code=204)
+@router.delete(
+    "/{sbom_id}",
+    status_code=204,
+    responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
+)
 async def delete_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(SBOM).where(SBOM.id == sbom_id))
     sbom = result.scalar_one_or_none()

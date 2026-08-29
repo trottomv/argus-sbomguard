@@ -5,7 +5,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.constants import API_V1_PREFIX
-from api.v1.schemas import ServiceResponse
+from api.v1.schemas import (
+    CONFLICT_RESPONSE,
+    NOT_FOUND_RESPONSE,
+    UNAUTHORIZED_RESPONSE,
+    ServiceResponse,
+)
 from database import get_db
 from middleware.api_key import api_key_required
 from models.sbom import SBOM
@@ -18,7 +23,7 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=list[ServiceResponse])
+@router.get("", response_model=list[ServiceResponse], responses={**UNAUTHORIZED_RESPONSE})
 async def list_services(
     project_id: uuid.UUID = Query(...),
     db: AsyncSession = Depends(get_db),
@@ -30,7 +35,11 @@ async def list_services(
     return [ServiceResponse.model_validate(service) for service in services]
 
 
-@router.delete("/{service_id}", status_code=204)
+@router.delete(
+    "/{service_id}",
+    status_code=204,
+    responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE, **CONFLICT_RESPONSE},
+)
 async def delete_service(service_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Service).where(Service.id == service_id))
     service = result.scalar_one_or_none()

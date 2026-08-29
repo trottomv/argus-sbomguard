@@ -119,6 +119,7 @@ async def test_upload_sbom_requires_identifier(client):
         files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
     )
     assert resp.status_code == 422
+    assert isinstance(resp.json()["detail"], list)
 
 
 @pytest.mark.asyncio
@@ -132,6 +133,7 @@ async def test_upload_sbom_id_and_slug_conflict(client):
         files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
     )
     assert resp.status_code == 422
+    assert isinstance(resp.json()["detail"], list)
 
 
 @pytest.mark.asyncio
@@ -145,6 +147,24 @@ async def test_upload_sbom_invalid_json(client):
         files={"file": ("sbom.json", b"not-json", "application/json")},
     )
     assert resp.status_code == 422
+    assert isinstance(resp.json()["detail"], list)
+
+
+@pytest.mark.asyncio
+async def test_upload_sbom_strips_nul_bytes(client):
+    proj = await client.post("/api/v1/projects", json={"name": "nul-upload"})
+    slug = proj.json()["slug"]
+
+    content = json.dumps(
+        {"bomFormat": "CycloneDX", "components": [{"name": "pkg\x00x", "lic\x00ense": ""}]}
+    )
+    resp = await client.post(
+        "/api/v1/sboms/upload",
+        data={"slug": f"\x00{slug}", "version": "1.0\x00", "service_name": "sv\x00c"},
+        files={"file": ("sbom.json", content, "application/json")},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["dependency_count"] == 1
 
 
 @pytest.mark.asyncio

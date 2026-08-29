@@ -35,6 +35,19 @@ async def test_create_alert_project_not_found(client):
 
 
 @pytest.mark.asyncio
+async def test_create_alert_strips_nul_bytes_from_config(client):
+    proj = await client.post("/api/v1/projects", json={"name": "alert-nul"})
+    pid = proj.json()["id"]
+
+    resp = await client.post(
+        "/api/v1/alert-rules",
+        json={"project_id": pid, "config": {"to": "adm\x00in@example.com", "ke\x00y": "v"}},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["enabled"] is True
+
+
+@pytest.mark.asyncio
 async def test_list_alerts(client):
     proj = await client.post("/api/v1/projects", json={"name": "alerts-list"})
     pid = proj.json()["id"]

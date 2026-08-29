@@ -1,5 +1,5 @@
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
-set dotenv-load := false
+set dotenv-load := true
 
 # read version from app/VERSION.md
 _version := `cat app/VERSION.md`
@@ -54,6 +54,18 @@ cov-annotate:
 # run tests in watch mode
 test-watch:
     docker compose exec app ptw -- -v
+
+# run API fuzzy tests (reads ARGUS_API_KEY from .env via dotenv-load)
+ARGUS_API_KEY := env_var_or_default("ARGUS_API_KEY", "")
+api-fuzzytest:
+    @test -n "{{ARGUS_API_KEY}}" && [ "{{ARGUS_API_KEY}}" != "__ARGUS_API_KEY__" ] || { echo "ARGUS_API_KEY missing or invalid: set ARGUS_API_KEY=argus_... in .env"; exit 1; }
+    @docker compose exec app schemathesis run \
+        --checks all \
+        --exclude-checks negative_data_rejection,positive_data_acceptance,unsupported_method,allow_header_conformance \
+        --warnings off \
+        --header "X-API-Key:{{ARGUS_API_KEY}}" \
+        http://app:8000/api/openapi.json
+
 
 # ---- Lint & Format ----
 

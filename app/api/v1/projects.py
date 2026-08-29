@@ -8,6 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.constants import API_V1_PREFIX
 from api.v1.schemas import (
+    BAD_REQUEST_RESPONSE,
+    CONFLICT_RESPONSE,
+    NOT_FOUND_RESPONSE,
+    UNAUTHORIZED_RESPONSE,
     PageResponse,
     ProjectCreate,
     ProjectResponse,
@@ -28,7 +32,7 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=PageResponse[ProjectResponse])
+@router.get("", response_model=PageResponse[ProjectResponse], responses={**UNAUTHORIZED_RESPONSE})
 async def list_projects(
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
@@ -46,10 +50,13 @@ async def list_projects(
     )
 
 
-@router.post("", status_code=201, response_model=ProjectResponse)
+@router.post(
+    "",
+    status_code=201,
+    response_model=ProjectResponse,
+    responses={**UNAUTHORIZED_RESPONSE, **CONFLICT_RESPONSE, **BAD_REQUEST_RESPONSE},
+)
 async def create_project(data: ProjectCreate, db: AsyncSession = Depends(get_db)):
-    _validate_sluggable_name(data.name)
-
     existing = await db.execute(select(Project).where(Project.name == data.name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Project already exists")
@@ -77,7 +84,11 @@ async def create_project(data: ProjectCreate, db: AsyncSession = Depends(get_db)
     return ProjectResponse.model_validate(project)
 
 
-@router.get("/{project_id}", response_model=ProjectResponse)
+@router.get(
+    "/{project_id}",
+    response_model=ProjectResponse,
+    responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
+)
 async def get_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
@@ -86,13 +97,21 @@ async def get_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_db))
     return ProjectResponse.model_validate(project)
 
 
-@router.get("/{project_id}/history", response_model=PageResponse[ProjectSBOMHistoryItem])
+@router.get(
+    "/{project_id}/history",
+    response_model=PageResponse[ProjectSBOMHistoryItem],
+    responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
+)
 async def project_history(
     project_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     per_page: int = Query(PROJECT_SBOM_HISTORY_PER_PAGE, ge=1, le=200),
 ):
+    project = await db.execute(select(Project).where(Project.id == project_id))
+    if not project.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Project not found")
+
     query = select(SBOM).where(SBOM.project_id == project_id).order_by(SBOM.created_at.desc())
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
     return PageResponse[ProjectSBOMHistoryItem](
@@ -105,7 +124,11 @@ async def project_history(
     )
 
 
-@router.delete("/{project_id}", status_code=204)
+@router.delete(
+    "/{project_id}",
+    status_code=204,
+    responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
+)
 async def delete_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
@@ -119,7 +142,16 @@ async def delete_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_d
     await db.commit()
 
 
-@router.patch("/{project_id}", response_model=ProjectResponse)
+@router.patch(
+    "/{project_id}",
+    response_model=ProjectResponse,
+    responses={
+        **UNAUTHORIZED_RESPONSE,
+        **NOT_FOUND_RESPONSE,
+        **CONFLICT_RESPONSE,
+        **BAD_REQUEST_RESPONSE,
+    },
+)
 async def update_project(
     project_id: uuid.UUID, data: ProjectUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -129,7 +161,6 @@ async def update_project(
         raise HTTPException(status_code=404, detail="Project not found")
 
     if data.name is not None:
-        _validate_sluggable_name(data.name)
         existing = await db.execute(
             select(Project).where(Project.name == data.name, Project.id != project_id)
         )
@@ -157,15 +188,6 @@ async def update_project(
         ) from None
     await db.refresh(project)
     return ProjectResponse.model_validate(project)
-
-
-def _validate_sluggable_name(name: str) -> None:
-    """Reject names that would slugify to an empty string (no alphanumeric)."""
-    if not any(char.isalnum() for char in name):
-        raise HTTPException(
-            status_code=422,
-            detail="Project name must contain at least one alphanumeric character",
-        )
 
 
 def _is_slug_conflict(exc: IntegrityError) -> bool:

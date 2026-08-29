@@ -102,8 +102,40 @@ async def test_create_project_non_ascii_name(client):
 
 
 @pytest.mark.asyncio
+async def test_create_project_unicode_name(client):
+    resp = await client.post("/api/v1/projects", json={"name": "日本語"})
+    assert resp.status_code == 201
+    assert resp.json()["name"] == "日本語"
+
+
+@pytest.mark.asyncio
 async def test_create_project_requires_alphanumeric(client):
     resp = await client.post("/api/v1/projects", json={"name": "!!!"})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_project_strips_nul_bytes(client):
+    resp = await client.post("/api/v1/projects", json={"name": "nul\x00test"})
+    assert resp.status_code == 201
+    assert resp.json()["name"] == "nultest"
+
+
+@pytest.mark.asyncio
+async def test_create_project_string_body_rejected(client):
+    resp = await client.post("/api/v1/projects", json="not-an-object")
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_project_non_string_value_passthrough(client):
+    resp = await client.post("/api/v1/projects", json={"name": "ok", "description": 123})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_project_list_value_stripped(client):
+    resp = await client.post("/api/v1/projects", json={"name": "ok", "description": ["a", "b"]})
     assert resp.status_code == 422
 
 
@@ -114,6 +146,16 @@ async def test_rename_project_requires_alphanumeric(client):
 
     resp = await client.patch(f"/api/v1/projects/{pid}", json={"name": "###"})
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_rename_project_name_null_noop(client):
+    create_resp = await client.post("/api/v1/projects", json={"name": "null-name"})
+    pid = create_resp.json()["id"]
+
+    resp = await client.patch(f"/api/v1/projects/{pid}", json={"name": None})
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "null-name"
 
 
 def test_is_slug_conflict_helper():
@@ -234,6 +276,22 @@ async def test_project_history_pagination(client):
     assert len(data["items"]) == 2
     assert data["total"] >= 3
     assert data["total_pages"] >= 2
+
+
+@pytest.mark.asyncio
+async def test_project_history_not_found(client):
+    resp = await client.get("/api/v1/projects/00000000-0000-0000-0000-000000000000/history")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_project_history_huge_page(client):
+    create = await client.post("/api/v1/projects", json={"name": "huge-page"})
+    pid = create.json()["id"]
+    resp = await client.get(f"/api/v1/projects/{pid}/history?page={2**63}")
+    assert resp.status_code == 200
+    assert resp.json()["page"] == 2**63
+    assert resp.json()["items"] == []
 
 
 @pytest.mark.asyncio
