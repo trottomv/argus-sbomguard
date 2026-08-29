@@ -2,14 +2,20 @@
   <img src="app/static/img/argus-sbomguard.png" alt="Argus SBOM Guard" width="200">
 </p>
 
-<p align="center">
-  <a href="https://github.com/trottomv/argus-sbomguard/releases"><img alt="Version" src="https://img.shields.io/badge/version-0.0.7--beta-orange?style=flat-square"></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPLv3-blue?style=flat-square"></a>
-</p>
+<div align="center">
 
-<p align="center">
-  <a href="https://www.bestpractices.dev/projects/14350"><img src="https://www.bestpractices.dev/projects/14350/badge"></a>
-</p>
+[![Version](https://img.shields.io/badge/version-0.0.7--beta-orange?style=flat-square)](https://github.com/trottomv/argus-sbomguard/releases)
+[![License](https://img.shields.io/badge/license-AGPLv3-blue?style=flat-square)](LICENSE)
+[![CI](https://github.com/trottomv/argus-sbomguard/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/trottomv/argus-sbomguard/actions/workflows/tests.yml)
+[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen?style=flat-square)](https://github.com/trottomv/argus-sbomguard/blob/main/app/pyproject.toml)
+
+</div>
+
+<div align="center">
+
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14350/badge)](https://www.bestpractices.dev/projects/14350)
+
+</div>
 
 # Argus SBOM Guard
 
