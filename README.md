@@ -4,7 +4,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.0.7--beta-orange?style=flat-square)](https://github.com/trottomv/argus-sbomguard/releases)
+[![Version](https://img.shields.io/github/v/release/trottomv/argus-sbomguard?include_prereleases&style=flat-square)](https://github.com/trottomv/argus-sbomguard/releases)
 [![License](https://img.shields.io/badge/license-AGPLv3-blue?style=flat-square)](LICENSE)
 [![CI](https://github.com/trottomv/argus-sbomguard/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/trottomv/argus-sbomguard/actions/workflows/tests.yml)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen?style=flat-square)](https://github.com/trottomv/argus-sbomguard/blob/main/app/pyproject.toml)

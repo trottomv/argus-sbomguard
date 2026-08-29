@@ -6,8 +6,8 @@ dump is not optional.
 
 ## How upgrades work
 
-- Releases are published as SemVer tags (`v0.0.7-beta`, …). The image tag to run
-  is pinned by `APP_VERSION` in `.env` (default `0.0.7-beta`).
+- Releases are published as SemVer tags (`v<version>`, …). The image tag to run
+  is pinned by `APP_VERSION` in `.env` (default set in `.env.example`).
 - **Migrations run automatically**: the `app` container entrypoint runs
   `alembic upgrade head` before starting uvicorn, retrying up to 10 times.
   Only the `app` container runs migrations — `worker` and `scheduler` start

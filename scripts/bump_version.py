@@ -5,8 +5,10 @@ Usage: python3 scripts/bump_version.py
 
 The version lives in one place — app/VERSION.md. Edit that file, then run this
 script to rewrite every other file that mirrors it (the GHCR tag fallback in
-the remote compose stack, the .env.example default, the README badge and the
-docs APP_VERSION examples). The previous version is read from .env.example.
+the remote compose stack, the .env.example default and the frozen OpenAPI
+snapshot's info.version). The previous version is read from .env.example.
+The README badge and the docs reference the latest release instead of a
+concrete version, so they are not updated here.
 """
 
 import re
@@ -21,13 +23,8 @@ _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$")
 _APP_VERSION_RE = re.compile(r"^APP_VERSION=(.*)$")
 
 
-def _badge(version: str) -> str:
-    return "version-" + version.replace("-", "--")
-
-
 def _targets(old: str, new: str) -> list[tuple[Path, str, str]]:
     return [
-        (ROOT / "README.md", _badge(old), _badge(new)),
         (ENV_EXAMPLE, f"APP_VERSION={old}", f"APP_VERSION={new}"),
         (
             ROOT / "docker-compose.remote.yml",
@@ -35,11 +32,10 @@ def _targets(old: str, new: str) -> list[tuple[Path, str, str]]:
             f"${{APP_VERSION:-{new}}}",
         ),
         (
-            ROOT / "docs/deployment.md",
-            f"`APP_VERSION` | `{old}`",
-            f"`APP_VERSION` | `{new}`",
+            ROOT / "docs/api/openapi.json",
+            f'"version": "{old}"',
+            f'"version": "{new}"',
         ),
-        (ROOT / "docs/setup.md", f"`APP_VERSION` | `{old}`", f"`APP_VERSION` | `{new}`"),
     ]
 
 

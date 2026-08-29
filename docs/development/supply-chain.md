@@ -37,7 +37,7 @@ curl -s http://localhost:8000/version
 ```json
 {
   "service": "argus-sbomguard",
-  "version": "0.0.7-beta",
+  "version": "<app-version>",
   "git_sha": "1edf17104c2b1a5f7d26a1f19e6cf2d96e2e0aa4",
   "build_date": "2026-08-22T09:15:00Z",
   "source_url": "https://github.com/trottomv/argus-sbomguard",
@@ -94,7 +94,7 @@ cosign verify-attestation \
 Or use the shortcut:
 
 ```bash
-just verify-image ghcr.io/trottomv/argus-sbomguard:0.0.7-beta
+just verify-image ghcr.io/trottomv/argus-sbomguard:<tag>
 ```
 
 `cosign` must be installed locally (e.g. `brew install cosign` or the

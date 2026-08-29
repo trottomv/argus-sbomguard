@@ -149,7 +149,7 @@ Deployment snippet:
 ```yaml
 containers:
   - name: app
-    image: ghcr.io/trottomv/argus-sbomguard:0.0.7-beta
+    image: ghcr.io/trottomv/argus-sbomguard:<release-tag>
     env:
       - name: SECRET_KEY
         valueFrom:
