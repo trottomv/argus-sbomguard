@@ -1,6 +1,7 @@
+import os
 from pathlib import Path
 
-from pydantic import Field, computed_field, field_validator, model_validator
+from pydantic import Field, ValidationInfo, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 _INSECURE_SECRET_KEY = "change-me-to-a-random-secret"  # nosec
@@ -109,7 +110,33 @@ class Settings(BaseSettings):
     alerts_check_interval_seconds: int = 3600  # every 1 hour
     # Daily vulnerability snapshots are retained for this many days; older rows
     # are pruned on each scheduled run (the dashboard chart shows this window).
-    snapshot_retention_days: int = Field(default=30, ge=1, le=180)
+    # Retention is always on: the chart renders this window (30-180 days).
+    snapshot_retention_days: int = Field(default=30, ge=30, le=180)
+    # SBOMs older than this many days are pruned, keeping at least the latest
+    # SBOM per service/project as a safety net. Set to 0 (or an empty value in
+    # the container environment) to keep SBOMs forever (retention disabled).
+    # 0 is the portable choice: an empty value only disables when injected as a
+    # real environment variable (e.g. via compose env_file), not when read from
+    # a bare .env file by pydantic (env_ignore_empty filters it).
+    sbom_retention_days: int | None = Field(default=365)
+
+    @field_validator("sbom_retention_days", mode="before")
+    @classmethod
+    def _sbom_retention_days(cls, v: object, info: ValidationInfo) -> object:
+        # env_ignore_empty filters empty env vars before this validator, so read
+        # the raw env value to let an explicit empty string disable retention.
+        raw = os.environ.get(info.field_name.upper())
+        if raw == "":
+            return None
+        if v in (None, 0, "0", ""):
+            return None
+        try:
+            value = int(v)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{info.field_name} must be an integer, got {v!r}") from exc
+        if value < 1:
+            raise ValueError(f"{info.field_name} must be >= 1 when set, got {value}")
+        return value
 
     # gRPC
     grpc_port: int = 50051
