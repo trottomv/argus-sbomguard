@@ -7,6 +7,10 @@
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPLv3-blue?style=flat-square"></a>
 </p>
 
+<p align="center">
+  <a href="https://www.bestpractices.dev/projects/14350"><img src="https://www.bestpractices.dev/projects/14350/badge"></a>
+</p>
+
 # Argus SBOM Guard
 
 **Open-source SBOM-based vulnerability management platform.**
