@@ -43,8 +43,7 @@ test:
 # so coverage output is produced on every run; teardown removes the stack afterwards.
 test-stack:
     COMPOSE_FILE=docker-compose.test.yml docker compose build app
-    COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app
-    COMPOSE_FILE=docker-compose.test.yml docker compose down -v
+    @set +e; COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app; rc=$$?; COMPOSE_FILE=docker-compose.test.yml docker compose down -v; exit $$rc
 
 # run tests writing coverage annotate output into cov_annotate/ (gitignored).
 # cleanup happens inside the container because the files are root-owned there.
@@ -55,16 +54,12 @@ cov-annotate:
 test-watch:
     docker compose exec app ptw -- -v
 
-# run API fuzzy tests (reads ARGUS_API_KEY from .env via dotenv-load)
-ARGUS_API_KEY := env_var_or_default("ARGUS_API_KEY", "")
+# run API fuzzy tests against the throwaway test stack (fresh DB, never the
+# dev data): build the test image, run the fuzz runner inside it and tear the
+# stack down (down -v removes the test postgres volume).
 api-fuzzytest:
-    @test -n "{{ARGUS_API_KEY}}" && [ "{{ARGUS_API_KEY}}" != "__ARGUS_API_KEY__" ] || { echo "ARGUS_API_KEY missing or invalid: set ARGUS_API_KEY=argus_... in .env"; exit 1; }
-    @docker compose exec app schemathesis run \
-        --checks all \
-        --exclude-checks negative_data_rejection,positive_data_acceptance,unsupported_method,allow_header_conformance \
-        --warnings off \
-        --header "X-API-Key:{{ARGUS_API_KEY}}" \
-        http://app:8000/api/openapi.json
+    COMPOSE_FILE=docker-compose.test.yml docker compose build app
+    @set +e; COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app sh /scripts/fuzz_test.sh; rc=$$?; COMPOSE_FILE=docker-compose.test.yml docker compose down -v; exit $$rc
 
 
 # ---- Lint & Format ----
