@@ -68,6 +68,8 @@ jobs:
           target: test
           load: true
           tags: argus-fuzzy-test:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Run API fuzzy tests
         # Runs migrations, mints a key, starts uvicorn and runs schemathesis
