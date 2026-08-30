@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, StrictBool, field_validator, model_validator
+from pydantic import BaseModel, Field, StrictBool, field_validator, model_validator
 
 from models.alert import NotificationChannel, SeverityThreshold
 
@@ -13,6 +13,13 @@ UNAUTHORIZED_RESPONSE = {401: {"description": "Missing or invalid API key"}}
 BAD_REQUEST_RESPONSE = {400: {"description": "Malformed request body"}}
 NOT_FOUND_RESPONSE = {404: {"description": "Resource not found"}}
 CONFLICT_RESPONSE = {409: {"description": "Resource already exists"}}
+
+# Field length limits mirror the DB columns (models/project.py). Enforced at the
+# request boundary so oversized input surfaces as a 422 instead of leaking a
+# StringDataRightTruncationError from the DB as a 500.
+PROJECT_NAME_MAX_LENGTH = 255
+PROJECT_REPO_URL_MAX_LENGTH = 1024
+PROJECT_PLATFORM_MAX_LENGTH = 50
 
 
 def _strip_nul_from_strings(data):
@@ -56,10 +63,10 @@ class PageResponse[T](BaseModel):
 
 
 class ProjectCreate(BaseModel):
-    name: str
+    name: str = Field(..., max_length=PROJECT_NAME_MAX_LENGTH)
     description: str | None = None
-    repo_url: str | None = None
-    platform: str | None = None
+    repo_url: str | None = Field(default=None, max_length=PROJECT_REPO_URL_MAX_LENGTH)
+    platform: str | None = Field(default=None, max_length=PROJECT_PLATFORM_MAX_LENGTH)
 
     _name_has_alphanumeric = field_validator("name")(_validate_name_has_alphanumeric)
 
@@ -74,10 +81,10 @@ class ProjectCreate(BaseModel):
 
 
 class ProjectUpdate(BaseModel):
-    name: str | None = None
+    name: str | None = Field(default=None, max_length=PROJECT_NAME_MAX_LENGTH)
     description: str | None = None
-    repo_url: str | None = None
-    platform: str | None = None
+    repo_url: str | None = Field(default=None, max_length=PROJECT_REPO_URL_MAX_LENGTH)
+    platform: str | None = Field(default=None, max_length=PROJECT_PLATFORM_MAX_LENGTH)
 
     _name_has_alphanumeric = field_validator("name")(_validate_name_has_alphanumeric)
 
