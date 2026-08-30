@@ -34,6 +34,7 @@ from services.alerting import (
     _severity_color_hex,
     _severity_emoji,
     _slack_attachment,
+    _truncate,
     do_check_alerts,
 )
 
@@ -440,6 +441,12 @@ def test_severity_emoji_mapping():
     assert _severity_emoji("UNKNOWN") == "⚪"
     assert _severity_emoji(None) == "⚪"
     assert _severity_emoji("weird") == "⚪"
+
+
+def test_truncate():
+    assert _truncate("short", 10) == "short"
+    assert _truncate("a" * 20, 10) == "a" * 9 + "…"
+    assert len(_truncate("a" * 20, 10)) == 10
 
 
 def test_discord_embed_full():
