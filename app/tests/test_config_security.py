@@ -132,6 +132,17 @@ def test_retention_defaults():
     assert Settings().sbom_retention_days == 365
 
 
+def test_domain_defaults_to_localhost():
+    settings = Settings(app_env="development", secret_key=_PLACEHOLDER)
+    assert settings.domain == "localhost"
+    assert settings.notification_base_url == "https://localhost"
+
+
+def test_notification_base_url_derived_from_domain():
+    assert Settings(domain="argus.example.com").notification_base_url == "https://argus.example.com"
+    assert Settings(domain="").notification_base_url == ""
+
+
 def test_sbom_retention_zero_disables():
     assert Settings(sbom_retention_days=0).sbom_retention_days is None
 

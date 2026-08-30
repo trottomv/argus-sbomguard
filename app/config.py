@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
+from typing import Annotated
 
 from pydantic import Field, ValidationInfo, computed_field, field_validator, model_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, NoDecode
 
 _INSECURE_SECRET_KEY = "change-me-to-a-random-secret"  # nosec
 
@@ -95,8 +96,26 @@ class Settings(BaseSettings):
     # Slack
     slack_webhook_url: str = ""
 
+    # Discord
+    discord_webhook_url: str = ""
+
+    # Public hostname (same ``DOMAIN`` used by Caddy for TLS). Used to build the
+    # base URL for absolute links in alert notifications. Defaults to
+    # ``localhost`` so local deployments get ``https://localhost`` links out of
+    # the box (Caddy serves HTTPS even with a self-signed certificate).
+    domain: str = "localhost"
+
+    @computed_field
+    @property
+    def notification_base_url(self) -> str:
+        """Absolute base URL used to build alert notification links."""
+        return f"https://{self.domain}" if self.domain else ""
+
     # Email recipients for alerts; comma-separated (or a JSON list) env value.
-    alert_email_recipients: list[str] = []
+    # NoDecode keeps the raw string for the before-validator: pydantic-settings
+    # would otherwise try to json.loads() the env value (complex type) and crash
+    # on a plain comma-separated list.
+    alert_email_recipients: Annotated[list[str], NoDecode] = []
 
     @field_validator("alert_email_recipients", mode="before")
     @classmethod

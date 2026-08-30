@@ -43,11 +43,12 @@ async def active_vulnerabilities(
     severity: str = Query(None),
     project_id: uuid.UUID | None = Query(None),
     service_id: uuid.UUID | None = Query(None),
+    cve_id: str = Query(None),
     sort: str = Query("cvss_score"),
     order: str = Query("desc"),
 ):
     query = select(Vulnerability).where(
-        Vulnerability.id.in_(build_vuln_subquery(severity, project_id, service_id))
+        Vulnerability.id.in_(build_vuln_subquery(severity, project_id, service_id, cve_id))
     )
     query = apply_vuln_ordering(query, sort, order)
 

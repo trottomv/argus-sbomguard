@@ -23,13 +23,14 @@ async def vulnerabilities_page(
     severity: str = Query(None),
     project_id: str = Query(None),
     service_id: str = Query(None),
+    cve_id: str = Query(None),
     sort: str = Query("cvss_score"),
     order: str = Query("desc"),
     page: int = Query(1, ge=1),
     per_page: int = Query(VULN_PER_PAGE, ge=1, le=200),
 ):
     query = select(Vulnerability).where(
-        Vulnerability.id.in_(build_vuln_subquery(severity, project_id, service_id))
+        Vulnerability.id.in_(build_vuln_subquery(severity, project_id, service_id, cve_id))
     )
     query = apply_vuln_ordering(query, sort, order)
 
@@ -106,7 +107,8 @@ async def vulnerabilities_page(
 
     load_more_url = (
         f"/vulnerabilities?severity={severity or ''}&project_id={project_id or ''}"
-        f"&service_id={service_id or ''}&sort={sort}&order={order}&per_page={per_page}"
+        f"&service_id={service_id or ''}&cve_id={cve_id or ''}"
+        f"&sort={sort}&order={order}&per_page={per_page}"
     )
 
     ctx = {
@@ -119,6 +121,7 @@ async def vulnerabilities_page(
         "active_severity": severity or "",
         "active_project_id": project_id or "",
         "active_service_id": service_id or "",
+        "active_cve": cve_id or "",
         "active_sort": sort,
         "active_order": order,
         "total": pg.total,

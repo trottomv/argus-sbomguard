@@ -27,7 +27,13 @@ from services.alerting import (
     _deliver,
     _delivery_action,
     _DeliveryAction,
+    _discord_embed,
+    _email_body,
+    _package_names,
     _resolve_closed_episodes,
+    _severity_color_hex,
+    _severity_emoji,
+    _slack_attachment,
     do_check_alerts,
 )
 
@@ -116,7 +122,7 @@ async def test_deliver_unsupported_channel(db_session):
     )
     alert.notification_type = "smoke-signals"
 
-    channel, success = await _deliver(alert, vuln)
+    channel, success = await _deliver(alert, vuln, project_name="Test Project", service_names=[])
     assert channel == "smoke-signals"
     assert success is False
 
@@ -315,6 +321,244 @@ async def test_check_alerts_email_without_recipients_fails(db_session):
     notifications = (await db_session.execute(select(Notification))).scalars().all()
     assert len(notifications) == 1
     assert notifications[0].status == NotificationStatus.FAILED
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_delivers_discord_notification(db_session):
+    _, _ = await _make_open_vuln_with_alert(
+        db_session, notification_type=NotificationChannel.DISCORD
+    )
+
+    original = settings.discord_webhook_url
+    settings.discord_webhook_url = "https://discord.com/api/webhooks/xxx/yyy"
+    try:
+        with patch(
+            "services.alerting.send_discord", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await do_check_alerts(db_session)
+        mock_send.assert_awaited_once()
+        assert mock_send.await_args.args[0] == "https://discord.com/api/webhooks/xxx/yyy"
+    finally:
+        settings.discord_webhook_url = original
+
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].status == NotificationStatus.SENT
+    assert notifications[0].channel == NotificationChannel.DISCORD
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_discord_without_webhook_fails(db_session):
+    _, _ = await _make_open_vuln_with_alert(
+        db_session, notification_type=NotificationChannel.DISCORD
+    )
+
+    original = settings.discord_webhook_url
+    settings.discord_webhook_url = ""
+    try:
+        with patch(
+            "services.alerting.send_discord", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await do_check_alerts(db_session)
+        mock_send.assert_not_called()
+    finally:
+        settings.discord_webhook_url = original
+
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].status == NotificationStatus.FAILED
+    assert notifications[0].channel == NotificationChannel.DISCORD
+
+
+def test_package_names_extracts_names():
+    assert _package_names(None) == []
+    assert _package_names([]) == []
+    assert _package_names(["pkg:npm/"]) == []
+    assert _package_names(
+        [
+            "pkg:deb/debian/gawk@1%3A5.2.1-2?arch=amd64",
+            "pkg:npm/x@1.0.0",
+            "pkg:npm/x@1.0.0",
+        ]
+    ) == ["gawk", "x"]
+
+
+def test_email_body_basic():
+    original = settings.domain
+    settings.domain = ""
+    try:
+        body = _email_body(
+            cve_id="CVE-2026-1",
+            severity="CRITICAL",
+            project_name="Acme",
+            service_names=[],
+            affected=[],
+            summary=None,
+        )
+    finally:
+        settings.domain = original
+    assert body == "🔴 CVE-2026-1 (CRITICAL)\nProject: Acme\nServices: n/a"
+
+
+def test_email_body_with_context_and_link():
+    original = settings.domain
+    settings.domain = "argus.example.com"
+    try:
+        body = _email_body(
+            cve_id="CVE-2026-40468",
+            severity="CRITICAL",
+            project_name="Acme",
+            service_names=["api", "billing"],
+            affected=["gawk"],
+            summary="Integer overflow",
+        )
+    finally:
+        settings.domain = original
+
+    assert "Project: Acme" in body
+    assert "Services: api, billing" in body
+    assert "Affected: gawk" in body
+    assert "Integer overflow" in body
+    assert "Details: https://argus.example.com/vulnerabilities?cve_id=CVE-2026-40468" in body
+
+
+def test_severity_color_hex_mapping():
+    assert _severity_color_hex("CRITICAL") == "#ED4245"
+    assert _severity_color_hex("HIGH") == "#FAA61A"
+    assert _severity_color_hex("MEDIUM") == "#FEE75C"
+    assert _severity_color_hex("LOW") == "#57F287"
+    assert _severity_color_hex("UNKNOWN") == "#99AAB5"
+    assert _severity_color_hex(None) == "#99AAB5"
+    assert _severity_color_hex("weird") == "#99AAB5"
+
+
+def test_severity_emoji_mapping():
+    assert _severity_emoji("CRITICAL") == "🔴"
+    assert _severity_emoji("HIGH") == "🟠"
+    assert _severity_emoji("MEDIUM") == "🟡"
+    assert _severity_emoji("LOW") == "🟢"
+    assert _severity_emoji("UNKNOWN") == "⚪"
+    assert _severity_emoji(None) == "⚪"
+    assert _severity_emoji("weird") == "⚪"
+
+
+def test_discord_embed_full():
+    original = settings.domain
+    settings.domain = "argus.example.com"
+    try:
+        embed = _discord_embed(
+            cve_id="CVE-2026-40468",
+            severity="CRITICAL",
+            project_name="Acme",
+            service_names=["api", "billing"],
+            affected=["gawk"],
+            summary="Integer overflow",
+        )
+    finally:
+        settings.domain = original
+
+    assert embed["title"] == "🔴 CVE-2026-40468 (CRITICAL)"
+    assert embed["color"] == 0xED4245
+    assert embed["url"] == "https://argus.example.com/vulnerabilities?cve_id=CVE-2026-40468"
+    assert embed["description"] == (
+        "**Project** `Acme`\n**Services** `api, billing`\n**Affected** `gawk`\nInteger overflow"
+    )
+    assert "fields" not in embed
+
+
+def test_discord_embed_minimal():
+    original = settings.domain
+    settings.domain = ""
+    try:
+        embed = _discord_embed(
+            cve_id="CVE-2026-1",
+            severity=None,
+            project_name="Acme",
+            service_names=[],
+            affected=[],
+            summary=None,
+        )
+    finally:
+        settings.domain = original
+
+    assert embed["color"] == 0x99AAB5
+    assert embed["title"] == "⚪ CVE-2026-1 (None)"
+    assert "url" not in embed
+    assert "fields" not in embed
+    assert embed["description"] == "**Project** `Acme`\n**Services** `n/a`"
+
+
+def test_slack_attachment_full():
+    original = settings.domain
+    settings.domain = "argus.example.com"
+    try:
+        attachment = _slack_attachment(
+            cve_id="CVE-2026-40468",
+            severity="CRITICAL",
+            project_name="Acme",
+            service_names=["api", "billing"],
+            affected=["gawk"],
+            summary="Integer overflow",
+        )
+    finally:
+        settings.domain = original
+
+    assert attachment["color"] == "#ED4245"
+    assert attachment["title"] == "🔴 CVE-2026-40468 (CRITICAL)"
+    assert attachment["fallback"] == "🔴 CVE-2026-40468 (CRITICAL)"
+    assert (
+        attachment["title_link"]
+        == "https://argus.example.com/vulnerabilities?cve_id=CVE-2026-40468"
+    )
+    assert attachment["text"] == (
+        "*Project* `Acme`\n*Services* `api, billing`\n*Affected* `gawk`\nInteger overflow"
+    )
+    assert "fields" not in attachment
+
+
+def test_slack_attachment_minimal():
+    original = settings.domain
+    settings.domain = ""
+    try:
+        attachment = _slack_attachment(
+            cve_id="CVE-2026-1",
+            severity=None,
+            project_name="Acme",
+            service_names=[],
+            affected=[],
+            summary=None,
+        )
+    finally:
+        settings.domain = original
+
+    assert attachment["color"] == "#99AAB5"
+    assert attachment["title"] == "⚪ CVE-2026-1 (None)"
+    assert attachment["fallback"] == "⚪ CVE-2026-1 (None)"
+    assert "title_link" not in attachment
+    assert "fields" not in attachment
+    assert attachment["text"] == "*Project* `Acme`\n*Services* `n/a`"
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_delivers_email_with_context(db_session):
+    _, _ = await _make_open_vuln_with_alert(db_session, notification_type=NotificationChannel.EMAIL)
+
+    original_recipients = settings.alert_email_recipients
+    original_url = settings.domain
+    settings.alert_email_recipients = ["ops@example.com"]
+    settings.domain = "argus.example.com"
+    try:
+        with patch(
+            "services.alerting.send_email", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await do_check_alerts(db_session)
+        message = mock_send.await_args.args[2]
+    finally:
+        settings.alert_email_recipients = original_recipients
+        settings.domain = original_url
+
+    assert "Project: alerts-project" in message
+    assert "Details: https://argus.example.com/vulnerabilities?cve_id=CVE-2026-0101" in message
 
 
 @pytest.mark.asyncio
