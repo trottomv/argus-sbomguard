@@ -143,6 +143,13 @@ async def test_json_api_gets_only_nosniff(client):
     assert "permissions-policy" not in resp.headers
 
 
+@pytest.mark.asyncio
+async def test_get_literal_upload_route_returns_405(client):
+    resp = await client.get("/api/v1/sboms/upload")
+    assert resp.status_code == 405
+    assert resp.headers["allow"] == "POST"
+
+
 _ON_HANDLER = re.compile(
     r"\bon(?:click|dblclick|mousedown|mouseup|mouseover|mouseout|mousemove|mouseenter|mouseleave|"
     r"change|input|submit|focus|blur|load|error|keydown|keyup|keypress|"

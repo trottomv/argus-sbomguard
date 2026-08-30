@@ -105,7 +105,7 @@ async def upload_sbom(
 
 
 @router.get(
-    "/{sbom_id}/download",
+    "/{sbom_id:uuid}/download",
     responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
 )
 async def download_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
@@ -123,7 +123,7 @@ async def download_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.get(
-    "/{sbom_id}",
+    "/{sbom_id:uuid}",
     response_model=SBOMDetailResponse,
     responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
 )
@@ -208,7 +208,7 @@ async def diff_sboms(
 
 
 @router.delete(
-    "/{sbom_id}",
+    "/{sbom_id:uuid}",
     status_code=204,
     responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
 )
