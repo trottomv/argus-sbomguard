@@ -1618,6 +1618,7 @@
         "properties": {
           "name": {
             "type": "string",
+            "maxLength": 255,
             "title": "Name"
           },
           "description": {
@@ -1634,7 +1635,8 @@
           "repo_url": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 1024
               },
               {
                 "type": "null"
@@ -1645,7 +1647,8 @@
           "platform": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -1807,7 +1810,8 @@
           "name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 255
               },
               {
                 "type": "null"
@@ -1829,7 +1833,8 @@
           "repo_url": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 1024
               },
               {
                 "type": "null"
@@ -1840,7 +1845,8 @@
           "platform": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"

@@ -128,6 +128,24 @@ async def test_create_project_string_body_rejected(client):
 
 
 @pytest.mark.asyncio
+async def test_create_project_platform_too_long_rejected(client):
+    resp = await client.post("/api/v1/projects", json={"name": "ok", "platform": "p" * 51})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_project_repo_url_too_long_rejected(client):
+    resp = await client.post("/api/v1/projects", json={"name": "ok", "repo_url": "u" * 1025})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_project_name_too_long_rejected(client):
+    resp = await client.post("/api/v1/projects", json={"name": "n" * 256})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_create_project_non_string_value_passthrough(client):
     resp = await client.post("/api/v1/projects", json={"name": "ok", "description": 123})
     assert resp.status_code == 422
@@ -321,6 +339,15 @@ async def test_update_project(client):
     assert data["description"] == "desc"
     assert data["repo_url"] == "https://example.com"
     assert data["platform"] == "github"
+
+
+@pytest.mark.asyncio
+async def test_update_project_platform_too_long_rejected(client):
+    create = await client.post("/api/v1/projects", json={"name": "update-len"})
+    pid = create.json()["id"]
+
+    resp = await client.patch(f"/api/v1/projects/{pid}", json={"platform": "p" * 51})
+    assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
