@@ -5,6 +5,12 @@ include:
   - docker-compose/backup.yml
   - docker-compose/caddy.yml
   - docker-compose/otel.yml
+  # Jaeger (optional, behind the `jaeger` profile: COMPOSE_PROFILES=jaeger or
+  # --profile jaeger). Works in remote too, but host ports 16686/4318 are
+  # published only by the local dev override, so on a remote host the dashboard
+  # stays internal to the compose network. Still not recommended on production
+  # hosts (unauthenticated UI, in-memory traces): prefer an external OTLP
+  # backend (OTEL_FORWARD_ENDPOINT) there.
   - docker-compose/jaeger.yml
 
 services:

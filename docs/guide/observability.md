@@ -19,7 +19,7 @@ Application ──────────────────────�
                                      └───────────┬──────────────┘
 GET /metrics (Caddy :443 → :9464) ◄──┘           │  OTEL_FORWARD_ENDPOINT
                                                  ▼
-                                       Jaeger (optional, local)
+                                       Jaeger (optional, behind profile)
                                        or any OTLP backend
 ```
 
@@ -37,9 +37,9 @@ Key facts:
   `http://otel-collector:4318/v1/traces`), and the Collector forwards them to
   the final backend (`OTEL_FORWARD_ENDPOINT`).
 
-## Local trace dashboard (Jaeger)
+## Trace dashboard (Jaeger)
 
-A **Jaeger** all-in-one service provides a local dashboard for traces. It is
+A **Jaeger** all-in-one service provides a dashboard for traces. It is
 optional and behind the `jaeger` compose profile so it does not start by default:
 
 ```bash
@@ -49,6 +49,37 @@ docker compose --profile jaeger up -d
 # open the Jaeger UI
 open http://localhost:16686
 ```
+
+!!! note "Optional everywhere — not recommended on production hosts"
+
+    Jaeger is available in both the dev and remote stacks, always behind the
+    `jaeger` profile so it never starts by default. Host ports `16686`/`4318`
+    are published **only by the local dev override**: on a remote host Jaeger
+    stays internal to the compose network (the Collector can still forward
+    traces to it, but the dashboard is not exposed). Even so it is **not
+    recommended on production hosts**: the query UI has no authentication and
+    trace storage is in-memory (lost on restart). Prefer an external OTLP
+    backend (below) or leave tracing disabled.
+
+### Viewing the dashboard on a remote host
+
+On a remote host Jaeger is internal-only (no host ports published), so the UI
+is not reachable from outside. To view it without exposing anything on a
+public interface, open an SSH tunnel that points at the Jaeger container IP.
+Run both commands **from your workstation** — the first fetches the container
+IP over SSH:
+
+```bash
+JAEGER_IP=$(ssh user@your-remote-host "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' argussbomguard_jaeger")
+ssh -L 16686:${JAEGER_IP}:16686 user@your-remote-host
+```
+
+Then open `http://localhost:16686` in your browser.
+
+The container IP is reachable from the remote host over the Docker bridge, so
+no host port is ever published and nothing is exposed on a public interface.
+Note that the IP changes whenever the Jaeger container is recreated, so re-run
+the first command if the container has been restarted.
 
 When Jaeger is running, the Collector forwards traces to it by default
 (`OTEL_FORWARD_ENDPOINT=http://jaeger:4318`).
@@ -174,6 +205,6 @@ stack as well as by route handlers. The client only ever receives a generic
 | `OTEL_TRACES_ENABLED` | `false` | Enable application trace export. |
 | `OTEL_SERVICE_NAME` | `argus-sbomguard` | Service name in the OTel resource. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4318/v1/traces` | Where the app pushes traces (the Collector). |
-| `OTEL_FORWARD_ENDPOINT` | `http://jaeger:4318` | Where the Collector forwards traces. |
+| `OTEL_FORWARD_ENDPOINT` | `http://jaeger:4318` | Where the Collector forwards traces. Default points at the optional in-stack Jaeger; on production set this to an external OTLP backend or leave tracing disabled. |
 | `OTEL_FORWARD_TLS_INSECURE` | `true` | Skip TLS verification when forwarding; set `false` for external HTTPS backends. |
-| `COMPOSE_PROFILES` | *(empty)* | Set to `jaeger` to run the local trace dashboard. |
+| `COMPOSE_PROFILES` | *(empty)* | Set to `jaeger` to run the Jaeger dashboard. Works in dev (dashboard on `localhost:16686`) and remote (internal-only, no host ports). Not recommended on production hosts. |

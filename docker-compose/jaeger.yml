@@ -1,3 +1,14 @@
+# Jaeger all-in-one — optional trace dashboard, gated behind the `jaeger`
+# compose profile so it never starts by default (enable with
+# COMPOSE_PROFILES=jaeger or --profile jaeger).
+#
+# Ports are NOT published here: the service is reachable only inside the
+# compose network (the Collector forwards traces to it on :4318). Host ports
+# 16686/4318 are published only by the local dev override
+# (docker-compose.development.yml). On a remote host the dashboard is never
+# exposed by default — to view it, SSH-tunnel to the container IP (see
+# docs/guide/observability.md). Prefer an external OTLP backend
+# (OTEL_FORWARD_ENDPOINT) on production.
 services:
   jaeger:
     image: jaegertracing/all-in-one:1.76.0
@@ -8,9 +19,9 @@ services:
       # Keep trace data in memory for the dev/demo lifetime. Use COLLECTOR_OTLP_ENABLED
       # defaults; Jaeger all-in-one exposes OTLP on :4318 by default.
       COLLECTOR_OTLP_ENABLED: "true"
-    ports:
-      - "16686:16686"
-      - "4318:4318"
+    expose:
+      - "16686"
+      - "4318"
     healthcheck:
       # Real liveness probe: wget the query UI (serves 200 once the service is
       # actually accepting requests), not just a binary-exists check.

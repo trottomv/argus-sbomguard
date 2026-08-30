@@ -7,7 +7,7 @@
 #     from the outside only through the Caddy proxy);
 #   - it can forward everything to one or more OTLP backends, configured via
 #     the OTEL_FORWARD_ENDPOINT env var (default points at the optional Jaeger
-#     service).
+#     service; in production prefer an external OTLP backend).
 
 receivers:
   hostmetrics:
