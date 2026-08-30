@@ -31,7 +31,7 @@ fi
 
 schemathesis run \
     --checks all \
-    --exclude-checks negative_data_rejection,positive_data_acceptance,unsupported_method,allow_header_conformance \
+    --exclude-checks negative_data_rejection,positive_data_acceptance,allow_header_conformance \
     --warnings off \
     --max-failures 5 \
     --header "X-API-Key:$ARGUS_API_KEY" \
