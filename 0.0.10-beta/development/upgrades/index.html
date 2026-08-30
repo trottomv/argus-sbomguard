@@ -1,0 +1,1535 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Centralized SBOM management platform — on-prem, deploy anywhere">
+      
+      
+      
+        <link rel="canonical" href="https://trottomv.github.io/argus-sbomguard/0.0.10-beta/development/upgrades/">
+      
+      
+        <link rel="prev" href="../testing/">
+      
+      
+        <link rel="next" href="../supply-chain/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
+    
+    
+      
+        <title>Upgrade & Rollback - Argus SBOM Guard</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#upgrade-rollback-runbook" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Argus SBOM Guard" class="md-header__button md-logo" aria-label="Argus SBOM Guard" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Argus SBOM Guard
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Upgrade & Rollback
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/trottomv/argus-sbomguard" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    trottomv/argus-sbomguard
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Argus SBOM Guard" class="md-nav__button md-logo" aria-label="Argus SBOM Guard" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Argus SBOM Guard
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/trottomv/argus-sbomguard" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    trottomv/argus-sbomguard
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Setup & Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    User Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            User Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Projects
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/sboms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SBOMs
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/ci/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CI/CD Integration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/vulnerabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Vulnerabilities
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/alerts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Alerts & Notifications
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/proxy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Reverse Proxy + WAF
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Observability
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Operations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Operations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/capacity-planning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Capacity Planning
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/disaster-recovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Disaster Recovery
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/secrets-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Secrets Management
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Development
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Development
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Contributing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Upgrade & Rollback
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upgrade & Rollback
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-upgrades-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      How upgrades work
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backup-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Backup strategy
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#before-you-upgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      Before you upgrade
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upgrade-procedure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Upgrade procedure
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      Migration verification
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollback-procedure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rollback procedure
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rollback procedure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-to-roll-back" class="md-nav__link">
+    <span class="md-ellipsis">
+      When to roll back
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-a-restore-from-the-pre-upgrade-backup-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      Path A — Restore from the pre-upgrade backup (recommended)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-b-alembic-downgrade-best-effort-schema-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      Path B — alembic downgrade (best-effort, schema-only)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-a-rollback" class="md-nav__link">
+    <span class="md-ellipsis">
+      After a rollback
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ci-upgrade-check-tbd" class="md-nav__link">
+    <span class="md-ellipsis">
+      CI upgrade check (TBD)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-assessing-migration-reversibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      Appendix — Assessing migration reversibility
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../supply-chain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Supply Chain & Provenance
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/versioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Versioning & Deprecation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-upgrades-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      How upgrades work
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backup-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Backup strategy
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#before-you-upgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      Before you upgrade
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upgrade-procedure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Upgrade procedure
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      Migration verification
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollback-procedure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rollback procedure
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rollback procedure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-to-roll-back" class="md-nav__link">
+    <span class="md-ellipsis">
+      When to roll back
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-a-restore-from-the-pre-upgrade-backup-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      Path A — Restore from the pre-upgrade backup (recommended)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-b-alembic-downgrade-best-effort-schema-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      Path B — alembic downgrade (best-effort, schema-only)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-a-rollback" class="md-nav__link">
+    <span class="md-ellipsis">
+      After a rollback
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ci-upgrade-check-tbd" class="md-nav__link">
+    <span class="md-ellipsis">
+      CI upgrade check (TBD)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-assessing-migration-reversibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      Appendix — Assessing migration reversibility
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="upgrade-rollback-runbook">Upgrade &amp; Rollback Runbook<a class="headerlink" href="#upgrade-rollback-runbook" title="Permanent link">&para;</a></h1>
+<p>This runbook covers upgrading an Argus SBOM Guard deployment to a new release
+and rolling it back if something goes wrong. Follow it in order: the pre-upgrade
+dump is not optional.</p>
+<h2 id="how-upgrades-work">How upgrades work<a class="headerlink" href="#how-upgrades-work" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Releases are published as SemVer tags (<code>v&lt;version&gt;</code>, …). The image tag to run
+  is pinned by <code>APP_VERSION</code> in <code>.env</code> (default set in <code>.env.example</code>).</li>
+<li><strong>Migrations run automatically</strong>: the <code>app</code> container entrypoint runs
+  <code>alembic upgrade head</code> before starting uvicorn, retrying up to 10 times.
+  Only the <code>app</code> container runs migrations — <code>worker</code> and <code>scheduler</code> start
+  Celery directly and never touch the schema.</li>
+<li>Migrations are sequential files (<code>NNNN_description.py</code>) in
+  <code>app/migrations/versions/</code>, each chained to the previous one via
+  <code>down_revision</code>. The current head is whatever the newest revision is (find it
+  with <code>alembic history</code>).</li>
+<li>An upgrade therefore never requires a manual <code>alembic</code> invocation: setting a
+  new <code>APP_VERSION</code> and recreating the <code>app</code> container is enough.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Pre-stable migration chain</p>
+<p>The migration chain is not frozen until the first stable release — at that
+point the pre-stable migrations may be squashed into a single baseline.
+Never hardcode revision numbers in scripts or runbooks; always resolve them
+from the release notes or <code>alembic history</code>.</p>
+</div>
+<h2 id="backup-strategy">Backup strategy<a class="headerlink" href="#backup-strategy" title="Permanent link">&para;</a></h2>
+<p>The only state that needs backing up is the PostgreSQL volume. RabbitMQ only
+stores queued tasks — a clean restart starts from an empty queue, so it needs no
+backup.</p>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Setting</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mechanism</td>
+<td><code>pg_dump</code> + gzip</td>
+<td><code>scripts/backup.sh</code> / <code>scripts/restore.sh</code>, ecosystem-agnostic</td>
+</tr>
+<tr>
+<td>Schedule</td>
+<td>Your cron / <code>CronJob</code></td>
+<td>The compose stack ships a <code>backup</code> service; see <a href="../../deployment/#backups-on-kubernetes">Backups on Kubernetes</a></td>
+</tr>
+<tr>
+<td>Retention</td>
+<td><code>BACKUP_RETENTION</code> (default 7)</td>
+<td><code>0</code> keeps every backup</td>
+</tr>
+<tr>
+<td>Encryption</td>
+<td><code>BACKUP_ENCRYPTION_KEY</code></td>
+<td>AES-256-CBC + PBKDF2 via <code>openssl</code>, independent of <code>SECRET_KEY</code></td>
+</tr>
+<tr>
+<td>Location</td>
+<td><code>BACKUP_DIR</code> (default <code>backups/</code>)</td>
+<td>Point it outside the repo in production</td>
+</tr>
+</tbody>
+</table>
+<p><code>just db-backup</code> creates a backup while the stack is up; the script verifies the
+archive (<code>gzip -t</code>, or decrypt + <code>gzip -t</code> for encrypted backups) before
+finishing.</p>
+<div class="admonition tip">
+<p class="admonition-title">Practice restoring</p>
+<p>Run the <a href="../../deployment/#restore-drill">restore drill</a> on a staging copy
+regularly so an incident never involves a first-time restore.</p>
+</div>
+<h2 id="before-you-upgrade">Before you upgrade<a class="headerlink" href="#before-you-upgrade" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Read the release notes</strong> for the target version and note any
+   <strong>destructive or irreversible migrations</strong> (the
+   <a href="#appendix-assessing-migration-reversibility">appendix</a> explains how to
+   assess a migration).</li>
+<li><strong>Check the current stack is healthy</strong>: <code>docker compose ps</code> shows all
+   services <code>healthy</code>/<code>running</code> and <code>/readyz</code> answers <code>200</code>.</li>
+<li><strong>Check disk space</strong>: <code>docker system df</code>. You need room for the new image
+   (plus the OLD image, until rollback is no longer needed) and for the backup.</li>
+<li><strong>Take a pre-upgrade dump</strong> — mandatory:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>just<span class="w"> </span>db-backup
+</code></pre></div>
+<p>Or directly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--no-tty<span class="w"> </span>--rm<span class="w"> </span>--no-deps<span class="w"> </span>backup<span class="w"> </span>/usr/local/bin/backup.sh
+</code></pre></div>
+<ol>
+<li><strong>Verify the dump</strong> exists and is non-empty:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>ls<span class="w"> </span>-lh<span class="w"> </span>backups/argus_*.sql.gz*
+</code></pre></div>
+<p>Backups are written by the backup container as root — manage them with
+   <code>sudo</code>, or <code>sudo chown -R "$(id -u):$(id -g)" "$BACKUP_DIR"</code> afterwards.
+6. <strong>Copy the backup off-box</strong> (<code>scp</code>, <code>rsync</code>, object storage). If the server
+   itself is affected by the incident, an on-server backup may be unreachable.
+   This is the same rule the <a href="../../operations/disaster-recovery/#the-off-box-copy">Disaster Recovery</a>
+   plan depends on.</p>
+<h2 id="upgrade-procedure">Upgrade procedure<a class="headerlink" href="#upgrade-procedure" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>argus-sbomguard
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>git<span class="w"> </span>pull<span class="w">                                          </span><span class="c1"># if running from a checkout</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># edit .env: set APP_VERSION to the new release tag</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>docker<span class="w"> </span>compose<span class="w"> </span>pull
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+<p>Watch the <code>app</code> logs for the migration step:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>app
+</code></pre></div>
+<p>Expected sequence: <code>Running database migrations...</code> then <code>Migrations complete.</code></p>
+<div class="admonition danger">
+<p class="admonition-title">Migration failure signal</p>
+<p>If migrations fail on all 10 retries, the entrypoint logs
+<code>Migration failed after 10 attempts, continuing anyway</code> and <strong>starts the app
+anyway on an un-migrated schema</strong>. This is not a healthy state — the new
+code runs against the old schema, so the release is not actually live.
+Treat it as an immediate <a href="#when-to-roll-back">rollback</a> trigger.</p>
+</div>
+<h2 id="migration-verification">Migration verification<a class="headerlink" href="#migration-verification" title="Permanent link">&para;</a></h2>
+<p>After the app restarts, confirm the upgrade actually landed:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>Expected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Migrations applied</td>
+<td><code>docker compose logs app</code></td>
+<td><code>Migrations complete.</code></td>
+</tr>
+<tr>
+<td>Schema is at head</td>
+<td><code>docker compose exec app alembic current</code></td>
+<td>The head expected for the release you installed (compare with the release notes)</td>
+</tr>
+<tr>
+<td>All services up</td>
+<td><code>docker compose ps</code></td>
+<td><code>app</code>, <code>worker</code>, <code>scheduler</code>, <code>postgres</code>, <code>proxy</code> healthy</td>
+</tr>
+<tr>
+<td>Readiness</td>
+<td><code>curl -sS -o /dev/null -w "%{http_code}\n" https://&lt;domain&gt;/readyz</code></td>
+<td><code>200</code></td>
+</tr>
+<tr>
+<td>Data survived</td>
+<td><code>docker compose exec -T postgres psql -U argus argus -c "select count(*) from projects;"</code></td>
+<td>Count matches the pre-upgrade expectation</td>
+</tr>
+<tr>
+<td>Background tasks</td>
+<td><code>docker compose logs worker</code></td>
+<td>No scan task errors after the restart</td>
+</tr>
+</tbody>
+</table>
+<p>Finish with a smoke test in the UI: sign in, open a project, and inspect an SBOM
+detail page. The old code is gone at this point — if anything misbehaves, roll
+back (below) rather than trying to patch a running deployment.</p>
+<h2 id="rollback-procedure">Rollback procedure<a class="headerlink" href="#rollback-procedure" title="Permanent link">&para;</a></h2>
+<h3 id="when-to-roll-back">When to roll back<a class="headerlink" href="#when-to-roll-back" title="Permanent link">&para;</a></h3>
+<ul>
+<li>App logs show <code>Migration failed after 10 attempts, continuing anyway</code>.</li>
+<li>The app is healthy but a feature is broken or behaves differently than
+  documented for the new release.</li>
+<li><code>worker</code> logs show task failures after the upgrade.</li>
+<li>Data appears missing or corrupted.</li>
+</ul>
+<h3 id="path-a-restore-from-the-pre-upgrade-backup-recommended">Path A — Restore from the pre-upgrade backup (recommended)<a class="headerlink" href="#path-a-restore-from-the-pre-upgrade-backup-recommended" title="Permanent link">&para;</a></h3>
+<p>Works for any migration, including irreversible ones, because it restores the
+exact pre-upgrade schema <strong>and</strong> data.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>stop<span class="w"> </span>app<span class="w"> </span>worker<span class="w"> </span>scheduler<span class="w">   </span><span class="c1"># free database connections</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c1"># 1) Revert APP_VERSION in .env to the previous release tag</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1">#    BEFORE restarting, or the entrypoint re-applies `alembic upgrade head`</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1">#    on next boot and re-creates the problem.</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># 2) Restore the pre-upgrade dump (drops and recreates the database)</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>just<span class="w"> </span>db-restore<span class="w"> </span>argus_&lt;pre_upgrade_timestamp&gt;.sql.gz<span class="w"> </span>--reset
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1"># 3) Start the stack with the OLD image</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+<ol>
+<li>Verify the rollback: sign in, open a project, and confirm row counts match
+   the pre-upgrade state (<code>select count(*) from projects;</code> etc.).</li>
+<li>Run another <code>just db-backup</code> so the restored state is captured by the
+   retention-pruned set — the pre-upgrade dump is now the baseline.</li>
+</ol>
+<div class="admonition warning">
+<p class="admonition-title">Data loss window</p>
+<p>Anything written <strong>after</strong> the pre-upgrade dump is lost by this procedure
+(new projects, SBOMs, scan results). That is the price of a clean rollback.
+If you only need to undo the schema, consider
+<a href="#path-b-alembic-downgrade-best-effort-schema-only">Path B</a> first.</p>
+</div>
+<h3 id="path-b-alembic-downgrade-best-effort-schema-only">Path B — <code>alembic downgrade</code> (best-effort, schema-only)<a class="headerlink" href="#path-b-alembic-downgrade-best-effort-schema-only" title="Permanent link">&para;</a></h3>
+<p>Only appropriate when the failing migration is <strong>reversible</strong> and the previous
+release can run against the downgraded schema. It reverts the <em>schema</em>; it does
+not guarantee the <em>data</em> still satisfies the old constraints.</p>
+<p>If the release shipped more than one migration, step down one revision at a
+time until <code>alembic current</code> shows the previous release's head:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>app<span class="w"> </span>alembic<span class="w"> </span>downgrade<span class="w"> </span>-1<span class="w">   </span><span class="c1"># repeat until the previous head</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>app<span class="w"> </span>alembic<span class="w"> </span>current
+</code></pre></div>
+<p>Then <strong>revert <code>APP_VERSION</code> in <code>.env</code> to the previous tag before starting the
+app again</strong> — otherwise the entrypoint runs <code>alembic upgrade head</code> on next boot
+and re-applies the migration you just rolled back.</p>
+<div class="admonition warning">
+<p class="admonition-title">Limitations</p>
+<ul>
+<li>The downgrade bodies are exercised only manually — they are
+  <code># pragma: no cover</code> in the test suite and have not been validated against
+  real production data.</li>
+<li>A data-affecting downgrade may fail if rows written under the new schema
+  cannot satisfy the old constraints. Inspect the migration file
+  (<code>app/migrations/versions/</code>) before relying on it.</li>
+<li>Future migrations may be written without a usable downgrade at all.</li>
+</ul>
+</div>
+<h3 id="after-a-rollback">After a rollback<a class="headerlink" href="#after-a-rollback" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Confirm the previous release's features work end-to-end.</li>
+<li>Take a fresh backup (<code>just db-backup</code>) and note in your incident log which
+  pre-upgrade dump was restored and why.</li>
+<li>Re-attempt the upgrade only after the root cause is fixed (a corrected
+  migration, not a re-run of the same failing one).</li>
+</ul>
+<h2 id="ci-upgrade-check-tbd">CI upgrade check (TBD)<a class="headerlink" href="#ci-upgrade-check-tbd" title="Permanent link">&para;</a></h2>
+<p>Planned, not yet implemented: a CI workflow that proves a database can move from
+the previous release's schema to the current one. Sketch of the check:</p>
+<ol>
+<li>Start a fresh PostgreSQL 18.</li>
+<li>Check out the previous release's migrations and apply them to <code>head</code>.</li>
+<li>Seed representative rows (projects, services, SBOMs, notifications,
+   snapshots).</li>
+<li>Apply the current release's migrations (<code>alembic upgrade head</code>).</li>
+<li>Assert the upgrade succeeds <strong>and</strong> the seeded rows survive.</li>
+</ol>
+<p>This catches migrations that are accidentally destructive or that assume a
+schema shape that no longer exists. Tracked as a follow-up; the current suite
+only exercises migrations on a brand-new database.</p>
+<h2 id="appendix-assessing-migration-reversibility">Appendix — Assessing migration reversibility<a class="headerlink" href="#appendix-assessing-migration-reversibility" title="Permanent link">&para;</a></h2>
+<p>Whether a migration can be rolled back with <code>alembic downgrade</code>
+(<a href="#path-b-alembic-downgrade-best-effort-schema-only">Path B</a>) depends on the
+specific migration:</p>
+<ul>
+<li><strong>Check the release notes</strong> — releases document which migrations are
+  destructive or irreversible.</li>
+<li><strong>Read the migration file</strong> (<code>app/migrations/versions/NNNN_*.py</code>): the
+  <code>upgrade()</code>/<code>downgrade()</code> pair shows exactly what changes. A downgrade that
+  only drops columns/functions or reverts types is usually safe; one that
+  transforms data may fail or lose data under the old constraints.</li>
+<li><strong>Assume nothing across releases</strong> — the chain is not stable before the first
+  stable release (see <a href="#how-upgrades-work">How upgrades work</a>), so revision
+  numbers in one release may not exist in the next.</li>
+</ul>
+<p>The downgrade path only matters for <a href="#path-b-alembic-downgrade-best-effort-schema-only">Path B</a>.
+For rollback of any migration, <a href="#path-a-restore-from-the-pre-upgrade-backup-recommended">Path A</a>
+is always safe.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  </body>
+</html>
