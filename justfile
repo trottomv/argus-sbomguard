@@ -43,7 +43,7 @@ test:
 # so coverage output is produced on every run; teardown removes the stack afterwards.
 test-stack:
     COMPOSE_FILE=docker-compose.test.yml docker compose build app
-    @set +e; COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app; rc=$$?; COMPOSE_FILE=docker-compose.test.yml docker compose down -v; exit $$rc
+    @set +e; COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app; rc=$?; COMPOSE_FILE=docker-compose.test.yml docker compose down -v; exit $rc
 
 # run tests writing coverage annotate output into cov_annotate/ (gitignored).
 # cleanup happens inside the container because the files are root-owned there.
@@ -55,11 +55,11 @@ test-watch:
     docker compose exec app ptw -- -v
 
 # run API fuzzy tests against the throwaway test stack (fresh DB, never the
-# dev data): build the test image, run the fuzz runner inside it and tear the
+# dev data): build the test image, run the fuzzy test runner inside it and tear the
 # stack down (down -v removes the test postgres volume).
 api-fuzzytest:
     COMPOSE_FILE=docker-compose.test.yml docker compose build app
-    @set +e; COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app sh /scripts/fuzz_test.sh; rc=$$?; COMPOSE_FILE=docker-compose.test.yml docker compose down -v; exit $$rc
+    @set +e; COMPOSE_FILE=docker-compose.test.yml docker compose run --rm app sh /scripts/run_api_fuzzytest.sh; rc=$?; COMPOSE_FILE=docker-compose.test.yml docker compose down -v; exit $rc
 
 
 # ---- Lint & Format ----
