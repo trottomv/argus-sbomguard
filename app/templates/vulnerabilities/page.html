@@ -3,7 +3,7 @@
 {% set active = active_sort == column %}
 <a href="#"
    class="inline-flex items-center gap-1"
-    hx-get="/vulnerabilities?severity={{ active_severity }}&project_id={{ active_project_id }}&service_id={{ active_service_id }}&sort={{ column }}&order={{ new_order }}&page=1&per_page={{ per_page }}"
+    hx-get="/vulnerabilities?severity={{ active_severity }}&project_id={{ active_project_id }}&service_id={{ active_service_id }}&cve_id={{ active_cve }}&sort={{ column }}&order={{ new_order }}&page=1&per_page={{ per_page }}"
    hx-target="#vuln-page"
    hx-swap="outerHTML">
     <span>{{ label }}</span>
@@ -16,18 +16,21 @@
 
 <div id="vuln-page" class="space-y-6" x-data="vulnPage"
      data-severity="{{ active_severity }}" data-project="{{ active_project_id }}"
-     data-service="{{ active_service_id }}"
+     data-service="{{ active_service_id }}" data-cve="{{ active_cve }}"
      data-reload-params="sort={{ active_sort }}&amp;order={{ active_order }}&amp;page=1&amp;per_page={{ per_page }}">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col gap-3">
         <h1 class="text-2xl font-bold">Active Vulnerabilities</h1>
-        <div class="flex gap-2">
-            <button class="btn btn-outline"
-                    :class="{ 'opacity-40 pointer-events-none': !filtersActive }"
-                    @click="clearFilters()"
-                    :disabled="!filtersActive">
-                <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-x"></use></svg>
-                Clear filters
+        <form class="flex w-full max-w-lg"
+              hx-get="/vulnerabilities?severity={{ active_severity }}&project_id={{ active_project_id }}&service_id={{ active_service_id }}&sort={{ active_sort }}&order={{ active_order }}&per_page={{ per_page }}"
+              hx-target="#vuln-page" hx-swap="outerHTML">
+            <input class="input input-bordered flex-1 min-w-0 rounded-r-none" type="search" name="cve_id"
+                   value="{{ active_cve }}" placeholder="Search CVE..." autocomplete="off"
+                   x-model="cve" aria-label="Search CVE">
+            <button class="btn btn-outline shrink-0 rounded-l-none -ml-px" type="submit" aria-label="Search CVE">
+                <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-search"></use></svg>
             </button>
+        </form>
+        <div class="flex flex-wrap items-center gap-2">
             <select class="select select-bordered" x-model="severity" @change="reloadFilters()">
                 <option value="">All Severities</option>
                 <option value="critical">Critical</option>
@@ -47,10 +50,17 @@
                 <option value="{{ service.id }}">{{ service.name }}</option>
                 {% endfor %}
             </select>
+            <button class="btn btn-outline"
+                    :class="{ 'opacity-40 pointer-events-none': !filtersActive }"
+                    @click="clearFilters()"
+                    :disabled="!filtersActive">
+                <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-x"></use></svg>
+                Clear filters
+            </button>
         </div>
     </div>
 
-    {% include 'partials/vuln_detail_modal.html' %}
+    {% include "partials/vuln_detail_modal.html" %}
 
     <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
         <div class="p-0">
@@ -140,7 +150,7 @@
             </div>
         </div>
         <div id="load-more-vuln-section">
-        {% include 'partials/load_more.html' with context %}
+        {% include "partials/load_more.html" with context %}
         </div>
     </div>
 </div>

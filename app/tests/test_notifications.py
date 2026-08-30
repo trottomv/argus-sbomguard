@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from config import settings
-from services.notifications import send_email, send_slack
+from services.notifications import send_discord, send_email, send_slack
 
 
 @pytest.mark.asyncio
@@ -64,6 +64,29 @@ async def test_send_email_smtp_with_login():
 
 
 @pytest.mark.asyncio
+async def test_send_email_smtp_without_starttls():
+    original_host = settings.smtp_host
+    original_user = settings.smtp_user
+    settings.smtp_host = "smtp.example.com"
+    settings.smtp_user = ""
+    try:
+        with patch("services.notifications.smtplib.SMTP") as mock_smtp:
+            server = MagicMock()
+            server.has_extn.return_value = False
+            mock_smtp.return_value.__enter__.return_value = server
+
+            result = await send_email("test@example.com", "Subject", "Body")
+
+        assert result is True
+        server.starttls.assert_not_called()
+        server.login.assert_not_called()
+        server.send_message.assert_called_once()
+    finally:
+        settings.smtp_host = original_host
+        settings.smtp_user = original_user
+
+
+@pytest.mark.asyncio
 async def test_send_email_smtp_failure():
     original_host = settings.smtp_host
     settings.smtp_host = "smtp.example.com"
@@ -85,7 +108,7 @@ async def test_send_slack_no_webhook():
     original = settings.slack_webhook_url
     settings.slack_webhook_url = ""
     try:
-        result = await send_slack("", "Hello")
+        result = await send_slack("", {"title": "Hello"})
         assert result is False
     finally:
         settings.slack_webhook_url = original
@@ -100,12 +123,13 @@ async def test_send_slack_success(httpx_mock):
         status_code=200,
         text="ok",
     )
-    result = await send_slack(webhook, "Test message")
+    attachment = {"title": "CVE-2026-1 (CRITICAL)", "color": "#ED4245"}
+    result = await send_slack(webhook, attachment)
     assert result is True
 
     request = httpx_mock.get_request()
     assert request is not None
-    assert json.loads(request.read()) == {"text": "Test message"}
+    assert json.loads(request.read()) == {"attachments": [attachment]}
 
 
 @pytest.mark.asyncio
@@ -116,7 +140,7 @@ async def test_send_slack_http_error(httpx_mock):
         method="POST",
         status_code=403,
     )
-    result = await send_slack(webhook, "Test")
+    result = await send_slack(webhook, {"title": "Test"})
     assert result is False
 
 
@@ -128,5 +152,58 @@ async def test_send_slack_network_error(httpx_mock):
         url=webhook,
         method="POST",
     )
-    result = await send_slack(webhook, "Test")
+    result = await send_slack(webhook, {"title": "Test"})
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_send_discord_no_webhook():
+    original = settings.discord_webhook_url
+    settings.discord_webhook_url = ""
+    try:
+        result = await send_discord("", {"title": "Hello"})
+        assert result is False
+    finally:
+        settings.discord_webhook_url = original
+
+
+@pytest.mark.asyncio
+async def test_send_discord_success(httpx_mock):
+    webhook = "https://discord.com/api/webhooks/xxx/yyy"
+    httpx_mock.add_response(
+        url=webhook,
+        method="POST",
+        status_code=204,
+        text="",
+    )
+    embed = {"title": "CVE-2026-1 (CRITICAL)", "color": 15548997}
+    result = await send_discord(webhook, embed)
+    assert result is True
+
+    request = httpx_mock.get_request()
+    assert request is not None
+    assert json.loads(request.read()) == {"embeds": [embed]}
+
+
+@pytest.mark.asyncio
+async def test_send_discord_http_error(httpx_mock):
+    webhook = "https://discord.com/api/webhooks/xxx/yyy"
+    httpx_mock.add_response(
+        url=webhook,
+        method="POST",
+        status_code=400,
+    )
+    result = await send_discord(webhook, {"title": "Test"})
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_send_discord_network_error(httpx_mock):
+    webhook = "https://discord.com/api/webhooks/xxx/yyy"
+    httpx_mock.add_exception(
+        ConnectionError("Network error"),
+        url=webhook,
+        method="POST",
+    )
+    result = await send_discord(webhook, {"title": "Test"})
     assert result is False

@@ -16,6 +16,7 @@ class SeverityThreshold(ValueLabelEnum):
 class NotificationChannel(ValueLabelEnum):
     EMAIL = "email", "Email"
     SLACK = "slack", "Slack"
+    DISCORD = "discord", "Discord"
 
 
 class NotificationStatus(ValueLabelEnum):

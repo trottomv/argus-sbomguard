@@ -62,6 +62,21 @@ async def test_vulnerabilities_page_filters(client, db_session):
 
 
 @pytest.mark.asyncio
+async def test_vulnerabilities_page_cve_search(client, db_session):
+    proj = await client.post("/api/v1/projects", json={"name": "cve-search"})
+    pid = proj.json()["id"]
+    sbom_id = await _upload(client, pid, "a", "1.0", service_name="svc")
+    await _add_vuln(db_session, sbom_id, "CVE-2026-3006")
+    await _add_vuln(db_session, sbom_id, "CVE-2026-9999")
+
+    resp = await client.get("/vulnerabilities?cve_id=CVE-2026-3006")
+    assert resp.status_code == 200
+    assert "CVE-2026-3006" in resp.text
+    assert "CVE-2026-9999" not in resp.text
+    assert "Search CVE" in resp.text
+
+
+@pytest.mark.asyncio
 async def test_vulnerabilities_page_shows_library_and_fixed_version(client, db_session):
     project = Project(name="lib-fix-test")
     db_session.add(project)

@@ -6,13 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
 from models.alert import AlertConfig, Notification, NotificationChannel, NotificationStatus
+from models.project import Project
 from models.sbom import SBOM
+from models.service import Service
 from models.vulnerability import (
     SBOMVulnerability,
     Vulnerability,
     VulnerabilityStatus,
 )
-from services.notifications import send_email, send_slack
+from services.notifications import send_discord, send_email, send_slack
 
 _SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
@@ -69,19 +71,179 @@ async def _enabled_alerts(db: AsyncSession) -> list[AlertConfig]:
     return list(result.scalars().all())
 
 
-async def _deliver(alert: AlertConfig, vuln: Vulnerability) -> tuple[NotificationChannel, bool]:
+def _package_names(affected_packages: list | None) -> list[str]:
+    """Extract short package names from purl entries (deduplicated)."""
+    names: list[str] = []
+    for purl in affected_packages or []:
+        name = str(purl).rsplit("/", 1)[-1].split("@", 1)[0].split("?", 1)[0]
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+_SEVERITY_COLORS = {
+    "critical": "#ED4245",
+    "high": "#FAA61A",
+    "medium": "#FEE75C",
+    "low": "#57F287",
+    "unknown": "#99AAB5",
+}
+
+_SEVERITY_EMOJIS = {
+    "critical": "🔴",
+    "high": "🟠",
+    "medium": "🟡",
+    "low": "🟢",
+    "unknown": "⚪",
+}
+
+
+def _severity_color_hex(severity: str | None) -> str:
+    """Accent color for a severity (shared by the Discord embed and Slack card)."""
+    return _SEVERITY_COLORS.get(str(severity).lower(), "#99AAB5")
+
+
+def _severity_emoji(severity: str | None) -> str:
+    """Severity marker shown at the start of every notification."""
+    return _SEVERITY_EMOJIS.get(str(severity).lower(), "⚪")
+
+
+def _discord_embed(
+    *,
+    cve_id: str,
+    severity: str | None,
+    project_name: str,
+    service_names: list[str],
+    affected: list[str],
+    summary: str | None,
+) -> dict:
+    """Build a Discord embed card for an alert (left accent border via color)."""
+    lines = _format_detail_lines(project_name, service_names, affected, bold="**")
+    if summary:
+        lines.append(summary)
+    embed: dict = {
+        "title": f"{_severity_emoji(severity)} {cve_id} ({severity})",
+        "color": int(_severity_color_hex(severity).lstrip("#"), 16),
+        "description": "\n".join(lines),
+    }
+    if settings.notification_base_url:
+        embed["url"] = f"{settings.notification_base_url}/vulnerabilities?cve_id={cve_id}"
+    return embed
+
+
+def _slack_attachment(
+    *,
+    cve_id: str,
+    severity: str | None,
+    project_name: str,
+    service_names: list[str],
+    affected: list[str],
+    summary: str | None,
+) -> dict:
+    """Build a Slack attachment card for an alert (Alertmanager-style)."""
+    lines = _format_detail_lines(project_name, service_names, affected, bold="*")
+    if summary:
+        lines.append(summary)
+    title = f"{_severity_emoji(severity)} {cve_id} ({severity})"
+    attachment: dict = {
+        "color": _severity_color_hex(severity),
+        "title": title,
+        "fallback": title,
+        "text": "\n".join(lines),
+    }
+    if settings.notification_base_url:
+        attachment["title_link"] = (
+            f"{settings.notification_base_url}/vulnerabilities?cve_id={cve_id}"
+        )
+    return attachment
+
+
+def _format_detail_lines(
+    project_name: str,
+    service_names: list[str],
+    affected: list[str],
+    *,
+    bold: str,
+) -> list[str]:
+    """Render the alert context as vertically aligned lines (bold label + code)."""
+    lines = [
+        f"{bold}Project{bold} `{project_name}`",
+        f"{bold}Services{bold} `{', '.join(service_names) if service_names else 'n/a'}`",
+    ]
+    if affected:
+        lines.append(f"{bold}Affected{bold} `{', '.join(affected)}`")
+    return lines
+
+
+def _email_body(
+    *,
+    cve_id: str,
+    severity: str | None,
+    project_name: str,
+    service_names: list[str],
+    affected: list[str],
+    summary: str | None,
+) -> str:
+    """Build the plain-text email body."""
+    lines = [
+        f"{_severity_emoji(severity)} {cve_id} ({severity})",
+        f"Project: {project_name}",
+        f"Services: {', '.join(service_names) if service_names else 'n/a'}",
+    ]
+    if affected:
+        lines.append(f"Affected: {', '.join(affected)}")
+    if summary:
+        lines.append(summary)
+    if settings.notification_base_url:
+        lines.append(f"Details: {settings.notification_base_url}/vulnerabilities?cve_id={cve_id}")
+    return "\n".join(lines)
+
+
+async def _deliver(
+    alert: AlertConfig,
+    vuln: Vulnerability,
+    *,
+    project_name: str,
+    service_names: list[str],
+) -> tuple[NotificationChannel, bool]:
     """Send the alert, returning ``(channel, success)``."""
-    message = f"🔴 *{vuln.cve_id}* ({vuln.severity})\n{vuln.summary}"
+    affected = _package_names(vuln.affected_packages)
     if alert.notification_type == NotificationChannel.SLACK and settings.slack_webhook_url:
-        return NotificationChannel.SLACK, await send_slack(settings.slack_webhook_url, message)
+        attachment = _slack_attachment(
+            cve_id=vuln.cve_id,
+            severity=vuln.severity,
+            project_name=project_name,
+            service_names=service_names,
+            affected=affected,
+            summary=vuln.summary,
+        )
+        return NotificationChannel.SLACK, await send_slack(settings.slack_webhook_url, attachment)
+    if alert.notification_type == NotificationChannel.DISCORD and settings.discord_webhook_url:
+        embed = _discord_embed(
+            cve_id=vuln.cve_id,
+            severity=vuln.severity,
+            project_name=project_name,
+            service_names=service_names,
+            affected=affected,
+            summary=vuln.summary,
+        )
+        return NotificationChannel.DISCORD, await send_discord(settings.discord_webhook_url, embed)
     if alert.notification_type == NotificationChannel.EMAIL:
         recipients = alert.config.get("to") or ", ".join(settings.alert_email_recipients)
         if not recipients:
             return NotificationChannel.EMAIL, False
+        body = _email_body(
+            cve_id=vuln.cve_id,
+            severity=vuln.severity,
+            project_name=project_name,
+            service_names=service_names,
+            affected=affected,
+            summary=vuln.summary,
+        )
         return NotificationChannel.EMAIL, await send_email(
             recipients,
             f"Critical: {vuln.cve_id}",
-            message,
+            body,
         )
     return alert.notification_type, False
 
@@ -237,6 +399,20 @@ async def do_check_alerts(db: AsyncSession) -> None:
     _resolve_closed_episodes(notifications, alert_by_id, open_pairs)
     by_pair = _index_by_pair(notifications)
 
+    project_ids = {alert.project_id for alert in alerts}
+    project_rows = await db.execute(select(Project).where(Project.id.in_(project_ids)))
+    project_names = {project.id: project.name for project in project_rows.scalars().all()}
+
+    service_ids_needed: set[uuid.UUID] = set()
+    for _vuln_id, projects in services_by_vuln.items():
+        for project_id, service_ids in projects.items():
+            if project_id in project_ids:
+                service_ids_needed.update(uuid.UUID(service_id) for service_id in service_ids)
+    service_names: dict[str, str] = {}
+    if service_ids_needed:
+        svc_rows = await db.execute(select(Service).where(Service.id.in_(service_ids_needed)))
+        service_names = {str(service.id): service.name for service in svc_rows.scalars().all()}
+
     for alert in alerts:
         for project_id, vuln_id in open_pairs:
             if project_id != alert.project_id:
@@ -251,7 +427,12 @@ async def do_check_alerts(db: AsyncSession) -> None:
             if action in (_DeliveryAction.SKIP, _DeliveryAction.GIVE_UP):
                 continue
 
-            channel, success = await _deliver(alert, vuln)
+            channel, success = await _deliver(
+                alert,
+                vuln,
+                project_name=project_names[alert.project_id],
+                service_names=[service_names[service_id] for service_id in current_services],
+            )
             _record_delivery(
                 db, alert, vuln_id, existing, action, channel, success, current_services
             )

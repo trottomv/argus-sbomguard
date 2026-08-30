@@ -7,27 +7,30 @@
                 severity: '',
                 project: '',
                 service: '',
+                cve: '',
                 detail: { cve_id: '', severity: '', cvss: '', cvss_vector: '', summary: '', published: '', urls: [], affected: [], fixed: [] },
                 init() {
                     this.severity = this.$el.dataset.severity || '';
                     this.project = this.$el.dataset.project || '';
                     this.service = this.$el.dataset.service || '';
+                    this.cve = this.$el.dataset.cve || '';
                     this.reloadParams = this.$el.dataset.reloadParams || '';
                 },
                 get filtersActive() {
-                    return this.severity || this.project || this.service;
+                    return this.severity || this.project || this.service || this.cve;
                 },
                 openDetail(event) {
                     this.detail = JSON.parse(event.currentTarget.getAttribute('data-detail'));
                     document.getElementById('detail_modal').showModal();
                 },
                 reloadFilters() {
-                    htmx.ajax('GET', '/vulnerabilities?severity=' + this.severity + '&project_id=' + this.project + '&service_id=' + this.service + '&' + this.reloadParams, { target: '#vuln-page', swap: 'outerHTML' });
+                    htmx.ajax('GET', '/vulnerabilities?severity=' + encodeURIComponent(this.severity) + '&project_id=' + encodeURIComponent(this.project) + '&service_id=' + encodeURIComponent(this.service) + '&cve_id=' + encodeURIComponent(this.cve) + '&' + this.reloadParams, { target: '#vuln-page', swap: 'outerHTML' });
                 },
                 clearFilters() {
                     this.severity = '';
                     this.project = '';
                     this.service = '';
+                    this.cve = '';
                     this.reloadFilters();
                 },
                 onProjectChange() {

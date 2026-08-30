@@ -818,6 +818,15 @@
             }
           },
           {
+            "name": "cve_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Cve Id"
+            }
+          },
+          {
             "name": "sort",
             "in": "query",
             "required": false,
@@ -1446,7 +1455,8 @@
         "type": "string",
         "enum": [
           "email",
-          "slack"
+          "slack",
+          "discord"
         ],
         "title": "NotificationChannel"
       },
