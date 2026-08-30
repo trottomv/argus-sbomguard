@@ -1,14 +1,19 @@
 name: api-fuzzytest
 
-# Schemathesis DAST fuzz run against a fresh app instance (postgres +
-# rabbitmq + uvicorn). Reads the OpenAPI schema at /api/openapi.json and
-# exercises every endpoint across the coverage, fuzzing and stateful phases.
+# Schemathesis DAST fuzzy test run against a fresh app instance. Reuses the same
+# scripts/run_api_fuzzytest.sh as `just api-fuzzytest`: the container applies
+# migrations, mints an API key, boots uvicorn and runs the full coverage,
+# fuzzing and stateful phases against a throwaway database.
 # A random Hypothesis seed is used per run, so each run explores new input
 # space; any failure is a real bug (Schemathesis shrinks to a minimal repro).
 #
+# postgres + rabbitmq come from Docker Hub via job `services`; the test image
+# is built with Buildx so it can pull the project's base images (the compose
+# daemon cannot reach the private base registry from CI).
+#
 # Triggered either manually (workflow_dispatch, once the file is on the default
 # branch) or on a PR by applying the `run-api-fuzzytest` label (pull_request
-# labeled), so the fuzz can be run before merge on demand.
+# labeled), so the fuzzy tests can be run before merge on demand.
 
 on:
   workflow_dispatch:
@@ -49,81 +54,29 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
-    env:
-      PYTHONPATH: .:protos/generated
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: argus
-      POSTGRES_PASSWORD: argus
-      POSTGRES_DB: argus
-      RABBITMQ_HOST: localhost
-      RABBITMQ_USER: argus
-      RABBITMQ_PASSWORD: argus
-
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v9.0.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build test image
+        uses: docker/build-push-action@v7
         with:
-          cache-dependency-glob: "app/requirements/*.txt"
-          version: "${{ vars.UV_VERSION || '~=0.12.0' }}"
+          context: app
+          file: app/Dockerfile
+          target: test
+          load: true
+          tags: argus-fuzzy-test:latest
 
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Install dependencies
-        working-directory: app
+      - name: Run API fuzzy tests
+        # Runs migrations, mints a key, starts uvicorn and runs schemathesis
+        # against the throwaway DB (see scripts/run_api_fuzzytest.sh). The image
+        # already bakes the app + generated gRPC stubs; only ./scripts is
+        # mounted. --network host reaches the job services on localhost.
         run: |
-          uv venv
-          uv pip install -r requirements/dev.txt
-
-      - name: Generate gRPC stubs
-        working-directory: app
-        run: |
-          mkdir -p protos/generated
-          touch protos/generated/__init__.py
-          uv run --no-sync python -m grpc_tools.protoc \
-            -Iprotos \
-            --python_out=protos/generated \
-            --grpc_python_out=protos/generated \
-            protos/sbom.proto
-
-      - name: Apply migrations
-        working-directory: app
-        run: |
-          uv run --no-sync python -c "from alembic import command, config; c = config.Config('alembic.ini'); c.set_main_option('sqlalchemy.url', __import__('config').settings.database_url); command.upgrade(c, 'head')"
-
-      - name: Mint API key
-        working-directory: app
-        run: |
-          echo "ARGUS_API_KEY=$(uv run --no-sync python ../scripts/create_api_key.py)" >> "$GITHUB_ENV"
-
-      - name: Start app
-        working-directory: app
-        run: |
-          uv run --no-sync uvicorn main:app --host 127.0.0.1 --port 8000 --log-level warning &
-          echo $! > /tmp/uvicorn.pid
-          for i in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:8000/readyz >/dev/null 2>&1; then
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "app did not become ready in 60s"
-          exit 1
-
-      - name: Run Schemathesis
-        working-directory: app
-        run: |
-          uv run --no-sync schemathesis run \
-            --checks all \
-            --exclude-checks negative_data_rejection,positive_data_acceptance,unsupported_method,allow_header_conformance \
-            --warnings off \
-            --max-failures 5 \
-            --header "X-API-Key:${{ env.ARGUS_API_KEY }}" \
-            http://127.0.0.1:8000/api/openapi.json
-
-      - name: Stop app
-        if: always()
-        run: kill "$(cat /tmp/uvicorn.pid)" || true
+          docker run --rm --network host \
+            -e POSTGRES_HOST=localhost \
+            -e RABBITMQ_HOST=localhost \
+            -v "${{ github.workspace }}/scripts:/scripts:ro" \
+            argus-fuzzy-test:latest sh /scripts/run_api_fuzzytest.sh

@@ -1,13 +1,16 @@
 #!/bin/sh
-# API fuzz test runner — runs inside the standalone test stack app container
+# API fuzzy test runner — runs inside the standalone test stack app container
 # (docker-compose.test.yml). Targets the throwaway test database, never the
 # dev data: migrations are applied, an API key is minted and the app is started
 # against the isolated test postgres. Mirrors .github/workflows/api-fuzzytest.yml.
 set -eu
 
-alembic upgrade head
+# alembic.ini hardcodes the dev URL (@postgres); inject the one from the
+# environment (POSTGRES_*) so this works in the compose test stack (host
+# postgres) and in CI (host localhost) alike.
+python3 -c "from alembic import command, config; c = config.Config('alembic.ini'); c.set_main_option('sqlalchemy.url', __import__('config').settings.database_url); command.upgrade(c, 'head')"
 
-ARGUS_API_KEY="$(python3 /scripts/create_api_key.py fuzz-test)"
+ARGUS_API_KEY="$(python3 /scripts/create_api_key.py fuzzy-test)"
 
 uvicorn main:app --host 0.0.0.0 --port 8000 --log-level warning &
 UV_PID=$!
