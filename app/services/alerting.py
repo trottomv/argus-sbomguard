@@ -108,6 +108,13 @@ def _severity_emoji(severity: str | None) -> str:
     return _SEVERITY_EMOJIS.get(str(severity).lower(), "⚪")
 
 
+def _truncate(text: str, limit: int) -> str:
+    """Clip ``text`` to ``limit`` chars (with an ellipsis) for card payload limits."""
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1] + "…"
+
+
 def _discord_embed(
     *,
     cve_id: str,
@@ -124,7 +131,8 @@ def _discord_embed(
     embed: dict = {
         "title": f"{_severity_emoji(severity)} {cve_id} ({severity})",
         "color": int(_severity_color_hex(severity).lstrip("#"), 16),
-        "description": "\n".join(lines),
+        # Discord embed descriptions are capped at 4096 chars.
+        "description": _truncate("\n".join(lines), 4000),
     }
     if settings.notification_base_url:
         embed["url"] = f"{settings.notification_base_url}/vulnerabilities?cve_id={cve_id}"
@@ -149,7 +157,8 @@ def _slack_attachment(
         "color": _severity_color_hex(severity),
         "title": title,
         "fallback": title,
-        "text": "\n".join(lines),
+        # Slack attachment text is capped at 3000 chars.
+        "text": _truncate("\n".join(lines), 3000),
     }
     if settings.notification_base_url:
         attachment["title_link"] = (
@@ -430,8 +439,10 @@ async def do_check_alerts(db: AsyncSession) -> None:
             channel, success = await _deliver(
                 alert,
                 vuln,
-                project_name=project_names[alert.project_id],
-                service_names=[service_names[service_id] for service_id in current_services],
+                project_name=project_names.get(alert.project_id, ""),
+                service_names=[
+                    service_names.get(service_id, "") for service_id in current_services
+                ],
             )
             _record_delivery(
                 db, alert, vuln_id, existing, action, channel, success, current_services

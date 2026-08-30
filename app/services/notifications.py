@@ -25,8 +25,13 @@ def _send_email_sync(to: str, subject: str, body: str) -> bool:
     try:
         context = ssl.create_default_context()
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+            # SMTP() connects but never sends EHLO, so esmtp_features (read by
+            # has_extn) is empty until ehlo() runs. StartTLS must be negotiated
+            # before auth/send, and the ESMTP state resets after the handshake.
+            server.ehlo()
             if server.has_extn("starttls"):
                 server.starttls(context=context)
+                server.ehlo()
             if settings.smtp_user:
                 server.login(settings.smtp_user, settings.smtp_password)
             server.send_message(msg)
