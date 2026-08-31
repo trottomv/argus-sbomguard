@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import logging
 import secrets
 import string
@@ -16,7 +17,16 @@ logger = logging.getLogger(__name__)
 
 
 def _hash_token(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
+    """Hash a token with HMAC-SHA256 keyed on SECRET_KEY.
+
+    HMAC-SHA256 is a keyed PRF/MAC: the digest is deterministic for a given
+    key (so verification is a plain equality lookup on the stored hash) and
+    the key is never embedded in the output, so a DB leak alone yields
+    nothing. Tokens carry high entropy (login codes ~82 bits, API keys ~192
+    bits), so a fast keyed hash is sufficient. Rotating ``SECRET_KEY``
+    invalidates every stored hash (token/key lockdown).
+    """
+    return hmac.new(settings.secret_key.encode(), token.encode(), hashlib.sha256).hexdigest()
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
