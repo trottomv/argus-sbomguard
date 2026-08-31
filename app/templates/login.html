@@ -21,33 +21,32 @@
                 <div class="alert alert-error text-sm mb-4">{{ error }}</div>
                 {% endif %}
 
-                {% if dev_code %}
-                <div class="alert mb-4 text-sm">
-                    <span class="font-mono tracking-wider text-lg">{{ dev_code }}</span>
-                </div>
-                {% endif %}
-
                 {% if step == "code" %}
-                <form method="post" action="/login/verify" class="space-y-4">
-                    <p class="text-sm text-ctp-subtext0">We sent a login code to <strong>{{ email }}</strong></p>
-                    <input type="hidden" name="email" value="{{ email }}">
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">Code</legend>
-                        <input type="text" name="code" class="input w-full text-lg font-mono tracking-wider text-center"
-                               placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" required autofocus
-                               style="letter-spacing:0.3em">
-                    </fieldset>
-                    <button type="submit" class="btn btn-primary w-full bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white">Verify</button>
-                    <p class="text-xs text-center opacity-50">Code expires in 15 minutes</p>
-                </form>
+                    <form method="post" action="/login/verify" class="space-y-4">
+                        <p class="text-sm text-ctp-subtext0">We sent a login code to <strong>{{ email }}</strong></p>
+                        {% if dev_code %}
+                            <div class="alert mb-4 text-sm">
+                                <span class="font-mono tracking-wider text-lg">{{ dev_code }}</span>
+                            </div>
+                        {% endif %}
+                        <input type="hidden" name="email" value="{{ email }}">
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">Code</legend>
+                            <input type="text" name="code" class="input w-full text-lg font-mono tracking-wider text-center"
+                                placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" required autofocus
+                                style="letter-spacing:0.3em">
+                        </fieldset>
+                        <button type="submit" class="btn btn-primary w-full bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white">Verify</button>
+                        <p class="text-xs text-center opacity-50">Code expires in 15 minutes</p>
+                    </form>
                 {% else %}
-                <form method="post" action="/login" class="space-y-4">
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">Email</legend>
-                        <input type="email" name="email" class="input w-full" value="{{ email }}" required autofocus autocomplete="email">
-                    </fieldset>
-                    <button type="submit" class="btn btn-primary w-full bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white">Send login code</button>
-                </form>
+                    <form method="post" action="/login" class="space-y-4">
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">Email</legend>
+                            <input type="email" name="email" class="input w-full" value="{{ email }}" required autofocus autocomplete="email">
+                        </fieldset>
+                        <button type="submit" class="btn btn-primary w-full bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white">Send login code</button>
+                    </form>
                 {% endif %}
             </div>
         </div>
