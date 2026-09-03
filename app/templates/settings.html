@@ -45,7 +45,7 @@
     <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
         <div>
             <h2 class="text-lg font-bold text-ctp-text">API Keys</h2>
-            <p class="text-sm text-ctp-subtext0">Use these keys to authenticate REST API and gRPC requests via the <code class="text-xs">X-API-Key</code> header.</p>
+            <p class="text-sm text-ctp-subtext0">Use these keys to authenticate REST API and gRPC requests via the <code class="text-xs">Authorization: Bearer</code> header.</p>
 
             <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
                     @click="openGenKey()"><svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-plus"></use></svg> Generate Key</button>
@@ -57,6 +57,10 @@
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend">Label</legend>
                             <input type="text" x-model="newKeyLabel" class="input w-full" placeholder="e.g. CI/CD, production" required autofocus>
+                        </fieldset>
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">Lifetime (days) — optional</legend>
+                            <input type="number" min="0" x-model="newKeyTtl" class="input w-full" placeholder="empty = default ({{ api_key_ttl_days | default('no expiry') }})">
                         </fieldset>
                         <div class="modal-action">
                             <button type="submit" class="btn btn-primary">Create</button>
@@ -73,6 +77,7 @@
                             <th>Label</th>
                             <th>Prefix</th>
                             <th>Created</th>
+                            <th>Expires</th>
                             <th>Last Used</th>
                             <th></th>
                         </tr>
@@ -83,6 +88,7 @@
                             <td>{{ key.label or "-" }}</td>
                             <td><code class="text-xs">{{ key.key_prefix }}...</code></td>
                             <td class="text-sm">{{ key.created_at | format_dt('%Y-%m-%d %H:%M') }}</td>
+                            <td class="text-sm">{{ key.expires_at | format_dt('%Y-%m-%d', 'never') }}</td>
                             <td class="text-sm">{{ key.last_used_at | format_dt('%Y-%m-%d %H:%M', 'never') }}</td>
                             <td>
                                 <button class="btn btn-error btn-sm"
@@ -94,7 +100,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="5" class="text-center opacity-60 py-4">No API keys yet</td>
+                            <td colspan="6" class="text-center opacity-60 py-4">No API keys yet</td>
                         </tr>
                         {% endfor %}
                     </tbody>

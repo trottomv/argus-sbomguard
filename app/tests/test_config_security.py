@@ -22,6 +22,7 @@ def _isolate_from_env(monkeypatch):
         "OTEL_FORWARD_ENDPOINT",
         "SNAPSHOT_RETENTION_DAYS",
         "SBOM_RETENTION_DAYS",
+        "API_KEY_TTL_DAYS",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -170,3 +171,31 @@ def test_snapshot_retention_cannot_be_disabled():
 def test_snapshot_retention_min_is_30():
     with pytest.raises(ValidationError):
         Settings(snapshot_retention_days=10)
+
+
+def test_api_key_ttl_defaults_to_90_days():
+    assert Settings().api_key_ttl_days == 90
+
+
+def test_api_key_ttl_zero_disables():
+    assert Settings(api_key_ttl_days=0).api_key_ttl_days is None
+
+
+def test_api_key_ttl_empty_env_disables(monkeypatch):
+    monkeypatch.setenv("API_KEY_TTL_DAYS", "")
+    assert Settings().api_key_ttl_days is None
+
+
+def test_api_key_ttl_positive_override(monkeypatch):
+    monkeypatch.setenv("API_KEY_TTL_DAYS", "45")
+    assert Settings().api_key_ttl_days == 45
+
+
+def test_api_key_ttl_negative_rejected():
+    with pytest.raises(ValidationError):
+        Settings(api_key_ttl_days=-1)
+
+
+def test_api_key_ttl_non_integer_rejected():
+    with pytest.raises(ValidationError):
+        Settings(api_key_ttl_days="not-a-number")

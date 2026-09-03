@@ -169,7 +169,7 @@ After pushing, the URL to open a PR is shown in the terminal output.
 
 ## Key conventions
 - **SBOM formats**: CycloneDX (JSON) primary; SPDX secondary.
-- **Auth**: Passwordless email login for HTML UI. API keys (`X-API-Key` header) for REST/gRPC. gRPC metadata `api-key`. Session via signed cookie (no Starlette SessionMiddleware).
+- **Auth**: Passwordless email login for HTML UI. API keys (`Authorization: Bearer` header) for REST/gRPC. gRPC metadata `authorization: bearer`. Session via signed cookie (no Starlette SessionMiddleware).
 - **JSONB columns**: `sboms.raw_sbom`, `dependencies.metadata`.
 - **Async everywhere**: `asyncpg` + SQLAlchemy async session. No sync DB access.
 - **Migrations**: Sequential `NNNN_description.py` files (`0001_initial_schema.py`, `0002_...`, …). Always generate via `alembic revision --autogenerate`, then rename the file to `NNNN_<description>.py` and set `revision = "NNNN"` with `down_revision` = the previous revision (the first migration keeps its legacy hash `b316f0a5cd25` — never change it, or already-migrated DBs break). Migrations are frozen snapshots: generated/computed columns inline the literal expression. Note that autogenerate does **not** detect changes to a computed/generated column's expression — if you change one in the model, write the migration by hand (e.g. `op.alter_column(..., computed=...)` or drop/re-add the column). This is because PostgreSQL stores the *normalized* `generation_expression` (e.g. `TRIM(BOTH FROM name)`, `::text` casts) which never byte-matches the raw SQL in the model, so Alembic's computed-column comparison can't be a naive string diff (verified empirically).
@@ -221,5 +221,5 @@ alert_configs → notifications / pull_requests
 - `worker` and `scheduler` run the same image as `app`.
 - Mailpit catches all dev emails at `localhost:8025`.
 - Migration file may be root-owned after Docker generation — `chown` before committing.
-- API key endpoints accept both session cookie (web UI) and `X-API-Key` header (API).
+- API key endpoints accept both session cookie (web UI) and `Authorization: Bearer` header (API).
 - **PostgreSQL upgrade from 16 to 18**: existing `postgres_data` volumes must be recreated (`docker compose down -v`) or migrated via dump/restore.

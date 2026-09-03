@@ -10,6 +10,7 @@ from sbom_pb2 import UploadRequest
 from sbom_pb2_grpc import SBOMServiceStub, add_SBOMServiceServicer_to_server
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from services.auth import ApiKeyAuthResult
 from services.grpc_server import AuthInterceptor, SBOMServiceServicer, _rejecting_handler
 
 
@@ -252,9 +253,9 @@ class TestUploadSBOM:
 
 
 class TestAuthInterceptor:
-    def _details(self, api_key: str = ""):
+    def _details(self, token: str = ""):
         class _Details:
-            invocation_metadata = [("api-key", api_key)] if api_key else []
+            invocation_metadata = [("authorization", f"Bearer {token}".encode())] if token else []
 
         return _Details()
 
@@ -262,11 +263,24 @@ class TestAuthInterceptor:
         return AuthInterceptor(session_factory=async_sessionmaker(db_session.bind))
 
     @pytest.mark.asyncio
-    async def test_missing_api_key_rejected(self, db_session):
+    async def test_missing_authorization_rejected(self, db_session):
         interceptor = self._interceptor(db_session)
         continuation = AsyncMock()
 
         handler = await interceptor.intercept_service(continuation, self._details(""))
+        assert handler is not None
+        continuation.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_non_bearer_scheme_rejected(self, db_session):
+        interceptor = self._interceptor(db_session)
+        continuation = AsyncMock()
+
+        class _Details:
+            def __init__(self):
+                self.invocation_metadata = [(b"authorization", b"Basic dXNlcjpwYXNz")]
+
+        handler = await interceptor.intercept_service(continuation, _Details())
         assert handler is not None
         continuation.assert_not_called()
 
@@ -276,11 +290,27 @@ class TestAuthInterceptor:
         continuation = AsyncMock()
 
         with patch(
-            "services.grpc_server.validate_api_key",
+            "services.grpc_server.authenticate_api_key",
             new_callable=AsyncMock,
-            return_value=None,
+            return_value=ApiKeyAuthResult(),
         ):
             handler = await interceptor.intercept_service(continuation, self._details("argus_bad"))
+        assert handler is not None
+        continuation.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_expired_api_key_rejected(self, db_session):
+        interceptor = self._interceptor(db_session)
+        continuation = AsyncMock()
+
+        with patch(
+            "services.grpc_server.authenticate_api_key",
+            new_callable=AsyncMock,
+            return_value=ApiKeyAuthResult(expired=True),
+        ):
+            handler = await interceptor.intercept_service(
+                continuation, self._details("argus_expired")
+            )
         assert handler is not None
         continuation.assert_not_called()
 
@@ -294,9 +324,9 @@ class TestAuthInterceptor:
         continuation.return_value = "handled"
 
         with patch(
-            "services.grpc_server.validate_api_key",
+            "services.grpc_server.authenticate_api_key",
             new_callable=AsyncMock,
-            return_value=user,
+            return_value=ApiKeyAuthResult(user=user),
         ):
             result = await interceptor.intercept_service(continuation, self._details("argus_valid"))
         assert result == "handled"

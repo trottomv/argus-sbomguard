@@ -198,6 +198,7 @@
                 createdKey: '',
                 showCreatedKey: false,
                 newKeyLabel: '',
+                newKeyTtl: '',
                 reload() {
                     window.location.reload();
                 },
@@ -206,13 +207,18 @@
                 },
                 openGenKey() {
                     this.newKeyLabel = '';
+                    this.newKeyTtl = '';
                     document.getElementById('gen_key_modal').showModal();
                 },
                 submitKey() {
+                    var body = { label: this.newKeyLabel };
+                    if (this.newKeyTtl !== '' && this.newKeyTtl !== null) {
+                        body.ttl_days = parseInt(this.newKeyTtl, 10);
+                    }
                     fetch('/settings/api-keys', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ label: this.newKeyLabel })
+                        body: JSON.stringify(body)
                     }).then((r) => r.json()).then((data) => {
                         this.createdKey = data.key;
                         this.showCreatedKey = true;

@@ -11,7 +11,7 @@ Each project groups services, SBOMs, and vulnerability data.
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/projects \
-  -H "X-API-Key: argus_xxx" \
+  -H "Authorization: Bearer argus_xxx" \
   -H "Content-Type: application/json" \
   -d '{"name": "my-app", "description": "My application", "repo_url": "https://github.com/org/my-app"}'
 ```
@@ -39,7 +39,7 @@ From the dashboard, click any project to see:
 
 ```bash
 curl -X PATCH http://localhost:8000/api/v1/projects/{id} \
-  -H "X-API-Key: argus_xxx" \
+  -H "Authorization: Bearer argus_xxx" \
   -H "Content-Type: application/json" \
   -d '{"description": "Updated description"}'
 ```

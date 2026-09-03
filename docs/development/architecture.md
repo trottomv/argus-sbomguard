@@ -36,7 +36,7 @@ Software Bill of Materials (SBOMs) and tracking vulnerabilities.
 │  └─────────┘  └─────────┘  └──────────────────┘ │
 │                     │                             │
 │              AuthMiddleware                       │
-│         (cookie + X-API-Key header)               │
+│        (cookie + Bearer token)                     │
 └──────────────┬───────────────────────────────────┘
                │
     ┌──────────┼──────────┐

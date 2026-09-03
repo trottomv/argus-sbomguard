@@ -34,5 +34,5 @@ schemathesis run \
     --exclude-checks negative_data_rejection,positive_data_acceptance,allow_header_conformance \
     --warnings off \
     --max-failures 5 \
-    --header "X-API-Key:$ARGUS_API_KEY" \
+    --header "Authorization: Bearer $ARGUS_API_KEY" \
     http://127.0.0.1:8000/api/openapi.json

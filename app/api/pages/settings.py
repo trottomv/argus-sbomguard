@@ -1,17 +1,43 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config import settings
 from database import get_db
 from models.alert import AlertConfig, NotificationChannel, SeverityThreshold
 from models.project import Project
-from services.auth import create_api_key, list_api_keys, revoke_api_key
+from services.auth import (
+    api_key_default_expiry,
+    create_api_key,
+    list_api_keys,
+    revoke_api_key,
+)
 from templating import templates
 
 router = APIRouter(tags=["settings"], include_in_schema=False)
+
+
+def _resolve_expiry(raw) -> datetime | None:
+    """Map a ``ttl_days`` form/json value to an ``expires_at``.
+
+    Empty/unset falls back to the configured default (forced rotation);
+    ``0`` explicitly disables expiry; a positive integer sets a TTL in days.
+    """
+    if raw in (None, ""):
+        return api_key_default_expiry()
+    try:
+        days = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="ttl_days must be an integer") from exc
+    if days < 0:
+        raise HTTPException(status_code=400, detail="ttl_days must be >= 0")
+    if days == 0:
+        return None
+    return datetime.now(UTC) + timedelta(days=days)
 
 
 @router.get("/settings", response_class=HTMLResponse)
@@ -29,6 +55,7 @@ async def settings_page(request: Request, db: AsyncSession = Depends(get_db)):
         "alerts": alerts,
         "api_keys": api_keys,
         "project_names": project_names,
+        "api_key_ttl_days": settings.api_key_ttl_days,
         "severity_thresholds": list(SeverityThreshold),
         "notification_channels": list(NotificationChannel),
     }
@@ -47,11 +74,15 @@ async def create_api_key_web(
     if request.headers.get("content-type", "").startswith("application/json"):
         payload = await request.json()
         label = str(payload.get("label", ""))
+        raw_ttl = payload.get("ttl_days", "")
     else:
         form = await request.form()
         label = str(form.get("label", ""))
+        raw_ttl = form.get("ttl_days", "")
 
-    key, raw = await create_api_key(db, uuid.UUID(user.id), label=label)
+    key, raw = await create_api_key(
+        db, uuid.UUID(user.id), label=label, expires_at=_resolve_expiry(raw_ttl)
+    )
     await db.commit()
 
     if request.headers.get("content-type", "").startswith("application/json"):
@@ -62,6 +93,7 @@ async def create_api_key_web(
                 "key": raw,
                 "key_prefix": key.key_prefix,
                 "label": key.label,
+                "expires_at": key.expires_at.isoformat() if key.expires_at else None,
             },
         )
 
@@ -70,6 +102,7 @@ async def create_api_key_web(
         "projects": [],
         "alerts": [],
         "api_keys": api_keys,
+        "api_key_ttl_days": settings.api_key_ttl_days,
         "new_key": raw,
         "new_key_prefix": key.key_prefix,
     }

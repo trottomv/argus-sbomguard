@@ -11,6 +11,8 @@ from starlette.requests import Request
 from middleware.api_key import api_key_required
 from models.auth import ApiKey, User
 from services.auth import (
+    api_key_default_expiry,
+    authenticate_api_key,
     create_api_key,
     generate_api_key,
     list_api_keys,
@@ -72,12 +74,15 @@ async def test_validate_api_key_accepts_no_expiry(db_session):
 
 
 def _make_request(*, session_user=None, api_key: str = ""):
+    headers: list[tuple[bytes, bytes]] = []
+    if api_key:
+        headers.append((b"authorization", f"Bearer {api_key}".encode()))
     scope = {
         "type": "http",
         "method": "POST",
         "path": "/api/v1/test",
         "query_string": b"",
-        "headers": [(b"x-api-key", api_key.encode())] if api_key else [],
+        "headers": headers,
         "state": {},
     }
     if session_user is not None:
@@ -97,7 +102,8 @@ async def test_api_key_required_missing_header_raises_401(db_session):
     with pytest.raises(HTTPException) as exc:
         await api_key_required(request, db=db_session)
     assert exc.value.status_code == 401
-    assert exc.value.detail == "API key required"
+    assert exc.value.detail == "Bearer token required"
+    assert exc.value.headers["WWW-Authenticate"] == "Bearer"
 
 
 async def test_api_key_required_invalid_key_raises_401(db_session):
@@ -108,6 +114,22 @@ async def test_api_key_required_invalid_key_raises_401(db_session):
     assert exc.value.detail == "Invalid API key"
 
 
+async def test_api_key_required_expired_key_raises_401(db_session):
+    user = await _make_user(db_session, "expiredheader@example.com")
+    _key, raw = await create_api_key(
+        db_session,
+        user.id,
+        expires_at=datetime.now(UTC) - timedelta(hours=1),
+    )
+    await db_session.commit()
+
+    request = _make_request(api_key=raw)
+    with pytest.raises(HTTPException) as exc:
+        await api_key_required(request, db=db_session)
+    assert exc.value.status_code == 401
+    assert exc.value.detail == "API key expired"
+
+
 async def test_api_key_required_valid_header(db_session):
     user = await _make_user(db_session, "header@example.com")
     _key, raw = await create_api_key(db_session, user.id)
@@ -116,6 +138,26 @@ async def test_api_key_required_valid_header(db_session):
     request = _make_request(api_key=raw)
     got = await api_key_required(request, db=db_session)
     assert got.id == user.id
+
+
+async def test_api_key_required_malformed_scheme_raises_401(db_session):
+    user = await _make_user(db_session, "scheme@example.com")
+    _key, raw = await create_api_key(db_session, user.id)
+    await db_session.commit()
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/v1/test",
+        "query_string": b"",
+        "headers": [(b"authorization", f"Basic {raw}".encode())],
+        "state": {},
+    }
+    request = Request(scope)
+    with pytest.raises(HTTPException) as exc:
+        await api_key_required(request, db=db_session)
+    assert exc.value.status_code == 401
+    assert exc.value.detail == "Bearer token required"
 
 
 async def test_validate_api_key_rejects_wrong_prefix(db_session):
@@ -168,6 +210,70 @@ async def test_validate_api_key_naive_expiry_interpreted_as_utc(db_session):
     got = await validate_api_key(db_session, raw)
     assert got is not None
     assert got.id == user.id
+
+
+async def test_create_api_key_stores_expiry(db_session):
+    user = await _make_user(db_session, "ttl@example.com")
+    expires_at = datetime.now(UTC) + timedelta(days=30)
+    key, _raw = await create_api_key(db_session, user.id, expires_at=expires_at)
+    await db_session.commit()
+
+    stored = (await db_session.execute(select(ApiKey).where(ApiKey.id == key.id))).scalar_one()
+    assert stored.expires_at is not None
+    assert abs((stored.expires_at - expires_at).total_seconds()) < 5
+
+
+async def test_authenticate_api_key_expired_flags(db_session):
+    user = await _make_user(db_session, "auth-expired@example.com")
+    raw, key_hash, prefix = generate_api_key()
+    db_session.add(
+        ApiKey(
+            user_id=user.id,
+            key_hash=key_hash,
+            key_prefix=prefix,
+            expires_at=datetime.now(UTC) - timedelta(hours=1),
+        )
+    )
+    await db_session.commit()
+
+    result = await authenticate_api_key(db_session, raw)
+    assert result.expired is True
+    assert result.user is None
+
+
+async def test_authenticate_api_key_valid(db_session):
+    user = await _make_user(db_session, "auth-ok@example.com")
+    _key, raw = await create_api_key(db_session, user.id)
+    await db_session.commit()
+
+    result = await authenticate_api_key(db_session, raw)
+    assert result.valid is True
+    assert result.user.id == user.id
+    assert result.expired is False
+
+
+async def test_authenticate_api_key_wrong_prefix(db_session):
+    result = await authenticate_api_key(db_session, "bearer_whatever")
+    assert result.valid is False
+    assert result.expired is False
+
+
+def test_api_key_default_expiry_applies_configured_ttl(monkeypatch):
+    from services import auth as auth_service
+
+    monkeypatch.setattr(auth_service.settings, "api_key_ttl_days", 30)
+    expiry = api_key_default_expiry()
+    assert expiry is not None
+    assert expiry > datetime.now(UTC)
+    assert expiry < datetime.now(UTC) + timedelta(days=31)
+
+
+def test_api_key_default_expiry_none_when_disabled(monkeypatch):
+    from services import auth as auth_service
+
+    for disabled in (None, 0):
+        monkeypatch.setattr(auth_service.settings, "api_key_ttl_days", disabled)
+        assert api_key_default_expiry() is None
 
 
 async def test_list_api_keys_orders_by_created_desc(db_session):

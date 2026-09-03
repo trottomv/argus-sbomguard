@@ -11,7 +11,7 @@ from sqlalchemy import select
 from config import settings
 from database import async_session_factory
 from models.project import Project
-from services.auth import validate_api_key
+from services.auth import authenticate_api_key
 from services.sbom_parser import store_sbom
 from services.tasks import scan_sbom
 
@@ -26,15 +26,22 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
 
     async def intercept_service(self, continuation, handler_call_details):
         metadata = dict(handler_call_details.invocation_metadata or [])
-        api_key = metadata.get("api-key", "")
+        auth = metadata.get("authorization", "")
+        if isinstance(auth, bytes):
+            auth = auth.decode()
+        scheme, _, token = auth.partition(" ")
 
-        if not api_key:
-            return _rejecting_handler(grpc.StatusCode.UNAUTHENTICATED, "api-key metadata required")
+        if scheme.lower() != "bearer" or not token:
+            return _rejecting_handler(
+                grpc.StatusCode.UNAUTHENTICATED, "authorization: bearer metadata required"
+            )
 
         async with self._session_factory() as db:
-            user = await validate_api_key(db, api_key)
-            if not user:
-                return _rejecting_handler(grpc.StatusCode.UNAUTHENTICATED, "invalid api-key")
+            result = await authenticate_api_key(db, token)
+            if result.expired:
+                return _rejecting_handler(grpc.StatusCode.UNAUTHENTICATED, "api key expired")
+            if not result.valid:
+                return _rejecting_handler(grpc.StatusCode.UNAUTHENTICATED, "invalid api key")
 
         return await continuation(handler_call_details)
 

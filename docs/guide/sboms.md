@@ -10,7 +10,7 @@ Argus SBOM Guard supports CycloneDX and SPDX JSON formats.
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/sboms/upload \
-  -H "X-API-Key: argus_xxx" \
+  -H "Authorization: Bearer argus_xxx" \
   -F "project_id=00000000-0000-0000-0000-000000000001" \
   -F "version=1.2.3" \
   -F "service_name=api-gateway" \
@@ -22,7 +22,7 @@ You can target the project by UUID (`project_id`) or by its readable **slug**
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/sboms/upload \
-  -H "X-API-Key: argus_xxx" \
+  -H "Authorization: Bearer argus_xxx" \
   -F "slug=my-project" \
   -F "version=1.2.3" \
   -F "file=@sbom.json"
@@ -32,7 +32,7 @@ curl -X POST http://localhost:8000/api/v1/sboms/upload \
 
 ```bash
 grpcurl -plaintext \
-  -H 'api-key: argus_xxx' \
+  -H 'authorization: bearer argus_xxx' \
   -d '{
     "project_id": "00000000-0000-0000-0000-000000000001",
     "version": "1.2.3",
@@ -65,7 +65,7 @@ grpcurl -plaintext \
 
 ```bash
 curl -X GET http://localhost:8000/api/v1/sboms/{id}/download \
-  -H "X-API-Key: argus_xxx" \
+  -H "Authorization: Bearer argus_xxx" \
   -o sbom.json
 ```
 
@@ -73,7 +73,7 @@ curl -X GET http://localhost:8000/api/v1/sboms/{id}/download \
 
 ```bash
 curl http://localhost:8000/api/v1/sboms/{id} \
-  -H "X-API-Key: argus_xxx"
+  -H "Authorization: Bearer argus_xxx"
 ```
 
 Returns the SBOM metadata, all dependencies, and attached vulnerabilities.
@@ -84,7 +84,7 @@ Compare two SBOM versions to see what dependencies changed:
 
 ```bash
 curl http://localhost:8000/api/v1/sboms/{id}/diff/{other_id} \
-  -H "X-API-Key: argus_xxx"
+  -H "Authorization: Bearer argus_xxx"
 ```
 
 Response:
@@ -101,7 +101,7 @@ Response:
 
 ```bash
 curl -X DELETE http://localhost:8000/api/v1/sboms/{id} \
-  -H "X-API-Key: argus_xxx"
+  -H "Authorization: Bearer argus_xxx"
 ```
 
 Deleting an SBOM re-runs vulnerability reconciliation on the latest remaining SBOM

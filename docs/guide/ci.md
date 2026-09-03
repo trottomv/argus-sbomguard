@@ -35,7 +35,7 @@ Open the project in the UI — the slug is shown as a copyable badge next to the
 name. Or list your projects via the API:
 
 ```bash
-curl -H "X-API-Key: argus_xxx" "$ARGUS_URL/api/v1/projects" \
+curl -H "Authorization: Bearer argus_xxx" "$ARGUS_URL/api/v1/projects" \
   | jq -r '.items[] | "\(.name)\t\(.slug)"'
 ```
 
@@ -49,14 +49,14 @@ directly in your pipeline file:
 |----------|---------|---------|
 | `ARGUS_URL` | `https://argus.example.com` | Base URL of your Argus instance |
 | `ARGUS_PROJECT_ID` | `argus-sbomguard` | Slug (or UUID) of the target project |
-| `ARGUS_API_KEY` | `argus_xxxxxxxxxxxx` | API key sent in the `X-API-Key` header |
+| `ARGUS_API_KEY` | `argus_xxxxxxxxxxxx` | API key sent in the `Authorization: Bearer` header |
 
 The upload itself is a standard multipart request. You can target the project by
 `slug` (as shown) or by `project_id` (UUID) — provide exactly one:
 
 ```bash
 curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
-  -H "X-API-Key: $ARGUS_API_KEY" \
+  -H "Authorization: Bearer $ARGUS_API_KEY" \
   -F "slug=$ARGUS_PROJECT_ID" \
   -F "version=1.2.3" \
   -F "service_name=my-app" \
@@ -111,7 +111,7 @@ curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
               ARGUS_PROJECT_ID: ${{ secrets.ARGUS_PROJECT_ID }}
             run: |
               curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
-                -H "X-API-Key: $ARGUS_API_KEY" \
+                -H "Authorization: Bearer $ARGUS_API_KEY" \
                 -F "slug=$ARGUS_PROJECT_ID" \
                 -F "version=${GITHUB_REF_NAME}" \
                 -F "service_name=my-app" \
@@ -181,7 +181,7 @@ curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
         - docker load -i image.tar
         - syft scan my-app:$CI_COMMIT_SHA -o cyclonedx-json > sbom.json
         - curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
-            -H "X-API-Key: $ARGUS_API_KEY" \
+            -H "Authorization: Bearer $ARGUS_API_KEY" \
             -F "slug=$ARGUS_PROJECT_ID" \
             -F "version=$CI_COMMIT_TAG" \
             -F "service_name=my-app" \

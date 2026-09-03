@@ -4,6 +4,7 @@ import logging
 import secrets
 import string
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import aiosmtplib
@@ -125,35 +126,81 @@ def generate_api_key() -> tuple[str, str, str]:
     return raw, key_hash, prefix
 
 
+def api_key_default_expiry() -> datetime | None:
+    """Expiry applied by default to newly created API keys (forced rotation).
+
+    Returns ``None`` when the configured ``API_KEY_TTL_DAYS`` is unset/0, i.e.
+    keys do not expire. The default lives here so call sites (web endpoint,
+    scripts, UI) share one source of truth while ``create_api_key`` itself
+    stays expiry-agnostic.
+    """
+    ttl_days = settings.api_key_ttl_days
+    if not ttl_days:
+        return None
+    return datetime.now(UTC) + timedelta(days=ttl_days)
+
+
 async def create_api_key(
-    db: AsyncSession, user_id: uuid.UUID, label: str = ""
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    label: str = "",
+    *,
+    expires_at: datetime | None = None,
 ) -> tuple[ApiKey, str]:
     raw, key_hash, prefix = generate_api_key()
-    key = ApiKey(user_id=user_id, key_hash=key_hash, key_prefix=prefix, label=label)
+    key = ApiKey(
+        user_id=user_id,
+        key_hash=key_hash,
+        key_prefix=prefix,
+        label=label,
+        expires_at=expires_at,
+    )
     db.add(key)
     await db.flush()
     return key, raw
 
 
-async def validate_api_key(db: AsyncSession, raw_key: str) -> User | None:
+@dataclass
+class ApiKeyAuthResult:
+    """Outcome of authenticating a raw API key.
+
+    ``user`` is set when the key is valid; ``expired`` distinguishes a key
+    that was found but past its ``expires_at`` (so callers can return a
+    different 401 message than for an unknown/format-invalid key).
+    """
+
+    user: User | None = None
+    expired: bool = False
+
+    @property
+    def valid(self) -> bool:
+        return self.user is not None
+
+
+async def authenticate_api_key(db: AsyncSession, raw_key: str) -> ApiKeyAuthResult:
     if not raw_key.startswith("argus_"):
-        return None
+        return ApiKeyAuthResult()
 
     key_hash = _hash_token(raw_key)
     result = await db.execute(select(ApiKey).where(ApiKey.key_hash == key_hash))
     key = result.scalar_one_or_none()
     if not key:
-        return None
+        return ApiKeyAuthResult()
 
     if key.expires_at is not None:
         expires_at = key.expires_at
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=UTC)
         if expires_at <= datetime.now(UTC):
-            return None
+            return ApiKeyAuthResult(expired=True)
 
     key.last_used_at = datetime.now(UTC)
-    return await get_user_by_id(db, key.user_id)
+    user = await get_user_by_id(db, key.user_id)
+    return ApiKeyAuthResult(user=user)
+
+
+async def validate_api_key(db: AsyncSession, raw_key: str) -> User | None:
+    return (await authenticate_api_key(db, raw_key)).user
 
 
 async def list_api_keys(db: AsyncSession) -> list[ApiKey]:

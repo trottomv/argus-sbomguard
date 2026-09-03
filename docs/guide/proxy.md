@@ -56,7 +56,7 @@ The proxy applies rate limiting via the `caddy-ratelimit` module, before the WAF
 | `login` | `POST /login`, `POST /login/verify` | Caps login attempts per client IP |
 | `api` | `/api/v1/*` | Caps API requests per client IP |
 
-The keys are based on the client IP only — the `X-API-Key` header is deliberately *not* part of the key, so a client cannot bypass its per-source budget by cycling arbitrary header values. When a limit is hit, Caddy returns `429 Too Many Requests` with a `Retry-After` header.
+The keys are based on the client IP only — the `Authorization: Bearer` header is deliberately *not* part of the key, so a client cannot bypass its per-source budget by cycling arbitrary header values. When a limit is hit, Caddy returns `429 Too Many Requests` with a `Retry-After` header.
 
 `/healthz` responds before rate limiting, so health checks are never throttled.
 
