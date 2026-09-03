@@ -26,6 +26,14 @@ PERMISSIONS_POLICY = (
     "magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=()"
 )
 
+# Cache-control max-age headers for public and private pages.
+CACHE_CONTROL_PUBLIC_PATH_PREFIXES = (
+    "/static",
+    "/favicon.ico",
+)
+CACHE_CONTROL_PUBLIC_MAX_AGE_SECONDS: int = 604800  # 7 days
+CACHE_CONTROL_PRIVATE_MAX_AGE_SECONDS: int = 0  # no caching for private pages
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Set security and caching headers on responses.
@@ -41,20 +49,29 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     response.
 
     Caching: the private area (authenticated pages and JSON API responses)
-    is ``Cache-Control: no-store`` so sensitive data is never cached; static
-    assets are ``public`` with a bounded ``max-age`` (they are revalidated via
-    ETag and are not content-hashed, so ``immutable`` would risk stale deploys).
-    The ``/favicon.ico`` route is cached like static assets so the browser's
+    is never cached — ``private, no-cache, no-store, must-revalidate,
+    max-age=0`` keeps sensitive data out of every cache; static assets are
+    ``public`` with a bounded ``max-age`` (``CACHE_CONTROL_PUBLIC_MAX_AGE_SECONDS``,
+    default 604800 seconds) and are revalidated via ETag — they are not
+    content-hashed, so ``immutable`` would risk stale deploys. The
+    ``/favicon.ico`` route is cached like static assets so the browser's
     automatic favicon probe is not re-downloaded on every page load.
     """
 
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
-        if request.url.path.startswith("/static") or request.url.path == "/favicon.ico":
-            response.headers["Cache-Control"] = "public, max-age=604800"
+        if any(
+            request.url.path.startswith(prefix) for prefix in CACHE_CONTROL_PUBLIC_PATH_PREFIXES
+        ):
+            response.headers["Cache-Control"] = (
+                f"public, max-age={CACHE_CONTROL_PUBLIC_MAX_AGE_SECONDS}"
+            )
         else:
-            response.headers["Cache-Control"] = "no-store"
+            response.headers["Cache-Control"] = (
+                "private, no-cache, no-store, must-revalidate, "
+                f"max-age={CACHE_CONTROL_PRIVATE_MAX_AGE_SECONDS}"
+            )
         content_type = response.headers.get("content-type", "")
         if content_type.lower().startswith("text/html"):
             if request.url.path not in DOCS_PATHS:
