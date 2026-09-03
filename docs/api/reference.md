@@ -10,13 +10,13 @@ The machine-readable OpenAPI schema is served at `/api/openapi.json`
 
 ## Authentication
 
-All `/api/v1/*` endpoints require an API key passed via the `X-API-Key` header:
+All `/api/v1/*` endpoints require an API key passed via the `Authorization: Bearer` header:
 
 ```bash
-curl -H "X-API-Key: argus_xxxxxxxxxxxx" http://localhost:8000/api/v1/...
+curl -H "Authorization: Bearer argus_xxxxxxxxxxxx" http://localhost:8000/api/v1/...
 ```
 
-gRPC endpoints require the `api-key` metadata header.
+gRPC endpoints require the `authorization: bearer` metadata header.
 
 ## REST API Endpoints
 
@@ -75,7 +75,7 @@ Paginated endpoints accept `page` and `per_page` query parameters:
 
 ```bash
 curl "http://localhost:8000/api/v1/projects?page=1&per_page=20" \
-  -H "X-API-Key: argus_xxx"
+  -H "Authorization: Bearer argus_xxx"
 ```
 
 Response includes:
@@ -105,7 +105,7 @@ Example:
 
 ```bash
 curl "http://localhost:8000/api/v1/sboms?sort=uploaded_at&order=desc&project_id={id}" \
-  -H "X-API-Key: argus_xxx"
+  -H "Authorization: Bearer argus_xxx"
 ```
 
 ## gRPC
@@ -122,6 +122,6 @@ Use [grpcurl](https://github.com/fullstorydev/grpcurl) for testing:
 
 ```bash
 grpcurl -plaintext \
-  -H 'api-key: argus_xxx' \
+  -H 'authorization: bearer argus_xxx' \
   localhost:50051 list
 ```

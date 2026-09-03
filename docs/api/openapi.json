@@ -14,7 +14,7 @@
         "operationId": "list_projects_api_v1_projects_get",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -76,7 +76,7 @@
         "operationId": "create_project_api_v1_projects_post",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "requestBody": {
@@ -131,7 +131,7 @@
         "operationId": "get_project_api_v1_projects__project_id__get",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -183,7 +183,7 @@
         "operationId": "delete_project_api_v1_projects__project_id__delete",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -228,7 +228,7 @@
         "operationId": "update_project_api_v1_projects__project_id__patch",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -298,7 +298,7 @@
         "operationId": "project_history_api_v1_projects__project_id__history_get",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -416,7 +416,7 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ]
       }
@@ -430,7 +430,7 @@
         "operationId": "download_sbom_api_v1_sboms__sbom_id__download_get",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -482,7 +482,7 @@
         "operationId": "get_sbom_api_v1_sboms__sbom_id__get",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -534,7 +534,7 @@
         "operationId": "delete_sbom_api_v1_sboms__sbom_id__delete",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -581,7 +581,7 @@
         "operationId": "diff_sboms_api_v1_sboms__sbom_id__diff__other_id__get",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -642,7 +642,7 @@
         "operationId": "list_services_api_v1_services_get",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -697,7 +697,7 @@
         "operationId": "delete_service_api_v1_services__service_id__delete",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -747,7 +747,7 @@
         "operationId": "active_vulnerabilities_api_v1_vulnerabilities_active_get",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -898,7 +898,7 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ]
       }
@@ -912,7 +912,7 @@
         "operationId": "list_alerts_api_v1_alert_rules_get",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -974,7 +974,7 @@
         "operationId": "create_alert_api_v1_alert_rules_post",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "requestBody": {
@@ -1029,7 +1029,7 @@
         "operationId": "delete_alert_api_v1_alert_rules__alert_id__delete",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -1081,7 +1081,7 @@
         "operationId": "update_alert_api_v1_alert_rules__alert_id__patch",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -2298,10 +2298,9 @@
       }
     },
     "securitySchemes": {
-      "APIKeyHeader": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "X-API-Key"
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
       }
     }
   }

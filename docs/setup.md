@@ -68,6 +68,7 @@ Kubernetes Secrets) and how to rotate them, see
 | `ADMIN_EMAIL` | `admin@argus.local` | Admin user created on first start |
 | `LOGIN_TOKEN_EXPIRE_MINUTES` | `15` | Email code validity |
 | `SESSION_MAX_AGE_HOURS` | `1` | Session cookie lifetime |
+| `API_KEY_TTL_DAYS` | `90` | Default lifetime (days) of new API keys (forced rotation); `0` = no expiry |
 | `SHOW_LOGIN_CODE_IN_RESPONSE` | `false` | Show the one-time login code directly on the login page (dev/demo). **Rejected when `APP_ENV=production`** |
 | `DISPLAY_TIMEZONE` | `UTC` | Timezone for UI dates |
 | `DOMAIN` | (empty) | Public domain for TLS (Caddy + Let's Encrypt) |
@@ -133,11 +134,15 @@ docker compose down -v       # also delete volumes (postgres + rabbitmq data)
 ## API Authentication
 
 For programmatic access, generate an API key from **Settings** → **Generate Key**.
-Pass it in the `X-API-Key` header:
+Pass it in the `Authorization: Bearer` header:
 
 ```bash
-curl -H "X-API-Key: argus_xxxxxxxxxxxx" http://localhost:8000/api/v1/projects
+curl -H "Authorization: Bearer argus_xxxxxxxxxxxx" http://localhost:8000/api/v1/projects
 ```
+
+Keys expire after `API_KEY_TTL_DAYS` (90 by default) to force rotation; an
+expired key returns `401`. Set a custom lifetime per key when generating it, or
+create non-expiring keys by setting `API_KEY_TTL_DAYS=0`.
 
 ## What's Next
 

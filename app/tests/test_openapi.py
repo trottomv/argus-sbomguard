@@ -34,13 +34,13 @@ def test_committed_openapi_schema_matches_app():
     assert live["info"]["version"] == committed["info"]["version"]
 
 
-def test_openapi_schema_advertises_api_key_security():
+def test_openapi_schema_advertises_bearer_security():
     schema = app.openapi()
     schemes = schema["components"]["securitySchemes"]
-    assert schemes["APIKeyHeader"] == {"type": "apiKey", "in": "header", "name": "X-API-Key"}
+    assert schemes["HTTPBearer"] == {"type": "http", "scheme": "bearer"}
     for path in _api_paths(schema["paths"]):
         for operation in schema["paths"][path].values():
-            assert {"APIKeyHeader": []} in operation.get("security", [])
+            assert {"HTTPBearer": []} in operation.get("security", [])
 
 
 def test_openapi_schema_excludes_backoffice_pages():

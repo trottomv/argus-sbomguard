@@ -123,7 +123,7 @@ Key endpoints:
 | `GET / POST` | `/api/v1/alert-rules` | List / create alert rules |
 | `PATCH / DELETE` | `/api/v1/alert-rules/{id}` | Update / delete alert rule |
 
-Authentication via `X-API-Key` header (REST) or `api-key` metadata (gRPC).
+Authentication via `Authorization: Bearer` header (REST) or `authorization: bearer` metadata (gRPC).
 
 ## Roadmap
 

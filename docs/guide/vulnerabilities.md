@@ -54,15 +54,15 @@ The project detail page shows:
 ```bash
 # List active vulnerabilities
 curl "http://localhost:8000/api/v1/vulnerabilities/active?severity=critical&project_id={id}" \
-  -H "X-API-Key: argus_xxx"
+  -H "Authorization: Bearer argus_xxx"
 
 # Get vulnerability details
 curl "http://localhost:8000/api/v1/vulnerabilities/{id}" \
-  -H "X-API-Key: argus_xxx"
+  -H "Authorization: Bearer argus_xxx"
 
 # Get daily snapshots for a project
 curl "http://localhost:8000/api/v1/vulnerabilities/snapshots?project_id={id}&days=30" \
-  -H "X-API-Key: argus_xxx"
+  -H "Authorization: Bearer argus_xxx"
 ```
 
 ## Severity Order

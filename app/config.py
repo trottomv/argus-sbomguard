@@ -193,6 +193,25 @@ class Settings(BaseSettings):
     admin_email: str = "admin@argus.local"
     login_token_expire_minutes: int = 15
     session_max_age_hours: int = 24
+    # Default lifetime, in days, applied to newly created API keys (forced
+    # rotation). 0 / empty / None mean "no expiry". Set to 0 to opt out.
+    api_key_ttl_days: int | None = Field(default=90)
+
+    @field_validator("api_key_ttl_days", mode="before")
+    @classmethod
+    def _api_key_ttl_days(cls, v: object, info: ValidationInfo) -> object:
+        raw = os.environ.get(info.field_name.upper())
+        if raw == "":
+            return None
+        if v in (None, 0, "0", ""):
+            return None
+        try:
+            value = int(v)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{info.field_name} must be an integer, got {v!r}") from exc
+        if value < 1:
+            raise ValueError(f"{info.field_name} must be >= 1 when set, got {value}")
+        return value
 
     @computed_field
     @property
