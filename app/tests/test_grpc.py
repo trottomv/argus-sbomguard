@@ -333,6 +333,33 @@ class TestAuthInterceptor:
         continuation.assert_awaited_once()
 
     @pytest.mark.asyncio
+    async def test_valid_api_key_persists_last_used_at(self, db_session):
+        from sqlalchemy import select
+
+        from models.auth import ApiKey, User
+        from services.auth import create_api_key
+
+        user = User(email="grpc-used@example.com", is_admin=True)
+        db_session.add(user)
+        await db_session.commit()
+
+        _key, raw = await create_api_key(db_session, user.id)
+        await db_session.commit()
+
+        interceptor = self._interceptor(db_session)
+        continuation = AsyncMock()
+        continuation.return_value = "handled"
+
+        await interceptor.intercept_service(continuation, self._details(raw))
+        continuation.assert_awaited_once()
+
+        factory = async_sessionmaker(db_session.bind)
+        async with factory() as fresh:
+            key = (await fresh.execute(select(ApiKey).where(ApiKey.label == ""))).scalars().first()
+            assert key is not None
+            assert key.last_used_at is not None
+
+    @pytest.mark.asyncio
     async def test_rejecting_handler_aborts(self):
         context = AsyncMock()
         handler = _rejecting_handler(grpc.StatusCode.UNAUTHENTICATED, "nope")

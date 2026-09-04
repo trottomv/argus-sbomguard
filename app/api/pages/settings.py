@@ -30,14 +30,14 @@ def _resolve_expiry(raw) -> datetime | None:
     if raw in (None, ""):
         return api_key_default_expiry()
     try:
-        days = int(raw)
+        days = float(raw)
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail="ttl_days must be an integer") from exc
-    if days < 0:
-        raise HTTPException(status_code=400, detail="ttl_days must be >= 0")
+    if days < 0 or not days.is_integer():
+        raise HTTPException(status_code=400, detail="ttl_days must be a non-negative integer")
     if days == 0:
         return None
-    return datetime.now(UTC) + timedelta(days=days)
+    return datetime.now(UTC) + timedelta(days=int(days))
 
 
 @router.get("/settings", response_class=HTMLResponse)

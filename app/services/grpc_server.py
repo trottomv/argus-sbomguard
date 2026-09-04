@@ -42,6 +42,9 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
                 return _rejecting_handler(grpc.StatusCode.UNAUTHENTICATED, "api key expired")
             if not result.valid:
                 return _rejecting_handler(grpc.StatusCode.UNAUTHENTICATED, "invalid api key")
+            # Persist last_used_at updated by authenticate_api_key; without the
+            # commit the change is rolled back when the session closes.
+            await db.commit()
 
         return await continuation(handler_call_details)
 
