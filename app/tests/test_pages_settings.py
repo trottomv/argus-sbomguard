@@ -73,6 +73,12 @@ async def test_create_api_key_web_negative_ttl_rejected(client):
 
 
 @pytest.mark.asyncio
+async def test_create_api_key_web_fractional_ttl_rejected(client):
+    resp = await client.post("/settings/api-keys", json={"label": "frac", "ttl_days": 30.5})
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_revoke_api_key_web(client, db_session):
     await client.post("/settings/api-keys", data={"label": "revoke"})
     key = (
