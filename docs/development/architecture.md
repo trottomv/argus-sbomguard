@@ -108,7 +108,7 @@ users ──► api_keys
 users ──► login_tokens
 
 projects ──► services ──► sboms ──► dependencies
-                                    sboms ──► sbom_vulnerabilities ◄── vulnerabilities
+                          sboms ──► sbom_vulnerabilities ◄── vulnerabilities
 projects ──► vulnerability_snapshots
 projects ──► alert_configs ──► notifications
 projects ──► pull_requests
