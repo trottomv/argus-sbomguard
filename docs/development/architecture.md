@@ -24,19 +24,19 @@ Software Bill of Materials (SBOMs) and tracking vulnerabilities.
 
 ```
 ┌──────────────────────────────────────────────────┐
-│                     Caddy (prod)                  │
-│                  Reverse Proxy + WAF              │
+│                     Caddy (prod)                 │
+│                  Reverse Proxy + WAF             │
 └──────────────┬───────────────────────────────────┘
                │ :443
 ┌──────────────▼───────────────────────────────────┐
-│                 FastAPI App :8000                 │
-│  ┌─────────┐  ┌─────────┐  ┌──────────────────┐ │
-│  │ Jinja2  │  │ REST    │  │ gRPC    :50051   │ │
-│  │ Pages   │  │ /api/v1 │  │ sbom.proto       │ │
-│  └─────────┘  └─────────┘  └──────────────────┘ │
-│                     │                             │
-│              AuthMiddleware                       │
-│        (cookie + Bearer token)                     │
+│                 FastAPI App :8000                │
+│  ┌─────────┐  ┌─────────┐  ┌──────────────────┐  │
+│  │ Jinja2  │  │ REST    │  │ gRPC    :50051   │  │
+│  │ Pages   │  │ /api/v1 │  │ sbom.proto       │  │
+│  └─────────┘  └─────────┘  └──────────────────┘  │
+│                     │                            │
+│              AuthMiddleware                      │
+│        (cookie + Bearer token)                   │
 └──────────────┬───────────────────────────────────┘
                │
     ┌──────────┼──────────┐
