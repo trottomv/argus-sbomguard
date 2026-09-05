@@ -64,6 +64,7 @@ Kubernetes Secrets) and how to rotate them, see
 | `SMTP_PASSWORD` | (empty) | SMTP password |
 | `SMTP_FROM` | `noreply@argus.local` | Sender address for outgoing mail |
 | `SLACK_WEBHOOK_URL` | (empty) | Slack incoming webhook for alerts |
+| `DISCORD_WEBHOOK_URL` | (empty) | Discord incoming webhook for alerts |
 | `VULN_RESCAN_INTERVAL_SECONDS` | `43200` | Seconds between automatic vulnerability rescans of the latest SBOMs (12h default; 6h = `21600`, 24h = `86400`) |
 | `ADMIN_EMAIL` | `admin@argus.local` | Admin user created on first start |
 | `LOGIN_TOKEN_EXPIRE_MINUTES` | `15` | Email code validity |

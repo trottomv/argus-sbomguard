@@ -7,6 +7,7 @@ Argus SBOM Guard can notify you when new vulnerabilities are discovered.
 | Channel | Configuration |
 |---------|---------------|
 | **Slack** | Set `SLACK_WEBHOOK_URL` in `.env` |
+| **Discord** | Set `DISCORD_WEBHOOK_URL` in `.env` |
 | **Email** | Configure SMTP settings in `.env` |
 
 ## Creating an Alert Rule
