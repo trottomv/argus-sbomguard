@@ -57,9 +57,9 @@ app = FastAPI(
     redoc_url="/api/docs",
 )
 
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(AuthMiddleware)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
 
 
 @app.exception_handler(Exception)

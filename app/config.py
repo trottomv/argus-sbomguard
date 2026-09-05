@@ -181,8 +181,11 @@ class Settings(BaseSettings):
     # read-only MCP endpoint is served at /api/v1/mcp and authenticated with
     # ``Authorization: Bearer <api-key>``. DNS-rebinding protection is always
     # on for the endpoint: requests whose Host header is neither a loopback
-    # address, the configured ``domain`` nor an entry in ``allowed_hosts`` are
-    # rejected with 421. Host values use ``host:*`` patterns.
+    # address, the configured ``domain`` nor an exact hostname from
+    # ``allowed_hosts`` are rejected with 421. Both the bare hostname and the
+    # ``host:<port>`` form are accepted, so proxy fronting works without an
+    # explicit port. Subdomain ``*.domain`` wildcards cannot be enforced by the
+    # MCP endpoint's allow-list — pin exact hostnames when enabling it.
     mcp_enabled: bool = False
 
     # Readiness

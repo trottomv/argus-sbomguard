@@ -35,7 +35,17 @@ from models.vulnerability import (
 )
 from services.vulnerability_queries import apply_vuln_ordering, build_vuln_subquery
 
-_DEFAULT_ALLOWED_HOSTS = ("localhost:*", "127.0.0.1:*", "[::1]:*")
+# The SDK's DNS-rebinding check accepts a Host either by exact match or as
+# ``host:<port>``; clients behind a standard HTTPS/HTTP proxy send the bare
+# hostname (no explicit port), so each entry is added in both forms.
+_DEFAULT_ALLOWED_HOSTS = (
+    "localhost",
+    "localhost:*",
+    "127.0.0.1",
+    "127.0.0.1:*",
+    "[::1]",
+    "[::1]:*",
+)
 
 
 def _dump(value: Any) -> str:
@@ -57,19 +67,23 @@ def _enum_text(value: Any) -> str | None:
 def mcp_transport_security() -> TransportSecuritySettings:
     """Build the DNS-rebinding allow-list for the MCP transport.
 
-    Loopback hosts, the configured public ``domain`` and the ``host:*``
-    patterns derived from ``allowed_hosts`` are accepted. A ``*`` entry (the
-    default "allow any host" of the app-wide TrustedHostMiddleware) is
-    deliberately skipped: the MCP endpoint still protects against DNS
-    rebinding for the loopback/domain set.
+    Loopback hosts, the configured public ``domain`` and the exact hostnames
+    listed in ``allowed_hosts`` are accepted (each as the bare hostname and as
+    a ``host:*`` pattern, so requests with or without an explicit port pass).
+    A ``*`` entry (the default "allow any host" of the app-wide
+    TrustedHostMiddleware) and ``*.domain`` subdomain wildcards cannot be
+    expressed by the SDK's allow-list and are deliberately skipped: the MCP
+    endpoint still protects against DNS rebinding for the loopback/domain set,
+    so pin exact hostnames in ``allowed_hosts`` when the MCP endpoint is used.
     """
     hosts = list(_DEFAULT_ALLOWED_HOSTS)
     for allowed in settings.allowed_hosts:
-        if allowed == "*":
+        if allowed == "*" or allowed.startswith("*"):
             continue
-        hosts.append(allowed if allowed.endswith(":*") else f"{allowed}:*")
+        base = allowed[:-2] if allowed.endswith(":*") else allowed
+        hosts.extend((base, f"{base}:*"))
     if settings.domain:
-        hosts.append(f"{settings.domain}:*")
+        hosts.extend((settings.domain, f"{settings.domain}:*"))
     return TransportSecuritySettings(enable_dns_rebinding_protection=True, allowed_hosts=hosts)
 
 

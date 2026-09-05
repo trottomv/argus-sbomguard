@@ -16,9 +16,11 @@ from uuid import uuid4
 import httpx
 import pytest
 from mcp import ClientSession
+from mcp.server.transport_security import TransportSecurityMiddleware
 from mcp.shared.memory import create_client_server_memory_streams
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 import main
@@ -166,19 +168,61 @@ def test_mcp_transport_security_uses_allowed_hosts_and_domain(monkeypatch):
     security = mcp_server_module.mcp_transport_security()
     assert security.enable_dns_rebinding_protection is True
     assert {
+        "localhost",
         "localhost:*",
+        "127.0.0.1",
         "127.0.0.1:*",
+        "[::1]",
         "[::1]:*",
+        "argus.example.com",
         "argus.example.com:*",
+        "api.internal",
         "api.internal:*",
     } <= set(security.allowed_hosts)
 
 
 def test_mcp_transport_security_skips_wildcard_and_missing_domain(monkeypatch):
-    monkeypatch.setattr(settings, "allowed_hosts", ["*"])
+    monkeypatch.setattr(settings, "allowed_hosts", ["*", "*.cdn.example"])
     monkeypatch.setattr(settings, "domain", "")
     security = mcp_server_module.mcp_transport_security()
-    assert set(security.allowed_hosts) == {"localhost:*", "127.0.0.1:*", "[::1]:*"}
+    assert set(security.allowed_hosts) == {
+        "localhost",
+        "localhost:*",
+        "127.0.0.1",
+        "127.0.0.1:*",
+        "[::1]",
+        "[::1]:*",
+    }
+
+
+@pytest.mark.asyncio
+async def test_mcp_transport_security_accepts_portless_and_ports(monkeypatch):
+    monkeypatch.setattr(settings, "allowed_hosts", ["argus.example.com"])
+    monkeypatch.setattr(settings, "domain", "localhost")
+    security = mcp_server_module.mcp_transport_security()
+    middleware = TransportSecurityMiddleware(security)
+    expected = {"argus.example.com", "argus.example.com:*", "localhost", "localhost:*"}
+    assert expected <= set(security.allowed_hosts)
+
+    async def _allowed(host: str) -> bool:
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/",
+            "query_string": b"",
+            "headers": [(b"host", host.encode()), (b"content-type", b"application/json")],
+            "scheme": "http",
+            "server": ("127.0.0.1", 80),
+            "client": ("1.2.3.4", 1234),
+            "state": {},
+        }
+        result = await middleware.validate_request(Request(scope), is_post=True)
+        return result is None
+
+    assert await _allowed("argus.example.com") is True
+    assert await _allowed("argus.example.com:443") is True
+    assert await _allowed("localhost:8000") is True
+    assert await _allowed("evil.example.net") is False
 
 
 # --------------------------------------------------------------------------- #
