@@ -20,10 +20,13 @@ MCP_ENABLED=true
   `TrustedHostMiddleware`. Leave `ALLOWED_HOSTS=*` (default, allow any host) or
   pin it to your public host, e.g. `ALLOWED_HOSTS=argus.example.com`.
 - The MCP endpoint itself always enforces DNS-rebinding protection: it accepts
-  loopback hosts and your configured `DOMAIN`, plus the `host:*` patterns
-  derived from `ALLOWED_HOSTS`. Any other `Host` header is rejected with `421`.
-  If you reach Argus through a proxy on a hostname not covered above, add it —
-  e.g. `ALLOWED_HOSTS=argus.example.com`.
+  loopback hosts, your configured `DOMAIN`, and the **exact hostnames** listed
+  in `ALLOWED_HOSTS` (each as the bare hostname and as `host:<port>`, so
+  requests proxied through Caddy on the default ports work). Any other `Host`
+  header is rejected with `421`. If you reach Argus through a proxy on a
+  hostname not covered above, add it — e.g. `ALLOWED_HOSTS=argus.example.com`.
+  Subdomain wildcards (`*.example.com`) cannot be enforced on the MCP endpoint;
+  use exact hostnames there.
 
 ## Authentication
 
