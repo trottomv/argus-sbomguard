@@ -58,6 +58,8 @@ Kubernetes Secrets) and how to rotate them, see
 | `LOG_LEVEL` | `info` | Application log level |
 | `LOG_FORMAT` | `json` | Structured log output format: `json` (default, single-line JSON) or `text` |
 | `GRPC_PORT` | `50051` | gRPC server port |
+| `ALLOWED_HOSTS` | `*` | Comma-separated `Host` headers accepted by the `TrustedHostMiddleware` (`*` = any host; pin to your public host in production, e.g. `argus.example.com`). Also reused by the MCP endpoint for DNS-rebinding protection |
+| `MCP_ENABLED` | `false` | Serve the read-only AI-agent MCP endpoint at `/api/v1/mcp` (see [AI Agents (MCP)](api/agents.md)) |
 | `SMTP_HOST` | (empty) | SMTP server (Mailpit in dev: `mailpit`, port `1025`) |
 | `SMTP_PORT` | `587` | SMTP port |
 | `SMTP_USER` | (empty) | SMTP user |

@@ -164,7 +164,9 @@ class Settings(BaseSettings):
     # outermost ASGI middleware). Comma-separated exact hostnames, ``*.domain``
     # subdomain patterns or ``*`` to allow any host. The default and an empty
     # value both mean allow-all, preserving pre-host-filtering behaviour;
-    # production deployments should pin this to their public host.
+    # production deployments should pin this to their public host. The same
+    # allow-list is reused by the read-only MCP endpoint for its DNS-rebinding
+    # protection (see ``mcp_enabled`` below).
     allowed_hosts: Annotated[list[str], NoDecode] = ["*"]
 
     @field_validator("allowed_hosts", mode="before")
@@ -174,6 +176,14 @@ class Settings(BaseSettings):
             parts = [host.strip() for host in v.split(",") if host.strip()]
             return parts or ["*"]
         return v
+
+    # Model Context Protocol (MCP) — read-only AI agent API. When enabled, the
+    # read-only MCP endpoint is served at /api/v1/mcp and authenticated with
+    # ``Authorization: Bearer <api-key>``. DNS-rebinding protection is always
+    # on for the endpoint: requests whose Host header is neither a loopback
+    # address, the configured ``domain`` nor an entry in ``allowed_hosts`` are
+    # rejected with 421. Host values use ``host:*`` patterns.
+    mcp_enabled: bool = False
 
     # Readiness
     readiness_timeout_seconds: float = 5.0

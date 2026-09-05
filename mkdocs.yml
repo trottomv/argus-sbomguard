@@ -81,4 +81,5 @@ nav:
       - Supply Chain & Provenance: development/supply-chain.md
   - API Reference:
       - Reference: api/reference.md
+      - AI Agents (MCP): api/agents.md
       - Versioning & Deprecation: api/versioning.md
