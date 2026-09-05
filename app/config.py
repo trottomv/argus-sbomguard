@@ -160,6 +160,34 @@ class Settings(BaseSettings):
     # gRPC
     grpc_port: int = 50051
 
+    # Allowed Host headers, enforced by Starlette's TrustedHostMiddleware (the
+    # outermost ASGI middleware). Comma-separated exact hostnames, ``*.domain``
+    # subdomain patterns or ``*`` to allow any host. The default and an empty
+    # value both mean allow-all, preserving pre-host-filtering behaviour;
+    # production deployments should pin this to their public host. The same
+    # allow-list is reused by the read-only MCP endpoint for its DNS-rebinding
+    # protection (see ``mcp_enabled`` below).
+    allowed_hosts: Annotated[list[str], NoDecode] = ["*"]
+
+    @field_validator("allowed_hosts", mode="before")
+    @classmethod
+    def _split_allowed_hosts(cls, v: object) -> object:
+        if isinstance(v, str):
+            parts = [host.strip() for host in v.split(",") if host.strip()]
+            return parts or ["*"]
+        return v
+
+    # Model Context Protocol (MCP) — read-only AI agent API. When enabled, the
+    # read-only MCP endpoint is served at /api/v1/mcp and authenticated with
+    # ``Authorization: Bearer <api-key>``. DNS-rebinding protection is always
+    # on for the endpoint: requests whose Host header is neither a loopback
+    # address, the configured ``domain`` nor an exact hostname from
+    # ``allowed_hosts`` are rejected with 421. Both the bare hostname and the
+    # ``host:<port>`` form are accepted, so proxy fronting works without an
+    # explicit port. Subdomain ``*.domain`` wildcards cannot be enforced by the
+    # MCP endpoint's allow-list — pin exact hostnames when enabling it.
+    mcp_enabled: bool = False
+
     # Readiness
     readiness_timeout_seconds: float = 5.0
 
