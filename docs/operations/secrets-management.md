@@ -16,6 +16,7 @@ rotate them.
 | `BACKUP_ENCRYPTION_KEY` | Backup encryption (AES-256-CBC) | *(empty)* |
 | `SMTP_PASSWORD` | Mailbox used for login codes | *(empty)* |
 | `SLACK_WEBHOOK_URL` | Alert channel | *(empty)* |
+| `DISCORD_WEBHOOK_URL` | Alert channel | *(empty)* |
 
 Non-secret values with no security impact: `POSTGRES_USER`, `POSTGRES_DB`,
 `ADMIN_EMAIL`, `DOMAIN`, `APP_VERSION`, the `*_LIMIT` values, rate limits, and
