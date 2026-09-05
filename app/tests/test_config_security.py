@@ -19,10 +19,10 @@ def _isolate_from_env(monkeypatch):
         "OTEL_TRACES_ENABLED",
         "OTEL_SERVICE_NAME",
         "OTEL_EXPORTER_OTLP_ENDPOINT",
-        "OTEL_FORWARD_ENDPOINT",
         "SNAPSHOT_RETENTION_DAYS",
         "SBOM_RETENTION_DAYS",
         "API_KEY_TTL_DAYS",
+        "ALLOWED_HOSTS",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -101,6 +101,31 @@ def test_alert_email_recipients_passthrough_list():
         alert_email_recipients=["a@example.com"],
     )
     assert settings.alert_email_recipients == ["a@example.com"]
+
+
+def test_allowed_hosts_splits_comma_separated():
+    settings = Settings(
+        app_env="development",
+        secret_key=_PLACEHOLDER,
+        allowed_hosts="argus.example.com, *.argus.local, ",
+    )
+    assert settings.allowed_hosts == ["argus.example.com", "*.argus.local"]
+
+
+def test_allowed_hosts_default_and_empty_mean_allow_all():
+    assert Settings(app_env="development", secret_key=_PLACEHOLDER).allowed_hosts == ["*"]
+    assert Settings(
+        allowed_hosts="", app_env="development", secret_key=_PLACEHOLDER
+    ).allowed_hosts == ["*"]
+
+
+def test_allowed_hosts_passthrough_list():
+    settings = Settings(
+        app_env="development",
+        secret_key=_PLACEHOLDER,
+        allowed_hosts=["api.internal"],
+    )
+    assert settings.allowed_hosts == ["api.internal"]
 
 
 def test_invalid_display_timezone_rejected():

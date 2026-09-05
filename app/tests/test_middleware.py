@@ -3,10 +3,15 @@
 import re
 from pathlib import Path
 
+import httpx
 import pytest
+from starlette.applications import Starlette
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+import main
+from config import settings
 from main import app
 from middleware.auth import _get_user_from_cookie, clear_session_cookie, set_session_cookie
 
@@ -187,3 +192,28 @@ def test_templates_have_no_inline_executable_scripts():
         if "src=" not in match.lower() and "application/json" not in match.lower()
     ]
     assert not offenders, offenders
+
+
+def test_trusted_host_middleware_registered_with_allowed_hosts():
+    registered = next(
+        (entry for entry in main.app.user_middleware if entry.cls is TrustedHostMiddleware),
+        None,
+    )
+    assert registered is not None
+    assert registered.kwargs["allowed_hosts"] == settings.allowed_hosts
+
+
+@pytest.mark.asyncio
+async def test_trusted_host_middleware_rejects_unlisted_hosts():
+    stub = Starlette(routes=[])
+    restricted = TrustedHostMiddleware(stub, allowed_hosts=["argus.example.com", "*.argus.local"])
+    transport = httpx.ASGITransport(app=restricted)
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://argus.example.com"
+    ) as allowed:
+        response = await allowed.get("/")
+        assert response.status_code == 404
+    async with httpx.AsyncClient(transport=transport, base_url="http://evil.example.net") as denied:
+        response = await denied.get("/")
+    assert response.status_code == 400
+    assert response.text == "Invalid host header"

@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from api import auth, pages
 from api.v1 import alerts, projects, sboms, services, vulnerabilities
@@ -47,6 +48,7 @@ app = FastAPI(
     redoc_url="/api/docs",
 )
 
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(AuthMiddleware)
 

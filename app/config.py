@@ -160,6 +160,21 @@ class Settings(BaseSettings):
     # gRPC
     grpc_port: int = 50051
 
+    # Allowed Host headers, enforced by Starlette's TrustedHostMiddleware (the
+    # outermost ASGI middleware). Comma-separated exact hostnames, ``*.domain``
+    # subdomain patterns or ``*`` to allow any host. The default and an empty
+    # value both mean allow-all, preserving pre-host-filtering behaviour;
+    # production deployments should pin this to their public host.
+    allowed_hosts: Annotated[list[str], NoDecode] = ["*"]
+
+    @field_validator("allowed_hosts", mode="before")
+    @classmethod
+    def _split_allowed_hosts(cls, v: object) -> object:
+        if isinstance(v, str):
+            parts = [host.strip() for host in v.split(",") if host.strip()]
+            return parts or ["*"]
+        return v
+
     # Readiness
     readiness_timeout_seconds: float = 5.0
 
