@@ -8,14 +8,17 @@ from sqlalchemy import text
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from api import auth, pages
+from api.constants import API_V1_PREFIX
 from api.v1 import alerts, projects, sboms, services, vulnerabilities
 from config import settings
 from database import async_session_factory, engine
 from logging_config import log_exception, setup_logging
 from middleware import AuthMiddleware
+from middleware.mcp_auth import MCPAuthMiddleware
 from middleware.security_headers import SecurityHeadersMiddleware
 from services.auth import seed_admin_user
 from services.grpc_server import start_grpc_server
+from services.mcp_server import mcp_server, mcp_transport_app
 from services.otel import (
     init_tracing,
     instrument_fastapi,
@@ -33,7 +36,13 @@ async def lifespan(app: FastAPI):
 
     grpc_server = await start_grpc_server()
     try:
-        yield
+        # The MCP Streamable HTTP transport is mounted as a sub-app, so its own
+        # lifespan (which drives the session manager) never runs; drive it here.
+        if settings.mcp_enabled:
+            async with mcp_server.session_manager.run():
+                yield
+        else:
+            yield
     finally:
         await grpc_server.stop(5)
         shutdown_tracing()
@@ -102,6 +111,38 @@ app.include_router(pages.projects.router)
 app.include_router(pages.vulnerabilities.router)
 app.include_router(pages.sboms.router)
 app.include_router(pages.settings.router)
+
+# Read-only MCP endpoint for AI agents. Served only when MCP_ENABLED=true (the
+# gate below returns 404 otherwise). Auth is enforced by MCPAuthMiddleware
+# before any request reaches the MCP transport, whose internal routes expect
+# the request path to be "/" — the gate rewrites the scope path accordingly.
+# Registered at both slash variants so clients need not rely on redirects.
+MCP_MOUNT_PATH = f"{API_V1_PREFIX}/mcp"
+mcp_authed_app = MCPAuthMiddleware(mcp_transport_app)
+
+
+class _MCPGate:
+    """ASGI gate that exposes the MCP transport under the API prefix."""
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await mcp_authed_app(scope, receive, send)
+            return
+        if not settings.mcp_enabled:
+            response = PlainTextResponse("Not Found", status_code=404)
+            await response(scope, receive, send)
+            return
+        rewritten = dict(scope)
+        rewritten["path"] = "/"
+        rewritten["raw_path"] = b"/"
+        await mcp_authed_app(rewritten, receive, send)
+
+
+_mcp_gate = _MCPGate()
+app.add_route(MCP_MOUNT_PATH, _mcp_gate, methods=["GET", "POST", "DELETE"], include_in_schema=False)
+app.add_route(
+    f"{MCP_MOUNT_PATH}/", _mcp_gate, methods=["GET", "POST", "DELETE"], include_in_schema=False
+)
 
 
 def _build_provenance() -> dict[str, str]:
