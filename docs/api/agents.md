@@ -8,6 +8,27 @@ ever triggering a scan, rescan or upload.
 The endpoint is served by the existing app process at `/api/v1/mcp` (Streamable
 HTTP transport); no extra container is required.
 
+## Quick start
+
+```bash
+# 1. Enable the endpoint in .env and restart the app
+#    MCP_ENABLED=true
+docker compose up -d --build app
+
+# 2. Create an API key for the agent
+docker compose exec app python /app/scripts/create_api_key.py mcp-agent
+
+# 3. Sanity-check the endpoint (expect HTTP 200, Content-Type text/event-stream)
+curl -i -X POST http://localhost:8000/api/v1/mcp \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <api-key>" \
+  --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}'
+
+# 4. Point opencode / Claude Code at http://localhost:8000/api/v1/mcp
+#    (or https://<host>/api/v1/mcp in production) with the bearer header
+```
+
 ## Enabling
 
 ```dotenv
@@ -96,8 +117,9 @@ via the `Authorization: Bearer` header. Disable OAuth auto-detection.
 {
   "mcp": {
     "argus": {
-      "type": "http",
+      "type": "remote",
       "url": "https://argus.example.com/api/v1/mcp",
+      "oauth": false,
       "headers": {
         "Authorization": "Bearer ${ARGUS_API_KEY}"
       }
@@ -105,6 +127,11 @@ via the `Authorization: Bearer` header. Disable OAuth auto-detection.
   }
 }
 ```
+
+`oauth: false` is required so opencode does not try the OAuth auto-discovery
+flow; with an API key server, the bearer header alone is enough. Restart
+opencode after editing the config, then check with `opencode mcp list` /
+`opencode mcp debug argus`.
 
 Replace `ARGUS_API_KEY` with the raw key (export it in your shell/environment,
 or inline the value for local experimentation).
@@ -116,3 +143,14 @@ or inline the value for local experimentation).
   `Authorization` header for `/api/v1/mcp`.
 - API keys are the only credential type accepted, so access is independently
   revocable without logging out human sessions.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| `404` when probing the endpoint | `MCP_ENABLED` not set (default `false`) | Set `MCP_ENABLED=true` in `.env` and restart the app |
+| `401` with `{"detail": "Bearer token required"}` | Missing or non-bearer `Authorization` header | Send `Authorization: Bearer <api-key>`; the opencode key is the raw `argus_...` string, not an OAuth token |
+| `401` with `{"detail": "Invalid API key"}` / `"API key expired"` | Unknown or expired key | Create a fresh key via the Settings page or `create_api_key.py` |
+| `421` (only when `ALLOWED_HOSTS` is pinned) | `Host` header not in the allow-list | Add the exact hostname you connect to, e.g. `ALLOWED_HOSTS=argus.example.com` (bare hostname and ported forms are accepted) |
+| "SSE error invalid content type" in opencode | opencode reached the endpoint but got a non-SSE response — typically a `404` (endpoint disabled) or `401` (missing/invalid key) on the first request | Confirm the curl handshake in Quick start succeeds first, then fix the config (`.env` / header / URL) and restart opencode |
+| Tools load but opencode starts an OAuth browser flow | OAuth auto-detection enabled | Add `"oauth": false` and the `Authorization` header to the opencode config |
