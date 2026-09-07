@@ -29,8 +29,8 @@ class PullRequestStatus(ValueLabelEnum):
     OPEN = "open", "Open"
 
 
-class AlertConfig(BaseModel):
-    __tablename__ = "alert_configs"
+class AlertRule(BaseModel):
+    __tablename__ = "alert_rules"
 
     project_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("projects.id"), nullable=False, index=True
@@ -56,17 +56,17 @@ class AlertConfig(BaseModel):
     config: Mapped[dict | None] = mapped_column(JSON, default=dict)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    project = relationship("Project", back_populates="alert_configs")
+    project = relationship("Project", back_populates="alert_rules")
     notifications = relationship(
-        "Notification", back_populates="alert_config", cascade="all, delete-orphan"
+        "Notification", back_populates="alert_rule", cascade="all, delete-orphan"
     )
 
 
 class Notification(BaseModel):
     __tablename__ = "notifications"
 
-    alert_config_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("alert_configs.id"), nullable=False
+    alert_rule_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("alert_rules.id"), nullable=False
     )
     vulnerability_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("vulnerabilities.id"), nullable=False
@@ -92,7 +92,7 @@ class Notification(BaseModel):
     )
     attempts: Mapped[int] = mapped_column(Integer, server_default="0", default=0, nullable=False)
 
-    alert_config = relationship("AlertConfig", back_populates="notifications")
+    alert_rule = relationship("AlertRule", back_populates="notifications")
 
 
 class PullRequest(BaseModel):

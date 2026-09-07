@@ -12,7 +12,7 @@ Argus SBOM Guard can notify you when new vulnerabilities are discovered.
 
 ## Creating an Alert Rule
 
-**UI**: Settings → Alert Configurations → New Alert Rule
+**UI**: Settings → Alert Rules → New Alert Rule
 
 **API**:
 

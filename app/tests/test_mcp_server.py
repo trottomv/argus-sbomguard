@@ -27,7 +27,7 @@ import main
 from config import settings
 from middleware import mcp_auth as mcp_auth_module
 from middleware.mcp_auth import MCPAuthMiddleware
-from models.alert import AlertConfig, NotificationChannel, SeverityThreshold
+from models.alert import AlertRule, NotificationChannel, SeverityThreshold
 from models.auth import ApiKey, User
 from models.project import Project
 from models.sbom import SBOM, Dependency, SBOMFormat
@@ -265,7 +265,7 @@ async def test_tools_against_seeded_data(db_session, monkeypatch):
         )
     )
     db_session.add(
-        AlertConfig(
+        AlertRule(
             project_id=project.id,
             severity_threshold=SeverityThreshold.HIGH,
             notification_type=NotificationChannel.EMAIL,

@@ -57,8 +57,11 @@ generated from the project name (e.g. `Argus SBOM Guard` → `argus-sbom-guard`)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/v1/vulnerabilities/active` | List active (open) vulns |
+| `GET` | `/api/v1/vulnerabilities/active` | List actionable (open, non-accepted) vulns |
 | `GET` | `/api/v1/vulnerabilities/summary` | Vulnerability counts by severity |
+| `GET` | `/api/v1/vulnerabilities/acceptances` | List risk acceptances (optionally per project) |
+| `POST` | `/api/v1/vulnerabilities/acceptances` | Accept a vulnerability (project or service scope) |
+| `DELETE` | `/api/v1/vulnerabilities/acceptances/{id}` | Revert a risk acceptance |
 
 ### Alert Rules
 

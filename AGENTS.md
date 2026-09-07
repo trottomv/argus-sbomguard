@@ -172,7 +172,7 @@ After pushing, the URL to open a PR is shown in the terminal output.
 - **Auth**: Passwordless email login for HTML UI. API keys (`Authorization: Bearer` header) for REST/gRPC. gRPC metadata `authorization: bearer`. Session via signed cookie (no Starlette SessionMiddleware).
 - **JSONB columns**: `sboms.raw_sbom`, `dependencies.metadata`.
 - **Async everywhere**: `asyncpg` + SQLAlchemy async session. No sync DB access.
-- **Migrations**: Sequential `NNNN_description.py` files (`0001_initial_schema.py`, `0002_...`, …). Always generate via `alembic revision --autogenerate`, then rename the file to `NNNN_<description>.py` and set `revision = "NNNN"` with `down_revision` = the previous revision (the first migration keeps its legacy hash `b316f0a5cd25` — never change it, or already-migrated DBs break). Migrations are frozen snapshots: generated/computed columns inline the literal expression. Note that autogenerate does **not** detect changes to a computed/generated column's expression — if you change one in the model, write the migration by hand (e.g. `op.alter_column(..., computed=...)` or drop/re-add the column). This is because PostgreSQL stores the *normalized* `generation_expression` (e.g. `TRIM(BOTH FROM name)`, `::text` casts) which never byte-matches the raw SQL in the model, so Alembic's computed-column comparison can't be a naive string diff (verified empirically).
+- **Migrations**: The pre-release history was squashed into a single `0001_initial_schema.py` (`revision = "0001"`, `down_revision = None`) ahead of the first stable release; any already-migrated DB must be dropped/recreated (or dump/restored), not upgraded. Future schema changes add sequential `NNNN_description.py` files (`0002_...`, …): always generate via `alembic revision --autogenerate`, then rename the file to `NNNN_<description>.py` and set `revision = "NNNN"` with `down_revision` = the previous revision. Migrations are frozen snapshots: generated/computed columns inline the literal expression. Note that autogenerate does **not** detect changes to a computed/generated column's expression — if you change one in the model, write the migration by hand (e.g. `op.alter_column(..., computed=...)` or drop/re-add the column). This is because PostgreSQL stores the *normalized* `generation_expression` (e.g. `TRIM(BOTH FROM name)`, `::text` casts) which never byte-matches the raw SQL in the model, so Alembic's computed-column comparison can't be a naive string diff (verified empirically). The initial migration also hand-creates the `unaccent` extension and `public.slugify` function the generated `projects.slug` column needs.
 - **Celery tasks**: Defined in `services/tasks.py` with `@celery_app.task(name="tasks.*")`.
 - **HTMX routes**: Return `TemplateResponse` for pages. API under `/api/v1/`.
 - **Buttons**: Primary CTAs use `btn-primary btn-lg` + gradient (`bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white`). Destructive use `btn-error`. Modal buttons use solid colors (no gradient). Cancel buttons use `btn-outline`.
@@ -184,8 +184,10 @@ After pushing, the URL to open a PR is shown in the terminal output.
 users → api_keys / login_tokens
 projects → services → sboms → dependencies
 vulnerabilities ──M:N (via sbom_vulnerabilities)── sboms
-vulnerability_snapshots (daily per-project metrics)
-alert_configs → notifications / pull_requests
+projects → vulnerability_snapshots (daily per-project metrics)
+projects → risk_acceptances ── vulnerability (service_id NULL = whole project)
+projects → alert_rules → notifications
+projects → pull_requests
 ```
 
 ## Services in docker-compose

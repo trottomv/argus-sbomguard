@@ -12,6 +12,7 @@ from models.vulnerability import (
     VulnerabilitySnapshot,
     VulnerabilityStatus,
 )
+from services.acceptance import covered_by_acceptance
 
 
 async def do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = None) -> None:
@@ -26,25 +27,30 @@ async def do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = None
 
     # A vulnerability counts as "open" while it has at least one open link,
     # consistent with the vulnerability list. Open and fixed are independent
-    # metrics: a CVE fixed on one service may still be open on another.
+    # metrics: a CVE fixed on one service may still be open on another. A link
+    # accepted through a risk acceptance ("won't fix") is no longer actionable.
     if target_date == date.today():
         total_result = await db.execute(
             select(Vulnerability.id, Vulnerability.severity)
             .join(SBOMVulnerability)
+            .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
             .where(
                 SBOMVulnerability.status == VulnerabilityStatus.OPEN,
                 Vulnerability.severity.isnot(None),
             )
+            .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
             .distinct(Vulnerability.id)
         )
         total_dict = {row[0]: row[1] for row in total_result}
     else:
         # Historical days: vulns whose link was open on that date — detected by
-        # then and either still open or fixed only after that date.
+        # then and either still open or fixed only after that date, and not
+        # accepted by then.
         day_end = datetime.combine(target_date, time.max, tzinfo=UTC)
         total_result = await db.execute(
             select(Vulnerability.id, Vulnerability.severity)
             .join(SBOMVulnerability)
+            .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
             .where(
                 SBOMVulnerability.detected_at <= day_end,
                 or_(
@@ -53,6 +59,7 @@ async def do_snapshot_metrics(db: AsyncSession, snapshot_date: str | None = None
                 ),
                 Vulnerability.severity.isnot(None),
             )
+            .where(~covered_by_acceptance(SBOMVulnerability, SBOM, not_after=day_end))
             .distinct(Vulnerability.id)
         )
         total_dict = {row[0]: row[1] for row in total_result}

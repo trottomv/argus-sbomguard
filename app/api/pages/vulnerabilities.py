@@ -9,6 +9,7 @@ from models.project import Project
 from models.sbom import SBOM, Dependency
 from models.service import Service
 from models.vulnerability import SBOMVulnerability, Vulnerability, VulnerabilityStatus
+from services.acceptance import covered_by_acceptance
 from services.pagination import VULN_PER_PAGE, Page, paginate
 from services.vulnerability_queries import apply_vuln_ordering, build_vuln_subquery
 from templating import templates
@@ -49,6 +50,7 @@ async def vulnerabilities_page(
                 SBOMVulnerability.status == VulnerabilityStatus.OPEN,
                 SBOMVulnerability.vulnerability_id.in_(vuln_ids),
             )
+            .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
         )
         for vuln_id, project_name in proj_rows:
             project_map.setdefault(vuln_id, set()).add(project_name)
@@ -61,6 +63,7 @@ async def vulnerabilities_page(
                 SBOMVulnerability.status == VulnerabilityStatus.OPEN,
                 SBOMVulnerability.vulnerability_id.in_(vuln_ids),
             )
+            .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
         )
         for vuln_id, service_name in svc_rows:
             if service_name:
@@ -74,6 +77,7 @@ async def vulnerabilities_page(
                 Dependency.version,
                 SBOMVulnerability.dependency_purl,
             )
+            .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
             .outerjoin(
                 Dependency,
                 (SBOMVulnerability.sbom_id == Dependency.sbom_id)
@@ -83,6 +87,7 @@ async def vulnerabilities_page(
                 SBOMVulnerability.vulnerability_id.in_(vuln_ids),
                 SBOMVulnerability.status == VulnerabilityStatus.OPEN,
             )
+            .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
         )
         for vuln_id, dep_nm, dep_version, dep_purl in dep_rows:
             dep_map.setdefault(vuln_id, set()).add(dep_name(dep_nm, dep_version, dep_purl))

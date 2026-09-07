@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from config import settings
 from models.alert import (
-    AlertConfig,
+    AlertRule,
     Notification,
     NotificationChannel,
     NotificationStatus,
@@ -93,7 +93,7 @@ async def test_check_alerts_skips_vulns_above_threshold(db_session):
         )
     )
 
-    alert = AlertConfig(
+    alert = AlertRule(
         project_id=project.id,
         severity_threshold=SeverityThreshold.HIGH,
         notification_type=NotificationChannel.SLACK,
@@ -115,7 +115,7 @@ async def test_deliver_unsupported_channel(db_session):
     db_session.add(vuln)
     await db_session.flush()
 
-    alert = AlertConfig(
+    alert = AlertRule(
         project_id=uuid.uuid4(),
         severity_threshold=SeverityThreshold.HIGH,
         notification_type=NotificationChannel.SLACK,
@@ -155,7 +155,7 @@ async def _make_open_vuln_with_alert(
         )
     )
 
-    alert = AlertConfig(
+    alert = AlertRule(
         project_id=project.id,
         severity_threshold=SeverityThreshold.HIGH,
         notification_type=notification_type,
@@ -175,7 +175,7 @@ async def test_check_alerts_retries_failed_notification(db_session):
     vuln, alert = await _make_open_vuln_with_alert(db_session)
     db_session.add(
         Notification(
-            alert_config_id=alert.id,
+            alert_rule_id=alert.id,
             vulnerability_id=vuln.id,
             channel=NotificationChannel.SLACK,
             status=NotificationStatus.FAILED,
@@ -201,7 +201,7 @@ async def test_check_alerts_does_not_resend_sent_notification(db_session):
     vuln, alert = await _make_open_vuln_with_alert(db_session)
     db_session.add(
         Notification(
-            alert_config_id=alert.id,
+            alert_rule_id=alert.id,
             vulnerability_id=vuln.id,
             channel=NotificationChannel.SLACK,
             status=NotificationStatus.SENT,
@@ -230,7 +230,7 @@ async def test_check_alerts_keeps_failed_when_send_fails_again(db_session):
     vuln, alert = await _make_open_vuln_with_alert(db_session)
     db_session.add(
         Notification(
-            alert_config_id=alert.id,
+            alert_rule_id=alert.id,
             vulnerability_id=vuln.id,
             channel=NotificationChannel.SLACK,
             status=NotificationStatus.FAILED,
@@ -257,7 +257,7 @@ async def test_check_alerts_gives_up_after_max_attempts(db_session):
     vuln, alert = await _make_open_vuln_with_alert(db_session)
     db_session.add(
         Notification(
-            alert_config_id=alert.id,
+            alert_rule_id=alert.id,
             vulnerability_id=vuln.id,
             channel=NotificationChannel.SLACK,
             status=NotificationStatus.FAILED,
@@ -573,7 +573,7 @@ async def test_check_alerts_does_not_resend_same_episode(db_session):
     vuln, alert = await _make_open_vuln_with_alert(db_session)
     db_session.add(
         Notification(
-            alert_config_id=alert.id,
+            alert_rule_id=alert.id,
             vulnerability_id=vuln.id,
             channel=NotificationChannel.SLACK,
             status=NotificationStatus.SENT,
@@ -599,7 +599,7 @@ async def test_check_alerts_realerts_after_reopen(db_session):
     link = (await db_session.execute(select(SBOMVulnerability))).scalar_one()
     db_session.add(
         Notification(
-            alert_config_id=alert.id,
+            alert_rule_id=alert.id,
             vulnerability_id=vuln.id,
             channel=NotificationChannel.SLACK,
             status=NotificationStatus.SENT,
@@ -691,7 +691,7 @@ async def test_check_alerts_resets_attempts_on_new_episode(db_session):
     link = (await db_session.execute(select(SBOMVulnerability))).scalar_one()
     db_session.add(
         Notification(
-            alert_config_id=alert.id,
+            alert_rule_id=alert.id,
             vulnerability_id=vuln.id,
             channel=NotificationChannel.SLACK,
             status=NotificationStatus.FAILED,
@@ -770,7 +770,7 @@ async def test_check_alerts_does_not_realert_while_episode_still_open(db_session
     await db_session.flush()
     db_session.add(
         Notification(
-            alert_config_id=alert.id,
+            alert_rule_id=alert.id,
             vulnerability_id=vuln.id,
             channel=NotificationChannel.SLACK,
             status=NotificationStatus.SENT,
@@ -833,7 +833,7 @@ async def test_check_alerts_resends_when_affected_services_change(db_session):
     db_session.add_all([link1, link2])
     await db_session.flush()
 
-    alert = AlertConfig(
+    alert = AlertRule(
         project_id=project.id,
         severity_threshold=SeverityThreshold.HIGH,
         notification_type=NotificationChannel.SLACK,
@@ -843,7 +843,7 @@ async def test_check_alerts_resends_when_affected_services_change(db_session):
     await db_session.flush()
     db_session.add(
         Notification(
-            alert_config_id=alert.id,
+            alert_rule_id=alert.id,
             vulnerability_id=vuln.id,
             service_ids=sorted([str(s1.id), str(s2.id)]),
             channel=NotificationChannel.SLACK,
@@ -895,11 +895,11 @@ def _notification(
     status=NotificationStatus.SENT,
     attempts=0,
     service_ids=None,
-    alert_config_id=None,
+    alert_rule_id=None,
     vulnerability_id=None,
 ):
     return Notification(
-        alert_config_id=alert_config_id or uuid.uuid4(),
+        alert_rule_id=alert_rule_id or uuid.uuid4(),
         vulnerability_id=vulnerability_id or uuid.uuid4(),
         service_ids=service_ids,
         status=status,
@@ -951,8 +951,8 @@ def test_delivery_action_deliver_when_only_resolved_rows():
 
 def test_resolve_closed_episodes_marks_resolved_when_not_open():
     project_id = uuid.uuid4()
-    alert = AlertConfig(id=uuid.uuid4(), project_id=project_id)
-    n = _notification(alert_config_id=alert.id, vulnerability_id=uuid.uuid4())
+    alert = AlertRule(id=uuid.uuid4(), project_id=project_id)
+    n = _notification(alert_rule_id=alert.id, vulnerability_id=uuid.uuid4())
     _resolve_closed_episodes([n], {alert.id: alert}, set())
     assert n.status == NotificationStatus.RESOLVED
 
@@ -960,7 +960,7 @@ def test_resolve_closed_episodes_marks_resolved_when_not_open():
 def test_resolve_closed_episodes_keeps_open_pair():
     project_id = uuid.uuid4()
     vuln_id = uuid.uuid4()
-    alert = AlertConfig(id=uuid.uuid4(), project_id=project_id)
-    n = _notification(alert_config_id=alert.id, vulnerability_id=vuln_id)
+    alert = AlertRule(id=uuid.uuid4(), project_id=project_id)
+    n = _notification(alert_rule_id=alert.id, vulnerability_id=vuln_id)
     _resolve_closed_episodes([n], {alert.id: alert}, {(project_id, vuln_id)})
     assert n.status == NotificationStatus.SENT

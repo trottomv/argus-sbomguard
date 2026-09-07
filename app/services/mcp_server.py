@@ -23,7 +23,7 @@ from sqlalchemy import func, select
 
 from config import settings
 from database import async_session_factory
-from models.alert import AlertConfig
+from models.alert import AlertRule
 from models.project import Project
 from models.sbom import SBOM, Dependency
 from models.service import Service
@@ -33,6 +33,7 @@ from models.vulnerability import (
     VulnerabilitySnapshot,
     VulnerabilityStatus,
 )
+from services.acceptance import covered_by_acceptance
 from services.vulnerability_queries import apply_vuln_ordering, build_vuln_subquery
 
 # The SDK's DNS-rebinding check accepts a Host either by exact match or as
@@ -307,6 +308,7 @@ async def list_vulnerabilities(
                     SBOMVulnerability.status == VulnerabilityStatus.OPEN,
                     SBOMVulnerability.vulnerability_id.in_(vuln_ids),
                 )
+                .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
             )
         ).all()
         project_ids = {row[1] for row in link_rows if row[1] is not None}
@@ -332,6 +334,8 @@ async def list_vulnerabilities(
                 "cve_id": vuln.cve_id,
                 "severity": _enum_text(vuln.severity),
                 "cvss_score": vuln.cvss_score,
+                "epss_score": vuln.epss_score,
+                "epss_percentile": vuln.epss_percentile,
                 "summary": vuln.summary,
                 "source": vuln.source,
                 "published_at": vuln.published_at,
@@ -351,7 +355,9 @@ async def summarize_vulnerabilities() -> str:
             await db.execute(
                 select(Vulnerability.id, Vulnerability.severity)
                 .join(SBOMVulnerability)
+                .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
                 .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
+                .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
                 .distinct(Vulnerability.id)
             )
         ).all()
@@ -367,6 +373,7 @@ async def summarize_vulnerabilities() -> str:
                 .select_from(SBOM)
                 .join(SBOMVulnerability, SBOMVulnerability.sbom_id == SBOM.id)
                 .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
+                .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
             )
         ).scalar() or 0
 
@@ -379,6 +386,7 @@ async def summarize_vulnerabilities() -> str:
                     SBOMVulnerability.status == VulnerabilityStatus.OPEN,
                     SBOM.service_id.isnot(None),
                 )
+                .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
             )
         ).scalar() or 0
 
@@ -443,9 +451,9 @@ async def list_alerts() -> str:
     async with async_session_factory() as db:
         rows = (
             await db.execute(
-                select(AlertConfig, Project.name)
-                .join(Project, AlertConfig.project_id == Project.id)
-                .order_by(AlertConfig.created_at.desc())
+                select(AlertRule, Project.name)
+                .join(Project, AlertRule.project_id == Project.id)
+                .order_by(AlertRule.created_at.desc())
             )
         ).all()
     return _dump(
