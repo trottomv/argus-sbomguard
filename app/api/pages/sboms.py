@@ -8,6 +8,7 @@ from models.project import Project
 from models.sbom import SBOM
 from models.service import Service
 from models.vulnerability import SBOMVulnerability, VulnerabilityStatus
+from services.acceptance import covered_by_acceptance
 from services.pagination import SBOM_PER_PAGE, Page, paginate
 from templating import templates
 
@@ -55,14 +56,13 @@ async def sboms_page(
     vuln_counts = {}
     if sbom_ids:
         vc_rows = await db.execute(
-            select(
-                SBOMVulnerability.sbom_id,
-                func.count(SBOMVulnerability.vulnerability_id),
-            )
+            select(SBOMVulnerability.sbom_id, func.count(SBOMVulnerability.vulnerability_id))
+            .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
             .where(
                 SBOMVulnerability.sbom_id.in_(sbom_ids),
                 SBOMVulnerability.status == VulnerabilityStatus.OPEN,
             )
+            .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
             .group_by(SBOMVulnerability.sbom_id)
         )
         for sbom_id, count in vc_rows:

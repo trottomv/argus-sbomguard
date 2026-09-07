@@ -55,8 +55,8 @@ the `epss_score` sort option.
 
 ## Risk acceptance ("won't fix")
 
-A risk acceptance records a deliberate "won't fix" decision for a
-vulnerability, scoped like the finding itself:
+A risk acceptance records a deliberate "won't fix" decision (`reason` is
+required) for a vulnerability, scoped like the finding itself:
 
 - **project scope** (`service_id` omitted): covers every finding of the project,
   including those inside its services;
@@ -78,9 +78,13 @@ curl -X DELETE http://localhost:8000/api/v1/vulnerabilities/acceptances/{id} \
   -H "Authorization: Bearer argus_xxx"
 ```
 
-`reason` is required and the same (project, service, vulnerability) scope can
-only be accepted once. Reverts are immediate: the vulnerability returns to the
-active list, counts and alerting on the next check.
+A vulnerability can only be accepted while it is actually open in the requested
+scope (rejecting no-op or "pre-accepted" findings), and at most one decision is
+kept per (project, vulnerability): a project-level row subsumes every service,
+so creating a service row underneath it — or a project row on top of existing
+service rows — is rejected with `409` (revert the narrower rows first). Reverts
+are immediate: the vulnerability returns to the active list, counts and
+alerting on the next check.
 
 ## Per-Project Dashboard
 

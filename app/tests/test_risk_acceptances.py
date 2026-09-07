@@ -263,9 +263,13 @@ async def test_create_risk_acceptance_insert_race_conflict(client, db_session, m
     )
     await db_session.commit()
 
-    class _Empty:
-        def scalar_one_or_none(self):
-            return None
+    class _EmptyScalars:
+        def all(self):
+            return []
+
+    class _EmptyResult:
+        def scalars(self):
+            return _EmptyScalars()
 
     real_execute = db_session.execute
     hits = {"n": 0}
@@ -274,7 +278,7 @@ async def test_create_risk_acceptance_insert_race_conflict(client, db_session, m
         cols = getattr(stmt, "column_descriptions", None)
         if cols and cols and cols[0].get("entity") is RiskAcceptance and hits["n"] == 0:
             hits["n"] += 1
-            return _Empty()
+            return _EmptyResult()
         return await real_execute(stmt, *args, **kwargs)
 
     monkeypatch.setattr(db_session, "execute", fake_execute)
@@ -291,6 +295,156 @@ async def test_create_risk_acceptance_insert_race_conflict(client, db_session, m
     listing = await client.get("/api/v1/vulnerabilities/acceptances")
     assert listing.status_code == 200
     assert listing.json()["total"] == 1
+
+
+@pytest.mark.asyncio
+async def test_create_risk_acceptance_requires_open_finding(client, db_session):
+    project = Project(name="noopen-accept")
+    db_session.add(project)
+    await db_session.flush()
+    db_session.add(
+        Vulnerability(
+            cve_id="CVE-2026-7015",
+            source="grype",
+            severity=VulnerabilitySeverity.CRITICAL,
+            cvss_score=9.8,
+            summary="never seen in this project",
+        )
+    )
+    await db_session.commit()
+
+    resp = await _accept(client, project_id=str(project.id), vulnerability_id=str(uuid.uuid4()))
+    assert resp.status_code == 404
+
+    vuln = (
+        await db_session.execute(
+            select(Vulnerability).where(Vulnerability.cve_id == "CVE-2026-7015")
+        )
+    ).scalar_one()
+    resp = await _accept(client, project_id=str(project.id), vulnerability_id=str(vuln.id))
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_service_acceptance_requires_open_link_in_that_service(client, db_session):
+    project, _ = await _seed_open(db_session, name="svc-noopen", cve_id="CVE-2026-7016")
+    other = Service(project_id=project.id, name="no-open")
+    db_session.add(other)
+    await db_session.commit()
+    vuln = (
+        await db_session.execute(
+            select(Vulnerability).where(Vulnerability.cve_id == "CVE-2026-7016")
+        )
+    ).scalar_one()
+
+    resp = await _accept(
+        client,
+        project_id=str(project.id),
+        service_id=str(other.id),
+        vulnerability_id=str(vuln.id),
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_service_acceptance_rejected_when_project_scope_covers(client, db_session):
+    project, _ = await _seed_open(
+        db_session, name="svc-under-project", cve_id="CVE-2026-7017", service_names=["api"]
+    )
+    vuln = (
+        await db_session.execute(
+            select(Vulnerability).where(Vulnerability.cve_id == "CVE-2026-7017")
+        )
+    ).scalar_one()
+    api = (
+        await db_session.execute(select(Service).where(Service.project_id == project.id))
+    ).scalar_one()
+
+    resp = await _accept(client, project_id=str(project.id), vulnerability_id=str(vuln.id))
+    assert resp.status_code == 201
+    resp = await _accept(
+        client,
+        project_id=str(project.id),
+        service_id=str(api.id),
+        vulnerability_id=str(vuln.id),
+    )
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_project_acceptance_rejected_while_service_rows_exist(client, db_session):
+    project, _ = await _seed_open(
+        db_session,
+        name="project-under-svc",
+        cve_id="CVE-2026-7018",
+        service_names=["api", "worker"],
+    )
+    services = (
+        (await db_session.execute(select(Service).where(Service.project_id == project.id)))
+        .scalars()
+        .all()
+    )
+    vuln = (
+        await db_session.execute(
+            select(Vulnerability).where(Vulnerability.cve_id == "CVE-2026-7018")
+        )
+    ).scalar_one()
+    api = next(svc for svc in services if svc.name == "api")
+    worker = next(svc for svc in services if svc.name == "worker")
+
+    # Distinct services can be accepted independently…
+    resp = await _accept(
+        client,
+        project_id=str(project.id),
+        service_id=str(api.id),
+        vulnerability_id=str(vuln.id),
+    )
+    assert resp.status_code == 201
+    resp = await _accept(
+        client,
+        project_id=str(project.id),
+        service_id=str(worker.id),
+        vulnerability_id=str(vuln.id),
+    )
+    assert resp.status_code == 201
+
+    # …but a project-level row would subsume both, so it is rejected, and a
+    # duplicate of the same service stays rejected.
+    resp = await _accept(client, project_id=str(project.id), vulnerability_id=str(vuln.id))
+    assert resp.status_code == 409
+    resp = await _accept(
+        client,
+        project_id=str(project.id),
+        service_id=str(api.id),
+        vulnerability_id=str(vuln.id),
+    )
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_project_detail_and_vuln_partial_exclude_accepted(client, db_session):
+    project, _ = await _seed_open(
+        db_session, name="page-exclude", cve_id="CVE-2026-7019", service_names=["api"]
+    )
+    vuln = (
+        await db_session.execute(
+            select(Vulnerability).where(Vulnerability.cve_id == "CVE-2026-7019")
+        )
+    ).scalar_one()
+
+    detail = await client.get(f"/projects/{project.id}")
+    assert detail.status_code == 200
+    assert "CVE-2026-7019" in detail.text
+
+    await _accept(client, project_id=str(project.id), vulnerability_id=str(vuln.id))
+
+    detail = await client.get(f"/projects/{project.id}")
+    assert detail.status_code == 200
+    assert "CVE-2026-7019" not in detail.text
+
+    partial = await client.get(f"/projects/{project.id}/vulns")
+    assert partial.status_code == 200
+    assert "CVE-2026-7019" not in partial.text
 
 
 # ── "actionable open" semantics ─────────────────────────────────────────────
