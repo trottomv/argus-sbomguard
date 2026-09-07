@@ -25,8 +25,6 @@ Import CycloneDX/SPDX SBOMs, scan dependencies with Grype and OSV, track vulnera
 
 *Centralized SBOM management. On-prem, deploy anywhere.*
 
-> **Beta** — Argus SBOM Guard is in active development. APIs and features may change.
-
 ## Why Argus?
 
 Software teams generate thousands of SBOMs, but an SBOM alone does not tell you:
