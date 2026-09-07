@@ -51,7 +51,10 @@ Each vulnerability stores the [EPSS](https://www.first.org/epss/) score and
 percentile published by Grype when available (`epss_score`,
 `epss_percentile`). They are refreshed on every scan and exposed by the
 `/api/v1/vulnerabilities/active` API, the MCP `list_vulnerabilities` tool and
-the `epss_score` sort option.
+the `epss_score` sort option. In the UI the vulnerabilities list has a sortable
+**EPSS** column and the project detail table shows the same column; the score is
+rendered as a percentage and the percentile is shown in the row tooltip and in
+the vulnerability detail modal (with the score and percentile).
 
 ## Risk acceptance ("won't fix")
 

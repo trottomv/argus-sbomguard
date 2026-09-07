@@ -447,6 +447,28 @@ async def test_project_detail_and_vuln_partial_exclude_accepted(client, db_sessi
     assert "CVE-2026-7019" not in partial.text
 
 
+@pytest.mark.asyncio
+async def test_epss_shown_on_project_and_vulnerabilities_pages(client, db_session):
+    project, _ = await _seed_open(db_session, name="epss-ui", cve_id="CVE-2026-7020")
+    vuln = (
+        await db_session.execute(
+            select(Vulnerability).where(Vulnerability.cve_id == "CVE-2026-7020")
+        )
+    ).scalar_one()
+    vuln.epss_score = 0.55803
+    vuln.epss_percentile = 0.99
+    await db_session.commit()
+
+    detail = await client.get(f"/projects/{project.id}")
+    assert detail.status_code == 200
+    assert "55.80%" in detail.text
+
+    page = await client.get("/vulnerabilities")
+    assert page.status_code == 200
+    assert "55.80%" in page.text
+    assert "EPSS" in page.text
+
+
 # ── "actionable open" semantics ─────────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_active_list_and_summary_exclude_accepted(client, db_session):
