@@ -683,7 +683,10 @@ async def test_mcp_auth_passes_non_http_scopes_through():
 
 
 @pytest.mark.asyncio
-async def test_mcp_mount_returns_404_when_disabled():
+async def test_mcp_mount_returns_404_when_disabled(monkeypatch):
+    # Pin the feature off regardless of the environment, so the suite does not
+    # depend on MCP_ENABLED in .env (dev enables it, CI/example disable it).
+    monkeypatch.setattr(settings, "mcp_enabled", False)
     transport = httpx.ASGITransport(app=main.app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         for path in ("/api/v1/mcp", "/api/v1/mcp/"):

@@ -15,6 +15,11 @@ async def test_lifespan_starts_and_stops_grpc(db_session, monkeypatch):
     factory = async_sessionmaker(db_session.bind, expire_on_commit=False)
     monkeypatch.setattr(main, "async_session_factory", factory)
 
+    # The MCP session manager singleton can only run() once per process; these
+    # lifespan tests are not about MCP, so pin it off instead of relying on the
+    # environment (MCP_ENABLED differs between dev and CI).
+    monkeypatch.setattr(main.settings, "mcp_enabled", False)
+
     grpc_server = AsyncMock()
     grpc_server.stop = AsyncMock(return_value=None)
     with (
@@ -36,6 +41,9 @@ async def test_lifespan_seeds_admin_user(db_session, monkeypatch):
     factory = async_sessionmaker(db_session.bind, expire_on_commit=False)
     monkeypatch.setattr(main, "async_session_factory", factory)
     monkeypatch.setattr(main, "start_grpc_server", AsyncMock())
+    # See note in test_lifespan_starts_and_stops_grpc: keep MCP out of these
+    # lifespan tests regardless of the environment.
+    monkeypatch.setattr(main.settings, "mcp_enabled", False)
 
     async with main.lifespan(main.app):
         pass

@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from config import settings
+from database import engine as database_engine
 from database import get_db
 from main import app
 from middleware.api_key import api_key_required
@@ -57,6 +58,19 @@ def _apply_migrations() -> None:
 def _prepare_test_database():
     asyncio.run(_create_test_database())
     _apply_migrations()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _dispose_module_engine():
+    yield
+    # The module-level engine in database.py is never disposed by the app
+    # itself. Any connection it opens inside a test is bound to that test's
+    # event loop; if it survives loop teardown, a later close/cancel from
+    # another loop makes asyncpg call create_task() on the dead loop, leaking
+    # an un-awaited Connection._cancel coroutine (RuntimeWarning). Dispose it
+    # while this test's loop is still alive so pooled connections are closed
+    # cleanly here instead.
+    await database_engine.dispose()
 
 
 @pytest_asyncio.fixture
