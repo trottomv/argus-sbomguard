@@ -5,12 +5,12 @@ REST API operate on. Tools never trigger scans, rescans or uploads; each
 invocation opens its own ``async_session_factory`` session (the same pattern
 as ``services/tasks.py``) so no state leaks across calls.
 
-The module builds a single ``MCPServer`` plus its mounted Streamable HTTP
-transport (``mcp_transport_app``) at import time. The transport is an ASGI
-app meant to be exposed under the FastAPI application at ``/api/v1/mcp``; its
-DNS-rebinding protection always allows loopback hosts and the configured
-``domain``, plus the ``host:*`` patterns derived from the shared
-``allowed_hosts`` setting (used by the app-wide TrustedHostMiddleware too).
+Pure service layer: the tool functions, the ``build_mcp_server`` factory and
+``mcp_transport_security`` (the DNS-rebinding allow-list that always permits
+loopback hosts, the configured ``domain`` and the ``host:*`` patterns derived
+from the shared ``allowed_hosts`` setting). The HTTP composition — server
+instantiation, transport, bearer-auth wrapper, 404 gate and router mount —
+lives in ``api.mcp_server``.
 """
 
 import json
@@ -502,10 +502,3 @@ def build_mcp_server() -> MCPServer:
     for tool_fn, description in tools:
         server.tool(description=description)(tool_fn)
     return server
-
-
-mcp_server = build_mcp_server()
-mcp_transport_app = mcp_server.streamable_http_app(
-    streamable_http_path="/",
-    transport_security=mcp_transport_security(),
-)
