@@ -45,7 +45,7 @@ dev = [
     "pytest-httpx~=0.36.0",
     "pytest~=9.1.0",
     "ruff~=0.16.0",
-    "schemathesis~=4.25.0",
+    "schemathesis~=4.26.0",
 ]
 [dependency-groups]
 docs = [
