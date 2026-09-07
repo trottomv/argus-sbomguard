@@ -12,6 +12,7 @@ from models.project import Project
 from models.sbom import SBOM, Dependency
 from models.service import Service
 from models.vulnerability import SBOMVulnerability, Vulnerability, VulnerabilityStatus
+from services.acceptance import covered_by_acceptance
 from services.pagination import (
     PROJECT_PER_PAGE,
     PROJECT_SBOM_HISTORY_PER_PAGE,
@@ -64,6 +65,7 @@ async def _get_project_vulns(
             Vulnerability.published_at,
             Vulnerability.extra_data,
         )
+        .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
         .join(Vulnerability, SBOMVulnerability.vulnerability_id == Vulnerability.id)
         .outerjoin(
             Dependency,
@@ -74,6 +76,7 @@ async def _get_project_vulns(
             SBOMVulnerability.sbom_id.in_(latest_sbom_ids),
             SBOMVulnerability.status == VulnerabilityStatus.OPEN,
         )
+        .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
         .order_by(Vulnerability.cvss_score.desc().nullslast())
     )
 
@@ -241,20 +244,28 @@ async def project_detail_page(
     vulns_by_sbom: dict = {}
     fixed_by_sbom: dict = {}
     if shown_ids:
-        vc_rows = await db.execute(
-            select(
-                SBOMVulnerability.sbom_id,
-                SBOMVulnerability.status,
-                func.count(SBOMVulnerability.vulnerability_id),
+        open_rows = await db.execute(
+            select(SBOMVulnerability.sbom_id, func.count(SBOMVulnerability.vulnerability_id))
+            .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
+            .where(
+                SBOMVulnerability.sbom_id.in_(shown_ids),
+                SBOMVulnerability.status == VulnerabilityStatus.OPEN,
             )
-            .where(SBOMVulnerability.sbom_id.in_(shown_ids))
-            .group_by(SBOMVulnerability.sbom_id, SBOMVulnerability.status)
+            .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
+            .group_by(SBOMVulnerability.sbom_id)
         )
-        for sbom_id, status, count in vc_rows:
-            if status == VulnerabilityStatus.OPEN:
-                vulns_by_sbom[sbom_id] = count
-            elif status == VulnerabilityStatus.FIXED:
-                fixed_by_sbom[sbom_id] = count
+        for sbom_id, count in open_rows:
+            vulns_by_sbom[sbom_id] = count
+        fixed_rows = await db.execute(
+            select(SBOMVulnerability.sbom_id, func.count(SBOMVulnerability.vulnerability_id))
+            .where(
+                SBOMVulnerability.sbom_id.in_(shown_ids),
+                SBOMVulnerability.status == VulnerabilityStatus.FIXED,
+            )
+            .group_by(SBOMVulnerability.sbom_id)
+        )
+        for sbom_id, count in fixed_rows:
+            fixed_by_sbom[sbom_id] = count
 
     project_vulns_all = await _get_project_vulns(db, project_id, service_id)
     project_vuln_per_page = PROJECT_VULN_PER_PAGE
@@ -322,20 +333,28 @@ async def project_sboms_page(
     vulns_by_sbom: dict = {}
     fixed_by_sbom: dict = {}
     if sbom_ids:
-        vuln_rows = await db.execute(
-            select(
-                SBOMVulnerability.sbom_id,
-                SBOMVulnerability.status,
-                func.count(SBOMVulnerability.vulnerability_id),
+        open_rows = await db.execute(
+            select(SBOMVulnerability.sbom_id, func.count(SBOMVulnerability.vulnerability_id))
+            .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
+            .where(
+                SBOMVulnerability.sbom_id.in_(sbom_ids),
+                SBOMVulnerability.status == VulnerabilityStatus.OPEN,
             )
-            .where(SBOMVulnerability.sbom_id.in_(sbom_ids))
-            .group_by(SBOMVulnerability.sbom_id, SBOMVulnerability.status)
+            .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
+            .group_by(SBOMVulnerability.sbom_id)
         )
-        for sbom_id, status, count in vuln_rows:
-            if status == VulnerabilityStatus.OPEN:
-                vulns_by_sbom[sbom_id] = count
-            elif status == VulnerabilityStatus.FIXED:
-                fixed_by_sbom[sbom_id] = count
+        for sbom_id, count in open_rows:
+            vulns_by_sbom[sbom_id] = count
+        fixed_rows = await db.execute(
+            select(SBOMVulnerability.sbom_id, func.count(SBOMVulnerability.vulnerability_id))
+            .where(
+                SBOMVulnerability.sbom_id.in_(sbom_ids),
+                SBOMVulnerability.status == VulnerabilityStatus.FIXED,
+            )
+            .group_by(SBOMVulnerability.sbom_id)
+        )
+        for sbom_id, count in fixed_rows:
+            fixed_by_sbom[sbom_id] = count
 
     load_url = f"/projects/{project_id}/sboms?per_page={per_page}"
     if service_id:

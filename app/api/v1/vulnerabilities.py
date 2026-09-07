@@ -240,20 +240,58 @@ async def create_risk_acceptance(data: RiskAcceptanceCreate, db: AsyncSession = 
         if not service or service.project_id != data.project_id:
             raise HTTPException(status_code=400, detail="Service does not belong to the project")
 
-    scope_filter = (
-        RiskAcceptance.service_id.is_(None)
-        if data.service_id is None
-        else RiskAcceptance.service_id == data.service_id
-    )
-    existing = await db.execute(
-        select(RiskAcceptance).where(
-            RiskAcceptance.project_id == data.project_id,
-            RiskAcceptance.vulnerability_id == data.vulnerability_id,
-            scope_filter,
+    # #2 — only accept a vulnerability that is actually open in the requested
+    # scope; otherwise the row is a silent no-op (or a "pre-acceptance" of a
+    # CVE that has never been seen here).
+    open_link = (
+        select(SBOMVulnerability.sbom_id)
+        .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
+        .where(
+            SBOMVulnerability.vulnerability_id == data.vulnerability_id,
+            SBOMVulnerability.status == VulnerabilityStatus.OPEN,
+            SBOM.project_id == data.project_id,
         )
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Vulnerability already accepted in this scope")
+    if data.service_id is not None:
+        open_link = open_link.where(SBOM.service_id == data.service_id)
+    if not (await db.execute(open_link.limit(1))).first():
+        raise HTTPException(
+            status_code=400, detail="Vulnerability is not open in the requested scope"
+        )
+
+    # #4 — at most one acceptance per (project, vulnerability): a project-level
+    # row subsumes every service row, so creating one underneath (or on top of)
+    # an existing, broader decision is rejected instead of stored redundantly.
+    existing = (
+        (
+            await db.execute(
+                select(RiskAcceptance).where(
+                    RiskAcceptance.project_id == data.project_id,
+                    RiskAcceptance.vulnerability_id == data.vulnerability_id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if data.service_id is None:
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Vulnerability already accepted for this project; "
+                    "revert the narrower acceptances first"
+                ),
+            )
+    else:
+        if any(row.service_id is None for row in existing):
+            raise HTTPException(
+                status_code=409, detail="Vulnerability already accepted at project scope"
+            )
+        if any(row.service_id == data.service_id for row in existing):
+            raise HTTPException(
+                status_code=409, detail="Vulnerability already accepted in this service"
+            )
 
     acceptance = RiskAcceptance(
         project_id=data.project_id,
