@@ -1,3 +1,4 @@
+{% import 'partials/epss.html' as epss %}
 {% macro sort_link(label, column) %}
 {% set new_order = 'asc' if active_sort == column and active_order == 'desc' else 'desc' %}
 {% set active = active_sort == column %}
@@ -71,6 +72,7 @@
                             <th>CVE</th>
                             <th>{{ sort_link('Severity', 'severity') }}</th>
                             <th>{{ sort_link('CVSS', 'cvss_score') }}</th>
+                            <th>{{ sort_link('EPSS', 'epss_score') }}</th>
                             <th>Library</th>
                             <th>Fixed version</th>
                             <th>Projects</th>
@@ -92,6 +94,8 @@
                             'severity': vuln.severity,
                             'cvss': (vuln.cvss_score or ''),
                             'cvss_vector': cvss_vec,
+                            'epss_score': (vuln.epss_score if vuln.epss_score is not none else ''),
+                            'epss_percentile': (vuln.epss_percentile if vuln.epss_percentile is not none else ''),
                             'summary': (vuln.summary or ''),
                             'published': (vuln.published_at | format_dt('%Y-%m-%d', '')),
                             'dependency': (dep_map.get(vuln.id, []) | join(', ')),
@@ -118,6 +122,9 @@
 {% endif %}
                             </td>
                             <td>{{ vuln.cvss_score or "-" }}</td>
+                            <td>
+                                {{ epss.epss_cell(vuln) }}
+                            </td>
                             <td class="max-w-xs truncate font-mono text-xs">{{ dep_map.get(vuln.id, []) | join(', ') or "-" }}</td>
                             <td class="text-sm">{{ fix_versions | join(', ') or "-" }}</td>
                             <td>
@@ -139,7 +146,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="9" class="text-center opacity-60 py-12">
+                            <td colspan="10" class="text-center opacity-60 py-12">
                                 <p class="text-lg">No vulnerabilities detected</p>
                                 <p class="text-sm">Upload an SBOM to start scanning</p>
                             </td>

@@ -1,0 +1,7 @@
+{% macro epss_cell(vuln) -%}
+{%- if vuln.epss_score is not none -%}
+<span class="text-sm"{% if vuln.epss_percentile is not none %} title="EPSS percentile: {{ '%.1f'|format(vuln.epss_percentile * 100) }}"{% endif %}>{{ '%.2f'|format(vuln.epss_score * 100) }}%</span>
+{%- else -%}
+-
+{%- endif -%}
+{%- endmacro %}
