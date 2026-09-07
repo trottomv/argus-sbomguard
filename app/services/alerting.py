@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
-from models.alert import AlertConfig, Notification, NotificationChannel, NotificationStatus
+from models.alert import AlertRule, Notification, NotificationChannel, NotificationStatus
 from models.project import Project
 from models.sbom import SBOM
 from models.service import Service
@@ -14,6 +14,7 @@ from models.vulnerability import (
     Vulnerability,
     VulnerabilityStatus,
 )
+from services.acceptance import covered_by_acceptance
 from services.notifications import send_discord, send_email, send_slack
 
 _SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
@@ -43,6 +44,7 @@ async def _open_vulnerabilities(
         select(SBOMVulnerability.vulnerability_id, SBOM.project_id, SBOM.service_id)
         .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
         .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
+        .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
     )
     vuln_ids: set[uuid.UUID] = set()
     open_pairs: set[tuple[uuid.UUID, uuid.UUID]] = set()
@@ -66,8 +68,8 @@ async def _open_vulnerabilities(
     return {vuln.id: vuln for vuln in vulns.scalars().all()}, open_pairs, services_map
 
 
-async def _enabled_alerts(db: AsyncSession) -> list[AlertConfig]:
-    result = await db.execute(select(AlertConfig).where(AlertConfig.enabled))
+async def _enabled_alerts(db: AsyncSession) -> list[AlertRule]:
+    result = await db.execute(select(AlertRule).where(AlertRule.enabled))
     return list(result.scalars().all())
 
 
@@ -209,7 +211,7 @@ def _email_body(
 
 
 async def _deliver(
-    alert: AlertConfig,
+    alert: AlertRule,
     vuln: Vulnerability,
     *,
     project_name: str,
@@ -301,11 +303,11 @@ def _delivery_action(existing: list[Notification], current_services: list[str]) 
 
 
 async def _load_notifications(
-    db: AsyncSession, alert_by_id: dict[uuid.UUID, AlertConfig]
+    db: AsyncSession, alert_by_id: dict[uuid.UUID, AlertRule]
 ) -> list[Notification]:
     result = await db.execute(
         select(Notification)
-        .where(Notification.alert_config_id.in_(alert_by_id))
+        .where(Notification.alert_rule_id.in_(alert_by_id))
         .order_by(Notification.created_at)
     )
     return list(result.scalars().all())
@@ -313,12 +315,12 @@ async def _load_notifications(
 
 def _resolve_closed_episodes(
     notifications: list[Notification],
-    alert_by_id: dict[uuid.UUID, AlertConfig],
+    alert_by_id: dict[uuid.UUID, AlertRule],
     open_pairs: set[tuple[uuid.UUID, uuid.UUID]],
 ) -> None:
     """Mark notifications resolved when their vulnerability is no longer open."""
     for notification in notifications:
-        alert = alert_by_id.get(notification.alert_config_id)
+        alert = alert_by_id.get(notification.alert_rule_id)
         if (
             alert is not None
             and (alert.project_id, notification.vulnerability_id) not in open_pairs
@@ -331,15 +333,15 @@ def _index_by_pair(
 ) -> dict[tuple[uuid.UUID, uuid.UUID], list[Notification]]:
     by_pair: dict[tuple[uuid.UUID, uuid.UUID], list[Notification]] = {}
     for notification in notifications:
-        by_pair.setdefault(
-            (notification.vulnerability_id, notification.alert_config_id), []
-        ).append(notification)
+        by_pair.setdefault((notification.vulnerability_id, notification.alert_rule_id), []).append(
+            notification
+        )
     return by_pair
 
 
 def _record_delivery(
     db: AsyncSession,
-    alert: AlertConfig,
+    alert: AlertRule,
     vuln_id: uuid.UUID,
     existing: list[Notification],
     action: _DeliveryAction,
@@ -358,7 +360,7 @@ def _record_delivery(
                 notification.status = NotificationStatus.RESOLVED
         db.add(
             Notification(
-                alert_config_id=alert.id,
+                alert_rule_id=alert.id,
                 vulnerability_id=vuln_id,
                 service_ids=current_services,
                 channel=channel,
@@ -387,7 +389,7 @@ def _record_delivery(
     else:
         db.add(
             Notification(
-                alert_config_id=alert.id,
+                alert_rule_id=alert.id,
                 vulnerability_id=vuln_id,
                 service_ids=current_services,
                 channel=channel,

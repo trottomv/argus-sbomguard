@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
 from database import get_db
-from models.alert import AlertConfig, NotificationChannel, SeverityThreshold
+from models.alert import AlertRule, NotificationChannel, SeverityThreshold
 from models.project import Project
 from services.auth import (
     api_key_default_expiry,
@@ -44,9 +44,7 @@ def _resolve_expiry(raw) -> datetime | None:
 async def settings_page(request: Request, db: AsyncSession = Depends(get_db)):
     projects = (await db.execute(select(Project).order_by(Project.name))).scalars().all()
     alerts = (
-        (await db.execute(select(AlertConfig).order_by(AlertConfig.created_at.desc())))
-        .scalars()
-        .all()
+        (await db.execute(select(AlertRule).order_by(AlertRule.created_at.desc()))).scalars().all()
     )
     api_keys = await list_api_keys(db)
     project_names = {str(project.id): project.name for project in projects}

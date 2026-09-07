@@ -10,14 +10,14 @@ from api.v1.schemas import (
     NOT_FOUND_RESPONSE,
     UNAUTHORIZED_RESPONSE,
     ActionResponse,
-    AlertConfigCreate,
-    AlertConfigResponse,
-    AlertConfigUpdate,
+    AlertRuleCreate,
+    AlertRuleResponse,
+    AlertRuleUpdate,
     PageResponse,
 )
 from database import get_db
 from middleware.api_key import api_key_required
-from models.alert import AlertConfig
+from models.alert import AlertRule
 from models.project import Project
 from services.pagination import ALERT_PER_PAGE, Page, paginate
 
@@ -28,18 +28,16 @@ router = APIRouter(
 )
 
 
-@router.get(
-    "", response_model=PageResponse[AlertConfigResponse], responses={**UNAUTHORIZED_RESPONSE}
-)
+@router.get("", response_model=PageResponse[AlertRuleResponse], responses={**UNAUTHORIZED_RESPONSE})
 async def list_alerts(
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     per_page: int = Query(ALERT_PER_PAGE, ge=1, le=200),
 ):
-    query = select(AlertConfig).order_by(AlertConfig.created_at.desc())
+    query = select(AlertRule).order_by(AlertRule.created_at.desc())
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
-    return PageResponse[AlertConfigResponse](
-        items=[AlertConfigResponse.model_validate(alert) for alert in pg.items],
+    return PageResponse[AlertRuleResponse](
+        items=[AlertRuleResponse.model_validate(alert) for alert in pg.items],
         total=pg.total,
         page=pg.page,
         per_page=pg.per_page,
@@ -51,15 +49,15 @@ async def list_alerts(
 @router.post(
     "",
     status_code=201,
-    response_model=AlertConfigResponse,
+    response_model=AlertRuleResponse,
     responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE, **BAD_REQUEST_RESPONSE},
 )
-async def create_alert(data: AlertConfigCreate, db: AsyncSession = Depends(get_db)):
+async def create_alert(data: AlertRuleCreate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Project).where(Project.id == data.project_id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Project not found")
 
-    alert = AlertConfig(
+    alert = AlertRule(
         project_id=data.project_id,
         severity_threshold=data.severity_threshold,
         notification_type=data.notification_type,
@@ -68,7 +66,7 @@ async def create_alert(data: AlertConfigCreate, db: AsyncSession = Depends(get_d
     )
     db.add(alert)
     await db.flush()
-    return AlertConfigResponse.model_validate(alert)
+    return AlertRuleResponse.model_validate(alert)
 
 
 @router.delete(
@@ -77,7 +75,7 @@ async def create_alert(data: AlertConfigCreate, db: AsyncSession = Depends(get_d
     responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
 )
 async def delete_alert(alert_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(AlertConfig).where(AlertConfig.id == alert_id))
+    result = await db.execute(select(AlertRule).where(AlertRule.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -91,9 +89,9 @@ async def delete_alert(alert_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE, **BAD_REQUEST_RESPONSE},
 )
 async def update_alert(
-    alert_id: uuid.UUID, data: AlertConfigUpdate, db: AsyncSession = Depends(get_db)
+    alert_id: uuid.UUID, data: AlertRuleUpdate, db: AsyncSession = Depends(get_db)
 ):
-    result = await db.execute(select(AlertConfig).where(AlertConfig.id == alert_id))
+    result = await db.execute(select(AlertRule).where(AlertRule.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")

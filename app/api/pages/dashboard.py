@@ -15,6 +15,7 @@ from models.vulnerability import (
     VulnerabilitySnapshot,
     VulnerabilityStatus,
 )
+from services.acceptance import covered_by_acceptance
 from services.tasks import snapshot_metrics
 from templating import templates
 
@@ -29,7 +30,9 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     vuln_subq = (
         select(Vulnerability.id, Vulnerability.severity)
         .join(SBOMVulnerability)
+        .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
         .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
+        .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
         .distinct()
     ).subquery()
 

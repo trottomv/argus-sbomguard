@@ -41,6 +41,47 @@ Filter by:
 | `open` | Vulnerability confirmed in the latest SBOM |
 | `fixed` | No longer present in the latest SBOM (auto-reconciled) |
 
+Open findings are **"actionable"** unless a risk acceptance covers them — an
+accepted vulnerability is excluded from the active list, dashboard/summary
+counts, snapshots and alerting, but stays visible through the acceptances API.
+
+## Exploit likelihood (EPSS)
+
+Each vulnerability stores the [EPSS](https://www.first.org/epss/) score and
+percentile published by Grype when available (`epss_score`,
+`epss_percentile`). They are refreshed on every scan and exposed by the
+`/api/v1/vulnerabilities/active` API, the MCP `list_vulnerabilities` tool and
+the `epss_score` sort option.
+
+## Risk acceptance ("won't fix")
+
+A risk acceptance records a deliberate "won't fix" decision for a
+vulnerability, scoped like the finding itself:
+
+- **project scope** (`service_id` omitted): covers every finding of the project,
+  including those inside its services;
+- **service scope** (`service_id` set): covers the findings of that service only.
+
+```bash
+# Accept a vulnerability at project scope
+curl -X POST http://localhost:8000/api/v1/vulnerabilities/acceptances \
+  -H "Authorization: Bearer argus_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{"project_id": "...", "vulnerability_id": "...", "reason": "no fix upstream"}'
+
+# List acceptances (optionally per project)
+curl "http://localhost:8000/api/v1/vulnerabilities/acceptances?project_id=..." \
+  -H "Authorization: Bearer argus_xxx"
+
+# Revert an acceptance (the finding becomes actionable again)
+curl -X DELETE http://localhost:8000/api/v1/vulnerabilities/acceptances/{id} \
+  -H "Authorization: Bearer argus_xxx"
+```
+
+`reason` is required and the same (project, service, vulnerability) scope can
+only be accepted once. Reverts are immediate: the vulnerability returns to the
+active list, counts and alerting on the next check.
+
 ## Per-Project Dashboard
 
 The project detail page shows:

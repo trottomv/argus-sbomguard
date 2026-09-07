@@ -1,4 +1,5 @@
-from models.alert import AlertConfig, Notification, PullRequest
+from models.acceptance import RiskAcceptance
+from models.alert import AlertRule, Notification, PullRequest
 from models.auth import ApiKey, LoginToken, User
 from models.base import Base
 from models.project import Project
@@ -8,7 +9,7 @@ from models.vulnerability import SBOMVulnerability, Vulnerability, Vulnerability
 
 __all__ = [
     "SBOM",
-    "AlertConfig",
+    "AlertRule",
     "ApiKey",
     "Base",
     "Dependency",
@@ -16,6 +17,7 @@ __all__ = [
     "Notification",
     "Project",
     "PullRequest",
+    "RiskAcceptance",
     "SBOMVulnerability",
     "Service",
     "User",

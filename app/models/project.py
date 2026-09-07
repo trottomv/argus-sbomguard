@@ -30,9 +30,7 @@ class Project(BaseModel):
 
     sboms = relationship("SBOM", back_populates="project", cascade="all, delete-orphan")
     services = relationship("Service", back_populates="project", cascade="all, delete-orphan")
-    alert_configs = relationship(
-        "AlertConfig", back_populates="project", cascade="all, delete-orphan"
-    )
+    alert_rules = relationship("AlertRule", back_populates="project", cascade="all, delete-orphan")
     pull_requests = relationship(
         "PullRequest", back_populates="project", cascade="all, delete-orphan"
     )

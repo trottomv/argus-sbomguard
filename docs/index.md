@@ -47,8 +47,9 @@ and grab the one-time code from [Mailpit](http://localhost:8025) (dev only) — 
 ```
 projects → services → sboms → dependencies
 vulnerabilities ──M:N── sboms (via sbom_vulnerabilities)
+projects → risk_acceptances (per-service or per-project "won't fix")
 vulnerability_snapshots (daily per-project metrics)
-alert_configs → notifications
+projects → alert_rules → notifications
 users → api_keys / login_tokens
 ```
 

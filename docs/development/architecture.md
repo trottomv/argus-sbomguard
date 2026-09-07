@@ -110,7 +110,8 @@ users ──► login_tokens
 projects ──► services ──► sboms ──► dependencies
                           sboms ──► sbom_vulnerabilities ◄── vulnerabilities
 projects ──► vulnerability_snapshots
-projects ──► alert_configs ──► notifications
+projects ──► alert_rules ──► notifications
+projects ──► risk_acceptances ◄── vulnerabilities
 projects ──► pull_requests
 ```
 
@@ -125,7 +126,8 @@ projects ──► pull_requests
 | `vulnerabilities` | CVE data with severity, CVSS, affected packages |
 | `sbom_vulnerabilities` | M:N join with status (open/fixed) |
 | `vulnerability_snapshots` | Daily per-project metrics |
-| `alert_configs` | Alert rules with severity threshold |
+| `risk_acceptances` | Per-project/service "won't fix" decisions on a vulnerability |
+| `alert_rules` | Alert rules with severity threshold |
 | `notifications` | Sent notification history |
 | `api_keys` | API keys for programmatic access |
 | `login_tokens` | One-time codes for email login |

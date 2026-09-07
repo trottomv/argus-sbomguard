@@ -903,6 +903,190 @@
         ]
       }
     },
+    "/api/v1/vulnerabilities/acceptances": {
+      "get": {
+        "tags": [
+          "vulnerabilities"
+        ],
+        "summary": "List Risk Acceptances",
+        "operationId": "list_risk_acceptances_api_v1_vulnerabilities_acceptances_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Per Page"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResponse_RiskAcceptanceResponse_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "vulnerabilities"
+        ],
+        "summary": "Create Risk Acceptance",
+        "operationId": "create_risk_acceptance_api_v1_vulnerabilities_acceptances_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RiskAcceptanceCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskAcceptanceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "400": {
+            "description": "Malformed request body"
+          },
+          "409": {
+            "description": "Resource already exists"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vulnerabilities/acceptances/{acceptance_id}": {
+      "delete": {
+        "tags": [
+          "vulnerabilities"
+        ],
+        "summary": "Delete Risk Acceptance",
+        "operationId": "delete_risk_acceptance_api_v1_vulnerabilities_acceptances__acceptance_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "acceptance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Acceptance Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/alert-rules": {
       "get": {
         "tags": [
@@ -946,7 +1130,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PageResponse_AlertConfigResponse_"
+                  "$ref": "#/components/schemas/PageResponse_AlertRuleResponse_"
                 }
               }
             }
@@ -982,7 +1166,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AlertConfigCreate"
+                "$ref": "#/components/schemas/AlertRuleCreate"
               }
             }
           }
@@ -993,7 +1177,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AlertConfigResponse"
+                  "$ref": "#/components/schemas/AlertRuleResponse"
                 }
               }
             }
@@ -1101,7 +1285,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AlertConfigUpdate"
+                "$ref": "#/components/schemas/AlertRuleUpdate"
               }
             }
           }
@@ -1203,7 +1387,7 @@
         ],
         "title": "ActionResponse"
       },
-      "AlertConfigCreate": {
+      "AlertRuleCreate": {
         "properties": {
           "project_id": {
             "type": "string",
@@ -1234,9 +1418,9 @@
         "required": [
           "project_id"
         ],
-        "title": "AlertConfigCreate"
+        "title": "AlertRuleCreate"
       },
-      "AlertConfigResponse": {
+      "AlertRuleResponse": {
         "properties": {
           "id": {
             "type": "string",
@@ -1280,9 +1464,9 @@
           "enabled",
           "created_at"
         ],
-        "title": "AlertConfigResponse"
+        "title": "AlertRuleResponse"
       },
-      "AlertConfigUpdate": {
+      "AlertRuleUpdate": {
         "properties": {
           "project_id": {
             "anyOf": [
@@ -1329,7 +1513,7 @@
           }
         },
         "type": "object",
-        "title": "AlertConfigUpdate"
+        "title": "AlertRuleUpdate"
       },
       "Body_upload_sbom_api_v1_sboms_upload_post": {
         "properties": {
@@ -1460,11 +1644,11 @@
         ],
         "title": "NotificationChannel"
       },
-      "PageResponse_AlertConfigResponse_": {
+      "PageResponse_AlertRuleResponse_": {
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/AlertConfigResponse"
+              "$ref": "#/components/schemas/AlertRuleResponse"
             },
             "type": "array",
             "title": "Items"
@@ -1499,7 +1683,7 @@
           "total_pages",
           "has_more"
         ],
-        "title": "PageResponse[AlertConfigResponse]"
+        "title": "PageResponse[AlertRuleResponse]"
       },
       "PageResponse_ProjectResponse_": {
         "properties": {
@@ -1582,6 +1766,47 @@
           "has_more"
         ],
         "title": "PageResponse[ProjectSBOMHistoryItem]"
+      },
+      "PageResponse_RiskAcceptanceResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RiskAcceptanceResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "per_page": {
+            "type": "integer",
+            "title": "Per Page"
+          },
+          "total_pages": {
+            "type": "integer",
+            "title": "Total Pages"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "per_page",
+          "total_pages",
+          "has_more"
+        ],
+        "title": "PageResponse[RiskAcceptanceResponse]"
       },
       "PageResponse_VulnerabilityResponse_": {
         "properties": {
@@ -1867,6 +2092,115 @@
         },
         "type": "object",
         "title": "ProjectUpdate"
+      },
+      "RiskAcceptanceCreate": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "vulnerability_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vulnerability Id"
+          },
+          "service_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Id"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "vulnerability_id",
+          "reason"
+        ],
+        "title": "RiskAcceptanceCreate"
+      },
+      "RiskAcceptanceResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "service_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Id"
+          },
+          "vulnerability_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vulnerability Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "service_id",
+          "vulnerability_id",
+          "reason",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RiskAcceptanceResponse"
       },
       "SBOMDetailResponse": {
         "properties": {
@@ -2207,6 +2541,28 @@
             ],
             "title": "Cvss Score"
           },
+          "epss_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Epss Score"
+          },
+          "epss_percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Epss Percentile"
+          },
           "summary": {
             "anyOf": [
               {
@@ -2262,6 +2618,8 @@
           "cve_id",
           "severity",
           "cvss_score",
+          "epss_score",
+          "epss_percentile",
           "summary",
           "source",
           "published_at",

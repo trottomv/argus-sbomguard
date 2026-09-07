@@ -120,7 +120,7 @@ class ProjectSBOMHistoryItem(BaseModel):
 # Alerts
 
 
-class AlertConfigCreate(BaseModel):
+class AlertRuleCreate(BaseModel):
     project_id: uuid.UUID
     severity_threshold: SeverityThreshold = SeverityThreshold.HIGH
     notification_type: NotificationChannel = NotificationChannel.EMAIL
@@ -135,7 +135,7 @@ class AlertConfigCreate(BaseModel):
         return _strip_nul_from_strings(data)
 
 
-class AlertConfigUpdate(BaseModel):
+class AlertRuleUpdate(BaseModel):
     project_id: uuid.UUID | None = None
     severity_threshold: SeverityThreshold | None = None
     notification_type: NotificationChannel | None = None
@@ -147,7 +147,7 @@ class AlertConfigUpdate(BaseModel):
         return _strip_nul_from_strings(data)
 
 
-class AlertConfigResponse(BaseModel):
+class AlertRuleResponse(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
     severity_threshold: SeverityThreshold
@@ -228,9 +228,6 @@ class ServiceResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# API keys
-
-
 # Vulnerabilities
 
 
@@ -239,6 +236,8 @@ class VulnerabilityResponse(BaseModel):
     cve_id: str
     severity: str | None
     cvss_score: float | None
+    epss_score: float | None
+    epss_percentile: float | None
     summary: str | None
     source: str | None
     published_at: datetime | None
@@ -250,3 +249,27 @@ class VulnerabilitySummaryResponse(BaseModel):
     counts: dict[str, int]
     total: int
     affected_projects: int
+
+
+class RiskAcceptanceCreate(BaseModel):
+    project_id: uuid.UUID
+    vulnerability_id: uuid.UUID
+    service_id: uuid.UUID | None = None
+    reason: str = Field(..., min_length=1, max_length=2000)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _strip_nul_bytes(cls, data):
+        return _strip_nul_from_strings(data)
+
+
+class RiskAcceptanceResponse(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    service_id: uuid.UUID | None
+    vulnerability_id: uuid.UUID
+    reason: str
+    created_at: datetime | None
+    updated_at: datetime | None
+
+    model_config = {"from_attributes": True}

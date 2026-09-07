@@ -1,18 +1,26 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.constants import API_V1_PREFIX
 from api.v1.schemas import (
+    BAD_REQUEST_RESPONSE,
+    CONFLICT_RESPONSE,
+    NOT_FOUND_RESPONSE,
     UNAUTHORIZED_RESPONSE,
     PageResponse,
+    RiskAcceptanceCreate,
+    RiskAcceptanceResponse,
     VulnerabilityResponse,
     VulnerabilitySummaryResponse,
 )
 from database import get_db
 from middleware.api_key import api_key_required
+from models.acceptance import RiskAcceptance
+from models.project import Project
 from models.sbom import SBOM
 from models.service import Service
 from models.vulnerability import (
@@ -21,6 +29,7 @@ from models.vulnerability import (
     VulnerabilitySeverity,
     VulnerabilityStatus,
 )
+from services.acceptance import covered_by_acceptance
 from services.pagination import VULN_PER_PAGE, Page, paginate
 from services.vulnerability_queries import apply_vuln_ordering, build_vuln_subquery
 
@@ -66,6 +75,7 @@ async def active_vulnerabilities(
                     SBOMVulnerability.status == VulnerabilityStatus.OPEN,
                     SBOMVulnerability.vulnerability_id.in_(vuln_ids),
                 )
+                .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
             )
         ).all()
         proj_ids = {row[1] for row in proj_rows}
@@ -93,6 +103,7 @@ async def active_vulnerabilities(
                 SBOMVulnerability.status == VulnerabilityStatus.OPEN,
                 SBOMVulnerability.vulnerability_id.in_(vuln_ids),
             )
+            .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
         )
         for vuln_id, service_name in svc_rows:
             if service_name:
@@ -105,6 +116,8 @@ async def active_vulnerabilities(
                 cve_id=vuln.cve_id,
                 severity=vuln.severity,
                 cvss_score=vuln.cvss_score,
+                epss_score=vuln.epss_score,
+                epss_percentile=vuln.epss_percentile,
                 summary=vuln.summary,
                 source=vuln.source,
                 published_at=vuln.published_at,
@@ -130,7 +143,9 @@ async def vulnerability_summary(db: AsyncSession = Depends(get_db)):
     vuln_subq = (
         select(Vulnerability.id, Vulnerability.severity)
         .join(SBOMVulnerability)
+        .join(SBOM, SBOMVulnerability.sbom_id == SBOM.id)
         .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
+        .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
         .distinct()
     ).subquery()
 
@@ -163,8 +178,9 @@ async def vulnerability_summary(db: AsyncSession = Depends(get_db)):
     affected = await db.execute(
         select(func.count()).select_from(
             select(SBOM.project_id.distinct())
-            .join(SBOMVulnerability)
+            .join(SBOMVulnerability, SBOMVulnerability.sbom_id == SBOM.id)
             .where(SBOMVulnerability.status == VulnerabilityStatus.OPEN)
+            .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
             .subquery()
         )
     )
@@ -174,3 +190,98 @@ async def vulnerability_summary(db: AsyncSession = Depends(get_db)):
         total=sum(counts.values()),
         affected_projects=affected.scalar() or 0,
     )
+
+
+@router.get(
+    "/acceptances",
+    response_model=PageResponse[RiskAcceptanceResponse],
+    responses={**UNAUTHORIZED_RESPONSE},
+)
+async def list_risk_acceptances(
+    db: AsyncSession = Depends(get_db),
+    project_id: uuid.UUID | None = Query(None),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
+):
+    query = select(RiskAcceptance).order_by(RiskAcceptance.created_at.desc())
+    if project_id is not None:
+        query = query.where(RiskAcceptance.project_id == project_id)
+    pg: Page = await paginate(db, query, page=page, per_page=per_page)
+    return PageResponse[RiskAcceptanceResponse](
+        items=[RiskAcceptanceResponse.model_validate(ra) for ra in pg.items],
+        total=pg.total,
+        page=pg.page,
+        per_page=pg.per_page,
+        total_pages=pg.total_pages,
+        has_more=pg.has_more,
+    )
+
+
+@router.post(
+    "/acceptances",
+    status_code=201,
+    response_model=RiskAcceptanceResponse,
+    responses={
+        **UNAUTHORIZED_RESPONSE,
+        **NOT_FOUND_RESPONSE,
+        **BAD_REQUEST_RESPONSE,
+        **CONFLICT_RESPONSE,
+    },
+)
+async def create_risk_acceptance(data: RiskAcceptanceCreate, db: AsyncSession = Depends(get_db)):
+    project = await db.get(Project, data.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    vuln = await db.get(Vulnerability, data.vulnerability_id)
+    if not vuln:
+        raise HTTPException(status_code=404, detail="Vulnerability not found")
+    if data.service_id is not None:
+        service = await db.get(Service, data.service_id)
+        if not service or service.project_id != data.project_id:
+            raise HTTPException(status_code=400, detail="Service does not belong to the project")
+
+    scope_filter = (
+        RiskAcceptance.service_id.is_(None)
+        if data.service_id is None
+        else RiskAcceptance.service_id == data.service_id
+    )
+    existing = await db.execute(
+        select(RiskAcceptance).where(
+            RiskAcceptance.project_id == data.project_id,
+            RiskAcceptance.vulnerability_id == data.vulnerability_id,
+            scope_filter,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Vulnerability already accepted in this scope")
+
+    acceptance = RiskAcceptance(
+        project_id=data.project_id,
+        service_id=data.service_id,
+        vulnerability_id=data.vulnerability_id,
+        reason=data.reason,
+    )
+    db.add(acceptance)
+    try:
+        await db.flush()
+    except IntegrityError:
+        # A concurrent request created the same (project, service, vuln) row.
+        await db.rollback()
+        raise HTTPException(
+            status_code=409, detail="Vulnerability already accepted in this scope"
+        ) from None
+    return RiskAcceptanceResponse.model_validate(acceptance)
+
+
+@router.delete(
+    "/acceptances/{acceptance_id}",
+    status_code=204,
+    responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
+)
+async def delete_risk_acceptance(acceptance_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(RiskAcceptance).where(RiskAcceptance.id == acceptance_id))
+    acceptance = result.scalar_one_or_none()
+    if not acceptance:
+        raise HTTPException(status_code=404, detail="Risk acceptance not found")
+    await db.delete(acceptance)
+    await db.flush()
