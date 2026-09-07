@@ -24,6 +24,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 import main
+from api import mcp_server as mcp_api_module
 from config import settings
 from middleware import mcp_auth as mcp_auth_module
 from middleware.mcp_auth import MCPAuthMiddleware
@@ -237,9 +238,9 @@ async def test_build_mcp_server_registers_read_only_tools():
     assert names == EXPECTED_TOOLS
 
 
-def test_module_server_transport_and_session_manager_exposed():
-    assert mcp_server_module.mcp_transport_app is not None
-    assert mcp_server_module.mcp_server.session_manager is not None
+def test_api_module_exposes_server_transport_and_session_manager():
+    assert mcp_api_module.mcp_transport_app is not None
+    assert mcp_api_module.mcp_server.session_manager is not None
 
 
 # --------------------------------------------------------------------------- #
@@ -713,8 +714,8 @@ async def test_mcp_gate_forwards_non_http_scopes(monkeypatch):
         await asyncio.sleep(0)
         seen.append(scope["type"])
 
-    monkeypatch.setattr(main, "mcp_authed_app", _stub)
-    await main._mcp_gate({"type": "websocket", "headers": []}, None, None)
+    monkeypatch.setattr(mcp_api_module, "mcp_authed_app", _stub)
+    await mcp_api_module.mcp_gate({"type": "websocket", "headers": []}, None, None)
     assert seen == ["websocket"]
 
 

@@ -1,6 +1,7 @@
 import pytest
 
 import main
+from api import healthchecks
 
 
 @pytest.mark.asyncio
@@ -66,7 +67,7 @@ async def test_readyz_database_failure(client, monkeypatch):
         def connect(self):
             return FailingConn()
 
-    monkeypatch.setattr(main, "engine", FailingEngine())
+    monkeypatch.setattr(healthchecks, "engine", FailingEngine())
     resp = await client.get("/readyz")
     assert resp.status_code == 503
     data = resp.json()
@@ -91,12 +92,12 @@ async def test_readyz_rabbitmq_failure(client, monkeypatch):
         def connect(self):
             return OkConn()
 
-    monkeypatch.setattr(main, "engine", OkEngine())
+    monkeypatch.setattr(healthchecks, "engine", OkEngine())
 
     def boom_connection(*args, **kwargs):
         raise OSError("rabbitmq down")
 
-    monkeypatch.setattr(main.asyncio, "open_connection", boom_connection)
+    monkeypatch.setattr(healthchecks.asyncio, "open_connection", boom_connection)
     resp = await client.get("/readyz")
     assert resp.status_code == 503
     data = resp.json()
@@ -123,7 +124,7 @@ async def test_readyz_database_timeout(client, monkeypatch):
         def connect(self):
             return StalledConn()
 
-    monkeypatch.setattr(main, "engine", StalledEngine())
+    monkeypatch.setattr(healthchecks, "engine", StalledEngine())
     monkeypatch.setattr(main.settings, "readiness_timeout_seconds", 0.001)
     resp = await client.get("/readyz")
     assert resp.status_code == 503
