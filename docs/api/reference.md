@@ -37,14 +37,14 @@ generated from the project name (e.g. `Argus SBOM Guard` → `argus-sbom-guard`)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/v1/sboms/upload` | Upload SBOM file (multipart) — by project UUID or slug |
+| `POST` | `/api/v1/sboms/upload` | Upload SBOM file (multipart) — by project UUID or project slug |
 | `GET` | `/api/v1/sboms/{id}` | Get SBOM with deps + vulns |
 | `GET` | `/api/v1/sboms/{id}/download` | Download raw SBOM JSON |
 | `GET` | `/api/v1/sboms/{id}/diff/{other_id}` | Diff two SBOM versions |
 | `DELETE` | `/api/v1/sboms/{id}` | Delete SBOM |
 
 `POST /api/v1/sboms/upload` targets a project by **exactly one** of
-`project_id` (UUID) or `slug`:
+`project_id` (UUID) or `project_slug`:
 
 ### Services
 

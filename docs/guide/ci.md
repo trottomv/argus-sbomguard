@@ -52,12 +52,12 @@ directly in your pipeline file:
 | `ARGUS_API_KEY` | `argus_xxxxxxxxxxxx` | API key sent in the `Authorization: Bearer` header |
 
 The upload itself is a standard multipart request. You can target the project by
-`slug` (as shown) or by `project_id` (UUID) — provide exactly one:
+`project_slug` (as shown) or by `project_id` (UUID) — provide exactly one:
 
 ```bash
 curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
   -H "Authorization: Bearer $ARGUS_API_KEY" \
-  -F "slug=$ARGUS_PROJECT_ID" \
+  -F "project_slug=$ARGUS_PROJECT_ID" \
   -F "version=1.2.3" \
   -F "service_name=my-app" \
   -F "file=@sbom.json"
@@ -66,8 +66,9 @@ curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
 | Field | Purpose |
 |-------|---------|
 | `file` | The generated SBOM, as CycloneDX JSON (primary) or SPDX JSON |
+| `project_id` / `project_slug` | Identify the target project (UUID or slug) — provide exactly one |
 | `version` | Version of the artifact, e.g. the git tag or commit SHA |
-| `service_name` | Name of the microservice/component this SBOM belongs to |
+| `service_name` | Free-form label for the microservice/component this SBOM belongs to (optional) |
 
 ## GitHub Actions
 
@@ -112,7 +113,7 @@ curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
             run: |
               curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
                 -H "Authorization: Bearer $ARGUS_API_KEY" \
-                -F "slug=$ARGUS_PROJECT_ID" \
+                -F "project_slug=$ARGUS_PROJECT_ID" \
                 -F "version=${GITHUB_REF_NAME}" \
                 -F "service_name=my-app" \
                 -F "file=@sbom.json"
@@ -182,7 +183,7 @@ curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
         - syft scan my-app:$CI_COMMIT_SHA -o cyclonedx-json > sbom.json
         - curl -f -X POST "$ARGUS_URL/api/v1/sboms/upload" \
             -H "Authorization: Bearer $ARGUS_API_KEY" \
-            -F "slug=$ARGUS_PROJECT_ID" \
+            -F "project_slug=$ARGUS_PROJECT_ID" \
             -F "version=$CI_COMMIT_TAG" \
             -F "service_name=my-app" \
             -F "file=@sbom.json"
