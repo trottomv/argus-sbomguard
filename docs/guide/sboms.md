@@ -18,12 +18,12 @@ curl -X POST http://localhost:8000/api/v1/sboms/upload \
 ```
 
 You can target the project by UUID (`project_id`) or by its readable **slug**
-(`slug`) — provide exactly one:
+(`project_slug`) — provide exactly one:
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/sboms/upload \
   -H "Authorization: Bearer argus_xxx" \
-  -F "slug=my-project" \
+  -F "project_slug=my-project" \
   -F "version=1.2.3" \
   -F "file=@sbom.json"
 ```
@@ -34,11 +34,10 @@ curl -X POST http://localhost:8000/api/v1/sboms/upload \
 grpcurl -plaintext \
   -H 'authorization: bearer argus_xxx' \
   -d '{
-    "project_id": "00000000-0000-0000-0000-000000000001",
+    "project_slug": "my-project",
     "version": "1.2.3",
     "service_name": "api-gateway",
-    "format": "cyclonedx",
-    "raw_sbom": "..."
+    "sbom_json": "..."
   }' \
   localhost:50051 sbom.SBOMService/UploadSBOM
 ```
@@ -46,12 +45,28 @@ grpcurl -plaintext \
 | Field | Required | Description |
 |-------|----------|-------------|
 | `project_id` | Yes* | UUID of the target project |
-| `slug` | Yes* | Slug of the target project (alternative to `project_id`) |
+| `project_slug` | Yes* | Slug of the target project (alternative to `project_id`) |
 | `file` | Yes | JSON SBOM file |
 | `version` | No | Software version tag |
-| `service_name` | No | Microservice/component name |
+| `service_name` | No | Free-form service/component label (see below) |
 
-\* Provide **exactly one** of `project_id` or `slug`.
+\* Provide **exactly one** of `project_id` or `project_slug`.
+
+### `service_name` is a free-form label
+
+`service_name` is **not** normalized or slugified: it is stored verbatim as the
+display name of the *service* the SBOM belongs to (a free-text string up to 255
+characters), so spelling and casing matter.
+
+- Two uploads with `api-gateway` and `Api Gateway` create **two distinct
+  services** in the project.
+- When omitted, Argus falls back to the `metadata.component.name` of the
+  CycloneDX document (if present).
+- SBOMs uploaded without a `service_name` (and without a usable component name)
+  are not associated with any service and appear at the project level.
+
+Use a consistent label across your pipeline jobs (e.g. the repository/job name)
+if you want SBOMs from the same component to be grouped under one service.
 
 ## What Happens on Upload
 

@@ -84,7 +84,7 @@ async def test_upload_sbom_by_slug(client):
 
     resp = await client.post(
         "/api/v1/sboms/upload",
-        data={"slug": slug, "version": "v1.0.0"},
+        data={"project_slug": slug, "version": "v1.0.0"},
         files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
     )
     assert resp.status_code == 201
@@ -95,7 +95,7 @@ async def test_upload_sbom_by_slug(client):
 async def test_upload_sbom_slug_not_found(client):
     resp = await client.post(
         "/api/v1/sboms/upload",
-        data={"slug": "does-not-exist"},
+        data={"project_slug": "does-not-exist"},
         files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
     )
     assert resp.status_code == 404
@@ -129,7 +129,7 @@ async def test_upload_sbom_id_and_slug_conflict(client):
     slug = proj.json()["slug"]
     resp = await client.post(
         "/api/v1/sboms/upload",
-        data={"project_id": pid, "slug": slug},
+        data={"project_id": pid, "project_slug": slug},
         files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
     )
     assert resp.status_code == 422
@@ -160,7 +160,7 @@ async def test_upload_sbom_strips_nul_bytes(client):
     )
     resp = await client.post(
         "/api/v1/sboms/upload",
-        data={"slug": f"\x00{slug}", "version": "1.0\x00", "service_name": "sv\x00c"},
+        data={"project_slug": f"\x00{slug}", "version": "1.0\x00", "service_name": "sv\x00c"},
         files={"file": ("sbom.json", content, "application/json")},
     )
     assert resp.status_code == 201

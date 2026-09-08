@@ -37,7 +37,7 @@ class TestUploadSBOMDefensiveReturns:
 
         request = UploadRequest(
             project_id=str(project.id),
-            slug=project.slug or "x",
+            project_slug=project.slug or "x",
             sbom_json=b"{}",
         )
         response = await servicer.upload_sbom(request, context)
@@ -204,7 +204,7 @@ class TestUploadSBOM:
         response = await grpc_client.UploadSBOM(
             UploadRequest(
                 project_id="",
-                slug=project.slug,
+                project_slug=project.slug,
                 sbom_json=sbom_json.encode(),
             )
         )
@@ -218,7 +218,7 @@ class TestUploadSBOM:
             await grpc_client.UploadSBOM(
                 UploadRequest(
                     project_id="",
-                    slug="does-not-exist",
+                    project_slug="does-not-exist",
                     sbom_json=b'{"bomFormat":"CycloneDX","components":[]}',
                 )
             )
@@ -237,7 +237,7 @@ class TestUploadSBOM:
             await grpc_client.UploadSBOM(
                 UploadRequest(
                     project_id=str(project.id),
-                    slug=project.slug,
+                    project_slug=project.slug,
                     sbom_json=b'{"bomFormat":"CycloneDX","components":[]}',
                 )
             )

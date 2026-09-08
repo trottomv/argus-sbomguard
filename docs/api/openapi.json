@@ -1521,9 +1521,9 @@
             "type": "string",
             "title": "Project Id"
           },
-          "slug": {
+          "project_slug": {
             "type": "string",
-            "title": "Slug"
+            "title": "Project Slug"
           },
           "version": {
             "type": "string",

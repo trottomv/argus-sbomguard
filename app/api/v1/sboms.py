@@ -53,7 +53,7 @@ def _validation_error(loc: list[str | int], msg: str) -> RequestValidationError:
 )
 async def upload_sbom(
     project_id: str = Form(None),
-    slug: str = Form(None),
+    project_slug: str = Form(None),
     version: str = Form(None),
     service_name: str = Form(None),
     file: UploadFile = File(...),
@@ -63,14 +63,16 @@ async def upload_sbom(
     # the multipart fields and the parsed SBOM before they reach a query or an
     # insert; a NUL in any of them would otherwise surface as a 500.
     project_id = _strip_nul_from_strings(project_id)
-    slug = _strip_nul_from_strings(slug)
+    project_slug = _strip_nul_from_strings(project_slug)
     version = _strip_nul_from_strings(version)
     service_name = _strip_nul_from_strings(service_name)
 
-    if not project_id and not slug:
-        raise _validation_error(["body", "project_id"], "project_id or slug is required")
-    if project_id and slug:
-        raise _validation_error(["body", "project_id"], "Provide only one of project_id or slug")
+    if not project_id and not project_slug:
+        raise _validation_error(["body", "project_id"], "project_id or project_slug is required")
+    if project_id and project_slug:
+        raise _validation_error(
+            ["body", "project_id"], "Provide only one of project_id or project_slug"
+        )
 
     if project_id:
         try:
@@ -79,7 +81,7 @@ async def upload_sbom(
             raise HTTPException(status_code=404, detail="Project not found") from None
         result = await db.execute(select(Project).where(Project.id == project_uuid))
     else:
-        result = await db.execute(select(Project).where(Project.slug == slug))
+        result = await db.execute(select(Project).where(Project.slug == project_slug))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
