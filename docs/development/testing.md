@@ -78,5 +78,5 @@ Pre-commit is configured in `.pre-commit-config.yaml` and runs:
 Install hooks once:
 
 ```bash
-pip install pre-commit && pre-commit install
+pipx install pre-commit && pre-commit install
 ```

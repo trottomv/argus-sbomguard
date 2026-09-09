@@ -119,16 +119,15 @@ just compile-requirements
 just scan-all
 
 # Pre-commit (install once)
-pip install pre-commit && pre-commit install
+pipx install pre-commit && pre-commit install
 
 # Docs — serve locally
-mkdocs serve
+just docs-serve
 
 # Docs — published automatically via CI on tag (v*) and main branch
 
 # Docs — list published versions
-pip install mike
-mike list
+just docs-list
 ```
 
 ## Pull requests
@@ -165,9 +164,9 @@ After pushing, the URL to open a PR is shown in the terminal output.
 - Built with **MkDocs** + **Material theme** + **mkdocstrings** (auto API docs from Google-style docstrings).
 - Versioned via **mike**: each release gets a versioned deploy + `latest` alias.
 - Config in `mkdocs.yml`. Source in `docs/`.
-- After changing docs content, run `mike deploy --push --update-aliases <version> latest` (not `mkdocs build`).
-- Served locally with `mkdocs serve`.
-- **Version selector only appears after deploy** (`mike deploy`), not during `mkdocs serve` in local dev — this is expected.
+- After changing docs content, run `just docs-release` (mike deploy + set-default in `.docs-venv`, not `mkdocs build`).
+- Served locally with `just docs-serve`.
+- **Version selector only appears after deploy** (`just docs-release`), not during `just docs-serve` in local dev — this is expected.
 
 ## Language
 - **All communication must be in English**: code comments, docstrings, commit messages, PR titles/descriptions, variable names, and this agent's responses. This repository is English-only.

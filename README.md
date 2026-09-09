@@ -151,4 +151,4 @@ Full contributing guide at [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation
 
-Full documentation is available at [https://trottomv.github.io/argus-sbomguard](https://trottomv.github.io/argus-sbomguard) or locally via `mkdocs serve`.
+Full documentation is available at [https://trottomv.github.io/argus-sbomguard](https://trottomv.github.io/argus-sbomguard)
