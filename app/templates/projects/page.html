@@ -2,24 +2,38 @@
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold">Projects</h1>
         <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
-                @click="openNew()"><svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-plus"></use></svg> Add Project</button>
+                @click="openNew()">
+            <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                <use href="#icon-plus"></use>
+            </svg>
+            Add Project
+        </button>
     </div>
-
     <dialog id="my_modal_1" class="modal">
         <div class="modal-box">
-            <h3 class="font-bold text-lg" x-text="editId ? 'Edit Project' : 'New Project'"></h3>
+            <h3 class="font-bold text-lg"
+                x-text="editId ? 'Edit Project' : 'New Project'"></h3>
             <form @submit.prevent="submit()" class="space-y-4 mt-4">
                 <fieldset class="fieldset">
                     <legend class="fieldset-legend">Name</legend>
-                    <input type="text" x-model="name" class="input w-full" placeholder="my-service" required>
+                    <input type="text"
+                           x-model="name"
+                           class="input w-full"
+                           placeholder="my-service"
+                           required>
                 </fieldset>
                 <fieldset class="fieldset">
                     <legend class="fieldset-legend">Description</legend>
-                    <textarea x-model="description" class="textarea w-full" placeholder="Optional description"></textarea>
+                    <textarea x-model="description"
+                              class="textarea w-full"
+                              placeholder="Optional description"></textarea>
                 </fieldset>
                 <fieldset class="fieldset">
                     <legend class="fieldset-legend">Repository URL</legend>
-                    <input type="url" x-model="repo_url" class="input w-full" placeholder="https://github.com/org/repo">
+                    <input type="url"
+                           x-model="repo_url"
+                           class="input w-full"
+                           placeholder="https://github.com/org/repo">
                 </fieldset>
                 <fieldset class="fieldset">
                     <legend class="fieldset-legend">Platform</legend>
@@ -31,14 +45,14 @@
                     </select>
                 </fieldset>
                 <div class="modal-action">
-                    <button type="submit" class="btn btn-primary"
+                    <button type="submit"
+                            class="btn btn-primary"
                             x-text="editId ? 'Save' : 'Create'"></button>
                     <button type="button" class="btn btn-outline" data-close-modal="my_modal_1">Cancel</button>
                 </div>
             </form>
         </div>
     </dialog>
-
     <dialog id="delete_modal" class="modal" @click.self="$el.close()">
         <div class="modal-box">
             <h3 class="font-bold text-lg">Delete Project</h3>
@@ -49,52 +63,56 @@
             </div>
         </div>
     </dialog>
-
-    <div id="project-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div id="project-cards"
+         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for project in items %}
-        <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-5 card-hover relative group">
-            <a href="/projects/{{ project.id }}" class="block">
-                <h2 class="text-lg font-bold text-ctp-text">{{ project.name }}</h2>
-                {% if project.description %}
-                <p class="text-sm opacity-70">{{ project.description }}</p>
-                {% endif %}
-                <div class="flex items-center gap-2 mt-2 text-xs opacity-50">
-                    {% if project.repo_url %}
-                    <span>{{ project.repo_url }}</span>
+            <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-5 card-hover relative group">
+                <a href="/projects/{{ project.id }}" class="block">
+                    <h2 class="text-lg font-bold text-ctp-text">{{ project.name }}</h2>
+                    {% if project.description %}
+                        <p class="text-sm opacity-70">{{ project.description }}</p>
                     {% endif %}
-                    <span>{{ project.created_at | format_dt('%Y-%m-%d', '') }}</span>
-                </div>
-            </a>
-            <button class="btn btn-ghost btn-sm text-error absolute top-2 right-2 opacity-0 group-hover:opacity-100"
-                    data-id="{{ project.id }}" data-name="{{ project.name }}"
-                    @click.stop="openDelete($event)">
-                <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-trash-2"></use></svg>
-            </button>
-            <button class="btn btn-ghost btn-sm absolute top-2 right-10 opacity-0 group-hover:opacity-100"
-                    data-id="{{ project.id }}" data-name="{{ project.name }}"
-                    data-description="{{ project.description or '' }}" data-repo-url="{{ project.repo_url or '' }}"
-                    data-platform="{{ project.platform or '' }}"
-                    @click.stop="openEdit($event)">
-                <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-pencil"></use></svg>
-            </button>
-        </div>
+                    <div class="flex items-center gap-2 mt-2 text-xs opacity-50">
+                        {% if project.repo_url %}
+                            <span>{{ project.repo_url }}</span>
+                        {% endif %}
+                        <span>{{ project.created_at | format_dt('%Y-%m-%d', '') }}</span>
+                    </div>
+                </a>
+                <button class="btn btn-ghost btn-sm text-error absolute top-2 right-2 opacity-0 group-hover:opacity-100"
+                        data-id="{{ project.id }}"
+                        data-name="{{ project.name }}"
+                        @click.stop="openDelete($event)">
+                    <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                        <use href="#icon-trash-2"></use>
+                    </svg>
+                </button>
+                <button class="btn btn-ghost btn-sm absolute top-2 right-10 opacity-0 group-hover:opacity-100"
+                        data-id="{{ project.id }}"
+                        data-name="{{ project.name }}"
+                        data-description="{{ project.description or '' }}"
+                        data-repo-url="{{ project.repo_url or '' }}"
+                        data-platform="{{ project.platform or '' }}"
+                        @click.stop="openEdit($event)">
+                    <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                        <use href="#icon-pencil"></use>
+                    </svg>
+                </button>
+            </div>
         {% else %}
-        <div class="col-span-full text-center opacity-60 py-12">
-            <p class="text-lg">No projects yet</p>
-            <p class="text-sm">Add your first project to start tracking SBOMs</p>
-        </div>
+            <div class="col-span-full text-center opacity-60 py-12">
+                <p class="text-lg">No projects yet</p>
+                <p class="text-sm">Add your first project to start tracking SBOMs</p>
+            </div>
         {% endfor %}
     </div>
-
     {% if items and has_more %}
-    <div id="load-more-projects" class="text-center">
-        <button class="btn btn-outline"
-                hx-get="/projects?page={{ page + 1 }}&per_page={{ per_page }}"
-                hx-target="#project-cards"
-                hx-swap="beforeend"
-                hx-trigger="click once">
-            Load more ({{ total - (per_page * page) }} remaining)
-        </button>
-    </div>
+        <div id="load-more-projects" class="text-center">
+            <button class="btn btn-outline"
+                    hx-get="/projects?page={{ page + 1 }}&per_page={{ per_page }}"
+                    hx-target="#project-cards"
+                    hx-swap="beforeend"
+                    hx-trigger="click once">Load more ({{ total - (per_page * page) }} remaining)</button>
+        </div>
     {% endif %}
 </div>

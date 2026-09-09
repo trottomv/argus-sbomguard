@@ -17,6 +17,14 @@ repos:
       - id: ruff-format
         files: ^(app|backend)/.*\.py$
 
+  - repo: https://github.com/Riverside-Healthcare/djLint
+    rev: v1.46.1
+    hooks:
+      - id: djlint-reformat
+        name: djlint (Jinja templates format)
+        args: ["--profile=jinja"]
+        files: ^app/templates/.*\.html$
+
   - repo: https://github.com/PyCQA/bandit
     rev: 1.9.4
     hooks:

@@ -100,6 +100,12 @@ docker compose exec app ruff check app/
 # Format check
 docker compose exec app ruff format app/ --check
 
+# Template format (Jinja, profile from app/pyproject.toml)
+docker compose exec app djlint templates --reformat
+
+# Template format check
+docker compose exec app djlint templates --check
+
 # SAST (bandit)
 docker compose exec app bandit -c pyproject.toml -r app/
 
