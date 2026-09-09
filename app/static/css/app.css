@@ -105,6 +105,12 @@ body {
   background-color: var(--color-ctp-surface0);
 }
 
+.sidebar-link-active,
+.sidebar-link-active:hover {
+  font-weight: 800;
+  color: var(--color-indigo-400);
+}
+
 .card-hover {
   transition: all 0.2s ease;
 }
