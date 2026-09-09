@@ -80,6 +80,14 @@ format:
 format-check:
     docker compose exec app ruff format --check
 
+# format Jinja templates with djlint
+format-templates:
+    docker compose exec app djlint templates --reformat
+
+# check template formatting
+format-templates-check:
+    docker compose exec app djlint templates --check
+
 # compile requirements with hashes, upgrading to latest within pyproject ranges
 # (requires uv on host: pipx install uv)
 UV_VERSION := env_var_or_default("UV_VERSION", "~=0.12.0")

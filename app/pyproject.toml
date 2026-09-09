@@ -38,6 +38,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "bandit~=1.9.0",
+    "djlint~=1.46.0",
     "pip-audit~=2.10.0",
     "pre-commit~=4.6.0",
     "pytest-asyncio~=1.4.0",
@@ -107,6 +108,10 @@ select = [
 [tool.ruff.format]
 quote-style = "double"
 docstring-code-format = true
+
+[tool.djlint]
+profile = "jinja"
+ignore = "J004,J018,H006,H030,H031"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

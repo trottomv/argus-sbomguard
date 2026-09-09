@@ -1,42 +1,46 @@
 {% for project in items %}
-<div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-5 card-hover relative group">
-    <a href="/projects/{{ project.id }}" class="block">
-        <h2 class="text-lg font-bold text-ctp-text">{{ project.name }}</h2>
-        {% if project.description %}
-        <p class="text-sm opacity-70">{{ project.description }}</p>
-        {% endif %}
-        <div class="flex items-center gap-2 mt-2 text-xs opacity-50">
-            {% if project.repo_url %}
-            <span>{{ project.repo_url }}</span>
+    <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-5 card-hover relative group">
+        <a href="/projects/{{ project.id }}" class="block">
+            <h2 class="text-lg font-bold text-ctp-text">{{ project.name }}</h2>
+            {% if project.description %}
+                <p class="text-sm opacity-70">{{ project.description }}</p>
             {% endif %}
-            <span>{{ project.created_at | format_dt('%Y-%m-%d', '') }}</span>
-        </div>
-    </a>
-    <button class="btn btn-ghost btn-sm text-error absolute top-2 right-2 opacity-0 group-hover:opacity-100"
-            data-id="{{ project.id }}" data-name="{{ project.name }}"
-            @click.stop="openDelete($event)">
-        <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-trash-2"></use></svg>
-    </button>
-    <button class="btn btn-ghost btn-sm absolute top-2 right-10 opacity-0 group-hover:opacity-100"
-            data-id="{{ project.id }}" data-name="{{ project.name }}"
-            data-description="{{ project.description or '' }}" data-repo-url="{{ project.repo_url or '' }}"
-            data-platform="{{ project.platform or '' }}"
-            @click.stop="openEdit($event)">
-        <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-pencil"></use></svg>
-    </button>
-</div>
+            <div class="flex items-center gap-2 mt-2 text-xs opacity-50">
+                {% if project.repo_url %}
+                    <span>{{ project.repo_url }}</span>
+                {% endif %}
+                <span>{{ project.created_at | format_dt('%Y-%m-%d', '') }}</span>
+            </div>
+        </a>
+        <button class="btn btn-ghost btn-sm text-error absolute top-2 right-2 opacity-0 group-hover:opacity-100"
+                data-id="{{ project.id }}"
+                data-name="{{ project.name }}"
+                @click.stop="openDelete($event)">
+            <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                <use href="#icon-trash-2"></use>
+            </svg>
+        </button>
+        <button class="btn btn-ghost btn-sm absolute top-2 right-10 opacity-0 group-hover:opacity-100"
+                data-id="{{ project.id }}"
+                data-name="{{ project.name }}"
+                data-description="{{ project.description or '' }}"
+                data-repo-url="{{ project.repo_url or '' }}"
+                data-platform="{{ project.platform or '' }}"
+                @click.stop="openEdit($event)">
+            <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                <use href="#icon-pencil"></use>
+            </svg>
+        </button>
+    </div>
 {% endfor %}
-
 <div id="load-more-projects" hx-swap-oob="true">
-{% if items and has_more %}
-<div class="text-center col-span-full">
-    <button class="btn btn-outline"
-            hx-get="/projects?page={{ page + 1 }}&per_page={{ per_page }}"
-            hx-target="#project-cards"
-            hx-swap="beforeend"
-            hx-trigger="click once">
-        Load more ({{ total - (per_page * page) }} remaining)
-    </button>
-</div>
-{% endif %}
+    {% if items and has_more %}
+        <div class="text-center col-span-full">
+            <button class="btn btn-outline"
+                    hx-get="/projects?page={{ page + 1 }}&per_page={{ per_page }}"
+                    hx-target="#project-cards"
+                    hx-swap="beforeend"
+                    hx-trigger="click once">Load more ({{ total - (per_page * page) }} remaining)</button>
+        </div>
+    {% endif %}
 </div>

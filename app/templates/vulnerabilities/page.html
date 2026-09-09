@@ -1,68 +1,98 @@
 {% import 'partials/epss.html' as epss %}
 {% macro sort_link(label, column) %}
-{% set new_order = 'asc' if active_sort == column and active_order == 'desc' else 'desc' %}
-{% set active = active_sort == column %}
-<a href="#"
-   class="inline-flex items-center gap-1"
-    hx-get="/vulnerabilities?severity={{ active_severity }}&project_id={{ active_project_id }}&service_id={{ active_service_id }}&cve_id={{ active_cve }}&sort={{ column }}&order={{ new_order }}&page=1&per_page={{ per_page }}"
-   hx-target="#vuln-page"
-   hx-swap="outerHTML">
-    <span>{{ label }}</span>
-    <span class="inline-flex flex-col leading-none">
-        <svg class="w-3 h-3" style="color:{% if active and active_order == 'asc' %}#89b4fa{% else %}#585b70{% endif %}" aria-hidden="true" focusable="false"><use href="#icon-chevron-up"></use></svg>
-        <svg class="w-3 h-3 -mt-1" style="color:{% if active and active_order == 'desc' %}#89b4fa{% else %}#585b70{% endif %}" aria-hidden="true" focusable="false"><use href="#icon-chevron-down"></use></svg>
-    </span>
-</a>
+    {% set new_order = 'asc' if active_sort == column and active_order == 'desc' else 'desc' %}
+    {% set active = active_sort == column %}
+    <a href="#"
+       class="inline-flex items-center gap-1"
+       hx-get="/vulnerabilities?severity={{ active_severity }}&project_id={{ active_project_id }}&service_id={{ active_service_id }}&cve_id={{ active_cve }}&sort={{ column }}&order={{ new_order }}&page=1&per_page={{ per_page }}"
+       hx-target="#vuln-page"
+       hx-swap="outerHTML">
+        <span>{{ label }}</span>
+        <span class="inline-flex flex-col leading-none">
+            <svg class="w-3 h-3"
+                 style="color:{% if active and active_order == 'asc' %}#89b4fa{% else %}#585b70{% endif %}"
+                 aria-hidden="true"
+                 focusable="false">
+                <use href="#icon-chevron-up"></use>
+            </svg>
+            <svg class="w-3 h-3 -mt-1"
+                 style="color:{% if active and active_order == 'desc' %}#89b4fa{% else %}#585b70{% endif %}"
+                 aria-hidden="true"
+                 focusable="false">
+                <use href="#icon-chevron-down"></use>
+            </svg>
+        </span>
+    </a>
 {% endmacro %}
-
-<div id="vuln-page" class="space-y-6" x-data="vulnPage"
-     data-severity="{{ active_severity }}" data-project="{{ active_project_id }}"
-     data-service="{{ active_service_id }}" data-cve="{{ active_cve }}"
+<div id="vuln-page"
+     class="space-y-6"
+     x-data="vulnPage"
+     data-severity="{{ active_severity }}"
+     data-project="{{ active_project_id }}"
+     data-service="{{ active_service_id }}"
+     data-cve="{{ active_cve }}"
      data-reload-params="sort={{ active_sort }}&amp;order={{ active_order }}&amp;page=1&amp;per_page={{ per_page }}">
     <div class="flex flex-col gap-3">
         <h1 class="text-2xl font-bold">Active Vulnerabilities</h1>
         <form class="flex w-full max-w-lg"
               hx-get="/vulnerabilities?severity={{ active_severity }}&project_id={{ active_project_id }}&service_id={{ active_service_id }}&sort={{ active_sort }}&order={{ active_order }}&per_page={{ per_page }}"
-              hx-target="#vuln-page" hx-swap="outerHTML">
-            <input class="input input-bordered flex-1 min-w-0 rounded-r-none" type="search" name="cve_id"
-                   value="{{ active_cve }}" placeholder="Search CVE..." autocomplete="off"
-                   x-model="cve" aria-label="Search CVE">
-            <button class="btn btn-outline shrink-0 rounded-l-none -ml-px" type="submit" aria-label="Search CVE">
-                <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-search"></use></svg>
+              hx-target="#vuln-page"
+              hx-swap="outerHTML">
+            <input class="input input-bordered flex-1 min-w-0 rounded-r-none"
+                   type="search"
+                   name="cve_id"
+                   value="{{ active_cve }}"
+                   placeholder="Search CVE..."
+                   autocomplete="off"
+                   x-model="cve"
+                   aria-label="Search CVE">
+            <button class="btn btn-outline shrink-0 rounded-l-none -ml-px"
+                    type="submit"
+                    aria-label="Search CVE">
+                <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                    <use href="#icon-search"></use>
+                </svg>
             </button>
         </form>
         <div class="flex flex-wrap items-center gap-2">
-            <select class="select select-bordered" x-model="severity" @change="reloadFilters()">
+            <select class="select select-bordered"
+                    x-model="severity"
+                    @change="reloadFilters()">
                 <option value="">All Severities</option>
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
                 <option value="low">Low</option>
             </select>
-            <select class="select select-bordered" x-model="project" @change="onProjectChange()">
+            <select class="select select-bordered"
+                    x-model="project"
+                    @change="onProjectChange()">
                 <option value="">All Projects</option>
                 {% for project in projects %}
-                <option value="{{ project.id }}">{{ project.name }}</option>
+                    <option value="{{ project.id }}">{{ project.name }}</option>
                 {% endfor %}
             </select>
-            <select class="select select-bordered" x-model="service" :disabled="!project" @change="reloadFilters()">
+            <select class="select select-bordered"
+                    x-model="service"
+                    :disabled="!project"
+                    @change="reloadFilters()">
                 <option value="">All Services</option>
                 {% for service in services %}
-                <option value="{{ service.id }}">{{ service.name }}</option>
+                    <option value="{{ service.id }}">{{ service.name }}</option>
                 {% endfor %}
             </select>
             <button class="btn btn-outline"
                     :class="{ 'opacity-40 pointer-events-none': !filtersActive }"
                     @click="clearFilters()"
                     :disabled="!filtersActive">
-                <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-x"></use></svg>
+                <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                    <use href="#icon-x"></use>
+                </svg>
                 Clear filters
             </button>
         </div>
     </div>
-
     {% include "partials/vuln_detail_modal.html" %}
-
     <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
         <div class="p-0">
             <div class="overflow-x-auto">
@@ -83,81 +113,80 @@
                     </thead>
                     <tbody id="vuln-tbody">
                         {% for vuln in items %}
-                        {% set ed = vuln.extra_data or {} %}
-                        {% set fix_avail = (ed.get('fix') or {}).get('available') or [] %}
-                        {% set fix_versions = (ed.get('fix') or {}).get('versions') or [] %}
-                        {% set urls = ed.get('urls') or [] %}
-                        {% set cvss_list = ed.get('cvss') or [] %}
-                        {% set cvss_vec = cvss_list[0].get('vector') if cvss_list else '' %}
-                        {% set detail_json = {
-                            'cve_id': vuln.cve_id,
-                            'severity': vuln.severity,
-                            'cvss': (vuln.cvss_score or ''),
-                            'cvss_vector': cvss_vec,
-                            'epss_score': (vuln.epss_score if vuln.epss_score is not none else ''),
-                            'epss_percentile': (vuln.epss_percentile if vuln.epss_percentile is not none else ''),
-                            'summary': (vuln.summary or ''),
-                            'published': (vuln.published_at | format_dt('%Y-%m-%d', '')),
-                            'dependency': (dep_map.get(vuln.id, []) | join(', ')),
-                            'urls': urls,
-                            'affected': (vuln.affected_packages or []),
-                            'fixed': fix_versions
-                        } | tojson %}
-                        <tr class="hover:bg-base-200 cursor-pointer"
-                            data-detail='{{ detail_json }}'
-                            x-on:click="openDetail($event)">
-                            <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
-                            <td>
-                                {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}
-                                {% if sev == "critical" %}
-                                <span class="badge badge-error">{{ vuln.severity }}</span>
-                                {% elif sev == "high" %}
-                                <span class="badge badge-warning">{{ vuln.severity }}</span>
-                                {% elif sev == "medium" %}
-                                <span class="badge badge-info">{{ vuln.severity }}</span>
-{% elif sev == "low" %}
-<span class="badge" style="background:#585b70; color:#cdd6f4; border-color:#585b70">{{ vuln.severity }}</span>
-{% else %}
-<span class="badge badge-ghost">{{ vuln.severity }}</span>
-{% endif %}
-                            </td>
-                            <td>{{ vuln.cvss_score or "-" }}</td>
-                            <td>
-                                {{ epss.epss_cell(vuln) }}
-                            </td>
-                            <td class="max-w-xs truncate font-mono text-xs">{{ dep_map.get(vuln.id, []) | join(', ') or "-" }}</td>
-                            <td class="text-sm">{{ fix_versions | join(', ') or "-" }}</td>
-                            <td>
-                                <div class="flex flex-wrap gap-1">
-                                    {% for project_name in project_map.get(vuln.id, []) %}
-                                    <span class="badge badge-outline badge-xs">{{ project_name }}</span>
-                                    {% endfor %}
-                                </div>
-                            </td>
-                            <td>
-                                <div class="flex flex-wrap gap-1">
-                                    {% for service_name in service_map.get(vuln.id, []) %}
-                                    <span class="badge badge-ghost badge-xs">{{ service_name }}</span>
-                                    {% endfor %}
+                            {% set ed = vuln.extra_data or {} %}
+                            {% set fix_avail = (ed.get('fix') or {}).get('available') or [] %}
+                            {% set fix_versions = (ed.get('fix') or {}).get('versions') or [] %}
+                            {% set urls = ed.get('urls') or [] %}
+                            {% set cvss_list = ed.get('cvss') or [] %}
+                            {% set cvss_vec = cvss_list[0].get('vector') if cvss_list else '' %}
+                            {% set detail_json = {
+                                'cve_id': vuln.cve_id,
+                                'severity': vuln.severity,
+                                'cvss': (vuln.cvss_score or ''),
+                                'cvss_vector': cvss_vec,
+                                'epss_score': (vuln.epss_score if vuln.epss_score is not none else ''),
+                                'epss_percentile': (vuln.epss_percentile if vuln.epss_percentile is not none else ''),
+                                'summary': (vuln.summary or ''),
+                                'published': (vuln.published_at | format_dt('%Y-%m-%d', '')),
+                                'dependency': (dep_map.get(vuln.id, []) | join(', ')),
+                                'urls': urls,
+                                'affected': (vuln.affected_packages or []),
+                                'fixed': fix_versions
+                            } | tojson %}
+                            <tr class="hover:bg-base-200 cursor-pointer"
+                                data-detail='{{ detail_json }}'
+                                x-on:click="openDetail($event)">
+                                <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
+                                <td>
+                                    {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}
+                                    {% if sev == "critical" %}
+                                        <span class="badge badge-error">{{ vuln.severity }}</span>
+                                    {% elif sev == "high" %}
+                                        <span class="badge badge-warning">{{ vuln.severity }}</span>
+                                    {% elif sev == "medium" %}
+                                        <span class="badge badge-info">{{ vuln.severity }}</span>
+                                    {% elif sev == "low" %}
+                                        <span class="badge"
+                                              style="background:#585b70;
+                                                     color:#cdd6f4;
+                                                     border-color:#585b70">{{ vuln.severity }}</span>
+                                    {% else %}
+                                        <span class="badge badge-ghost">{{ vuln.severity }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ vuln.cvss_score or "-" }}</td>
+                                <td>{{ epss.epss_cell(vuln) }}</td>
+                                <td class="max-w-xs truncate font-mono text-xs">{{ dep_map.get(vuln.id, []) | join(', ') or "-" }}</td>
+                                <td class="text-sm">{{ fix_versions | join(", ") or "-" }}</td>
+                                <td>
+                                    <div class="flex flex-wrap gap-1">
+                                        {% for project_name in project_map.get(vuln.id, []) %}
+                                            <span class="badge badge-outline badge-xs">{{ project_name }}</span>
+                                        {% endfor %}
                                     </div>
-                            </td>
-                            <td><span class="badge badge-outline badge-sm">{{ vuln.source or "unknown" }}</span></td>
-                            <td class="text-sm">{{ vuln.published_at | format_dt('%Y-%m-%d') }}</td>
-                        </tr>
+                                </td>
+                                <td>
+                                    <div class="flex flex-wrap gap-1">
+                                        {% for service_name in service_map.get(vuln.id, []) %}
+                                            <span class="badge badge-ghost badge-xs">{{ service_name }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td><span class="badge badge-outline badge-sm">{{ vuln.source or "unknown" }}</span></td>
+                                <td class="text-sm">{{ vuln.published_at | format_dt("%Y-%m-%d") }}</td>
+                            </tr>
                         {% else %}
-                        <tr>
-                            <td colspan="10" class="text-center opacity-60 py-12">
-                                <p class="text-lg">No vulnerabilities detected</p>
-                                <p class="text-sm">Upload an SBOM to start scanning</p>
-                            </td>
-                        </tr>
+                            <tr>
+                                <td colspan="10" class="text-center opacity-60 py-12">
+                                    <p class="text-lg">No vulnerabilities detected</p>
+                                    <p class="text-sm">Upload an SBOM to start scanning</p>
+                                </td>
+                            </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
-        <div id="load-more-vuln-section">
-        {% include "partials/load_more.html" with context %}
-        </div>
+        <div id="load-more-vuln-section">{% include "partials/load_more.html" with context %}</div>
     </div>
 </div>

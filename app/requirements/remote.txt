@@ -2,9 +2,9 @@ aiofiles==25.1.0 \
     --hash=sha256:a8d728f0a29de45dc521f18f07297428d56992a742f0cd2701ba86e44d23d5b2 \
     --hash=sha256:abe311e527c862958650f9438e859c1fa7568a141b22abcd015e120e86a85695
     # via argus-sbomguard (app/pyproject.toml)
-aiosmtplib==5.1.2 \
-    --hash=sha256:04a0ea3c678f5b719f998f290dce010ca512e1385836d3944206299df03b060f \
-    --hash=sha256:070d467cc329dafd0af59108ba5d217d973cba10309910fed359a2a7bfb52d7a
+aiosmtplib==5.1.3 \
+    --hash=sha256:ac2b418d3260ba62d9cfd0fe7359726e9dc009a4e8e8d9909fdfae332f522a7c \
+    --hash=sha256:f7d76ce3d4995a65a178c1f11e1bd1607706b921d00cb768e7a2c7f7ef5517a8
     # via argus-sbomguard (app/pyproject.toml)
 alembic==1.19.2 \
     --hash=sha256:297950a8a91f6770eb82bfbce9bea55c728b90a5386c6e81430191a319d138b0 \

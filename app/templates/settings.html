@@ -1,213 +1,239 @@
 {% extends "base.html" %}
 {% block title %}Settings - Argus SBOM Guard{% endblock title %}
-{% block breadcrumb %}{% endblock breadcrumb %}
+{% block breadcrumb %}
+{% endblock breadcrumb %}
 {% block content %}
-<div class="space-y-6" x-data="settingsPage">
-    <h1 class="text-2xl font-bold">Settings</h1>
-
-    <div x-show="showCreatedKey" class="alert alert-success relative">
-        <div class="w-full">
-            <p class="font-medium text-sm pr-8">API Key created — copy it now, it won't be shown again</p>
-            <button class="btn btn-ghost btn-sm absolute top-2 right-2" @click="reload()">
-                <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-x"></use></svg>
-            </button>
-            <div class="flex items-center gap-2 mt-1">
-                <code class="text-xs break-all" x-text="createdKey"></code>
-                <button class="btn btn-ghost btn-sm shrink-0 tooltip" data-tip="Copy" @click="copyKey()">
-                    <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-copy"></use></svg>
+    <div class="space-y-6" x-data="settingsPage">
+        <h1 class="text-2xl font-bold">Settings</h1>
+        <div x-show="showCreatedKey" class="alert alert-success relative">
+            <div class="w-full">
+                <p class="font-medium text-sm pr-8">API Key created — copy it now, it won't be shown again</p>
+                <button class="btn btn-ghost btn-sm absolute top-2 right-2" @click="reload()">
+                    <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                        <use href="#icon-x"></use>
+                    </svg>
                 </button>
-            </div>
-        </div>
-    </div>
-
-    <dialog id="revoke_key_modal" class="modal" @click.self="$el.close()">
-        <div class="modal-box">
-            <h3 class="font-bold text-lg">Revoke API Key</h3>
-            <p class="py-4">Revoke key <strong x-text="keyLabel || 'N/A'"></strong>?</p>
-            <div class="modal-action">
-                <button class="btn btn-error" @click="confirmRevoke()">Revoke</button>
-                <button class="btn btn-outline" data-close-modal="revoke_key_modal">Cancel</button>
-            </div>
-        </div>
-    </dialog>
-
-    <dialog id="delete_alert_modal" class="modal" @click.self="$el.close()">
-        <div class="modal-box">
-            <h3 class="font-bold text-lg">Delete Alert Rule</h3>
-            <p class="py-4">Delete this alert rule?</p>
-            <div class="modal-action">
-                <button class="btn btn-error" @click="confirmDeleteAlertRule()">Delete</button>
-                <button class="btn btn-outline" data-close-modal="delete_alert_modal">Cancel</button>
-            </div>
-        </div>
-    </dialog>
-
-    <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
-        <div>
-            <h2 class="text-lg font-bold text-ctp-text">API Keys</h2>
-            <p class="text-sm text-ctp-subtext0">Use these keys to authenticate REST API and gRPC requests via the <code class="text-xs">Authorization: Bearer</code> header.</p>
-
-            <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
-                    @click="openGenKey()"><svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-plus"></use></svg> Generate Key</button>
-
-            <dialog id="gen_key_modal" class="modal">
-                <div class="modal-box">
-                    <h3 class="font-bold text-lg">Generate API Key</h3>
-                    <form @submit.prevent="submitKey()" class="space-y-4 mt-4">
-                        <fieldset class="fieldset">
-                            <legend class="fieldset-legend">Label</legend>
-                            <input type="text" x-model="newKeyLabel" class="input w-full" placeholder="e.g. CI/CD, production" required autofocus>
-                        </fieldset>
-                        <fieldset class="fieldset">
-                            <legend class="fieldset-legend">Lifetime (days) — optional</legend>
-                            <input type="number" min="0" x-model="newKeyTtl" class="input w-full" placeholder="empty = default ({{ api_key_ttl_days | default('no expiry') }})">
-                        </fieldset>
-                        <div class="modal-action">
-                            <button type="submit" class="btn btn-primary">Create</button>
-                            <button type="button" class="btn btn-outline" data-close-modal="gen_key_modal">Cancel</button>
-                        </div>
-                    </form>
+                <div class="flex items-center gap-2 mt-1">
+                    <code class="text-xs break-all" x-text="createdKey"></code>
+                    <button class="btn btn-ghost btn-sm shrink-0 tooltip"
+                            data-tip="Copy"
+                            @click="copyKey()">
+                        <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                            <use href="#icon-copy"></use>
+                        </svg>
+                    </button>
                 </div>
-            </dialog>
-
-            <div class="overflow-x-auto mt-4">
-                <table class="table table-zebra">
-                    <thead>
-                        <tr>
-                            <th>Label</th>
-                            <th>Prefix</th>
-                            <th>Created</th>
-                            <th>Expires</th>
-                            <th>Last Used</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for key in api_keys %}
-                        <tr>
-                            <td>{{ key.label or "-" }}</td>
-                            <td><code class="text-xs">{{ key.key_prefix }}...</code></td>
-                            <td class="text-sm">{{ key.created_at | format_dt('%Y-%m-%d %H:%M') }}</td>
-                            <td class="text-sm">{{ key.expires_at | format_dt('%Y-%m-%d', 'never') }}</td>
-                            <td class="text-sm">{{ key.last_used_at | format_dt('%Y-%m-%d %H:%M', 'never') }}</td>
-                            <td>
-                                <button class="btn btn-error btn-sm"
-                                        data-id="{{ key.id }}" data-label="{{ key.label or key.key_prefix }}..."
-                                        @click="openRevoke($event)">
-                                    Revoke
-                                </button>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="6" class="text-center opacity-60 py-4">No API keys yet</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
             </div>
         </div>
-    </div>
-
-    <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
-        <div>
-            <h2 class="text-lg font-bold text-ctp-text">Alert Rules</h2>
-            <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
-                    @click="openNewAlertRule()"><svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-plus"></use></svg> New Alert Rule</button>
-
-            <dialog id="alert_modal" class="modal">
-                <div class="modal-box">
-                    <h3 class="font-bold text-lg" x-text="editAlertRuleId ? 'Edit Alert Rule' : 'New Alert Rule'"></h3>
-                    <form @submit.prevent="submitAlertRule()" class="space-y-4 mt-4">
-                        <fieldset class="fieldset">
-                            <legend class="fieldset-legend">Project</legend>
-                            <select x-model="alertProject" class="select w-full" required>
-                                <option value="">Select project...</option>
-                                {% for project in projects %}
-                                <option value="{{ project.id }}">{{ project.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </fieldset>
-                        <fieldset class="fieldset">
-                            <legend class="fieldset-legend">Severity Threshold</legend>
-                            <select x-model="alertSeverity" class="select w-full">
-                                {% for option in severity_thresholds %}
-                                <option value="{{ option.value }}">{{ option.label }}</option>
-                                {% endfor %}
-                            </select>
-                        </fieldset>
-                        <fieldset class="fieldset">
-                            <legend class="fieldset-legend">Notification Type</legend>
-                            <select x-model="alertType" class="select w-full">
-                                {% for option in notification_channels %}
-                                <option value="{{ option.value }}">{{ option.label }}</option>
-                                {% endfor %}
-                            </select>
-                        </fieldset>
-                        <fieldset class="fieldset">
-                            <legend class="fieldset-legend">Enabled</legend>
-                            <input type="checkbox" x-model="alertEnabled" class="toggle">
-                        </fieldset>
-                        <div class="modal-action">
-                            <button type="submit" class="btn btn-primary"
-                                    x-text="editAlertRuleId ? 'Save' : 'Create'"></button>
-                            <button type="button" class="btn btn-outline" data-close-modal="alert_modal">Cancel</button>
-                        </div>
-                    </form>
+        <dialog id="revoke_key_modal" class="modal" @click.self="$el.close()">
+            <div class="modal-box">
+                <h3 class="font-bold text-lg">Revoke API Key</h3>
+                <p class="py-4">Revoke key <strong x-text="keyLabel || 'N/A'"></strong>?</p>
+                <div class="modal-action">
+                    <button class="btn btn-error" @click="confirmRevoke()">Revoke</button>
+                    <button class="btn btn-outline" data-close-modal="revoke_key_modal">Cancel</button>
                 </div>
-            </dialog>
-
-            <div id="alert-list" class="overflow-x-auto mt-4">
-                <table class="table table-zebra">
-                    <thead>
-                        <tr>
-                            <th>Project</th>
-                            <th>Threshold</th>
-                            <th>Channel</th>
-                            <th>Status</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for alert in alerts %}
-                        <tr>
-                            <td>{{ project_names.get(alert.project_id|string, alert.project_id|string) }}</td>
-                            <td><span class="badge badge-outline">{{ alert.severity_threshold }}</span></td>
-                            <td>{{ alert.notification_type }}</td>
-                            <td>
-                                {% if alert.enabled %}
-                                <span class="badge badge-success">Enabled</span>
-                                {% else %}
-                                <span class="badge badge-ghost">Disabled</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="flex gap-1">
-                                    <button class="btn btn-ghost btn-sm"
-                                            data-id="{{ alert.id }}" data-project="{{ alert.project_id }}"
-                                            data-severity="{{ alert.severity_threshold }}"
-                                            data-type="{{ alert.notification_type }}"
-                                            data-enabled="{{ 'true' if alert.enabled else 'false' }}"
-                                            @click="openEditAlertRule($event)">
-                                        <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-pencil"></use></svg>
-                                    </button>
-                                    <button class="btn btn-ghost btn-sm text-error"
-                                            data-id="{{ alert.id }}"
-                                            @click="openDeleteAlertRule($event)">
-                                        <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-trash-2"></use></svg>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="5" class="text-center opacity-60 py-4">No alert rules configured</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            </div>
+        </dialog>
+        <dialog id="delete_alert_modal" class="modal" @click.self="$el.close()">
+            <div class="modal-box">
+                <h3 class="font-bold text-lg">Delete Alert Rule</h3>
+                <p class="py-4">Delete this alert rule?</p>
+                <div class="modal-action">
+                    <button class="btn btn-error" @click="confirmDeleteAlertRule()">Delete</button>
+                    <button class="btn btn-outline" data-close-modal="delete_alert_modal">Cancel</button>
+                </div>
+            </div>
+        </dialog>
+        <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
+            <div>
+                <h2 class="text-lg font-bold text-ctp-text">API Keys</h2>
+                <p class="text-sm text-ctp-subtext0">Use these keys to authenticate REST API and gRPC requests via the <code class="text-xs">Authorization: Bearer</code> header.</p>
+                <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
+                        @click="openGenKey()">
+                    <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                        <use href="#icon-plus"></use>
+                    </svg>
+                    Generate Key
+                </button>
+                <dialog id="gen_key_modal" class="modal">
+                    <div class="modal-box">
+                        <h3 class="font-bold text-lg">Generate API Key</h3>
+                        <form @submit.prevent="submitKey()" class="space-y-4 mt-4">
+                            <fieldset class="fieldset">
+                                <legend class="fieldset-legend">Label</legend>
+                                <input type="text"
+                                       x-model="newKeyLabel"
+                                       class="input w-full"
+                                       placeholder="e.g. CI/CD, production"
+                                       required
+                                       autofocus>
+                            </fieldset>
+                            <fieldset class="fieldset">
+                                <legend class="fieldset-legend">Lifetime (days) — optional</legend>
+                                <input type="number"
+                                       min="0"
+                                       x-model="newKeyTtl"
+                                       class="input w-full"
+                                       placeholder="empty = default ({{ api_key_ttl_days | default('no expiry') }})">
+                            </fieldset>
+                            <div class="modal-action">
+                                <button type="submit" class="btn btn-primary">Create</button>
+                                <button type="button"
+                                        class="btn btn-outline"
+                                        data-close-modal="gen_key_modal">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </dialog>
+                <div class="overflow-x-auto mt-4">
+                    <table class="table table-zebra">
+                        <thead>
+                            <tr>
+                                <th>Label</th>
+                                <th>Prefix</th>
+                                <th>Created</th>
+                                <th>Expires</th>
+                                <th>Last Used</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for key in api_keys %}
+                                <tr>
+                                    <td>{{ key.label or "-" }}</td>
+                                    <td><code class="text-xs">{{ key.key_prefix }}...</code></td>
+                                    <td class="text-sm">{{ key.created_at | format_dt("%Y-%m-%d %H:%M") }}</td>
+                                    <td class="text-sm">{{ key.expires_at | format_dt('%Y-%m-%d', 'never') }}</td>
+                                    <td class="text-sm">{{ key.last_used_at | format_dt('%Y-%m-%d %H:%M', 'never') }}</td>
+                                    <td>
+                                        <button class="btn btn-error btn-sm"
+                                                data-id="{{ key.id }}"
+                                                data-label="{{ key.label or key.key_prefix }}..."
+                                                @click="openRevoke($event)">Revoke</button>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center opacity-60 py-4">No API keys yet</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
+            <div>
+                <h2 class="text-lg font-bold text-ctp-text">Alert Rules</h2>
+                <button class="btn btn-primary mt-2 bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
+                        @click="openNewAlertRule()">
+                    <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                        <use href="#icon-plus"></use>
+                    </svg>
+                    New Alert Rule
+                </button>
+                <dialog id="alert_modal" class="modal">
+                    <div class="modal-box">
+                        <h3 class="font-bold text-lg"
+                            x-text="editAlertRuleId ? 'Edit Alert Rule' : 'New Alert Rule'"></h3>
+                        <form @submit.prevent="submitAlertRule()" class="space-y-4 mt-4">
+                            <fieldset class="fieldset">
+                                <legend class="fieldset-legend">Project</legend>
+                                <select x-model="alertProject" class="select w-full" required>
+                                    <option value="">Select project...</option>
+                                    {% for project in projects %}
+                                        <option value="{{ project.id }}">{{ project.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </fieldset>
+                            <fieldset class="fieldset">
+                                <legend class="fieldset-legend">Severity Threshold</legend>
+                                <select x-model="alertSeverity" class="select w-full">
+                                    {% for option in severity_thresholds %}
+                                        <option value="{{ option.value }}">{{ option.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </fieldset>
+                            <fieldset class="fieldset">
+                                <legend class="fieldset-legend">Notification Type</legend>
+                                <select x-model="alertType" class="select w-full">
+                                    {% for option in notification_channels %}
+                                        <option value="{{ option.value }}">{{ option.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </fieldset>
+                            <fieldset class="fieldset">
+                                <legend class="fieldset-legend">Enabled</legend>
+                                <input type="checkbox" x-model="alertEnabled" class="toggle">
+                            </fieldset>
+                            <div class="modal-action">
+                                <button type="submit"
+                                        class="btn btn-primary"
+                                        x-text="editAlertRuleId ? 'Save' : 'Create'"></button>
+                                <button type="button"
+                                        class="btn btn-outline"
+                                        data-close-modal="alert_modal">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </dialog>
+                <div id="alert-list" class="overflow-x-auto mt-4">
+                    <table class="table table-zebra">
+                        <thead>
+                            <tr>
+                                <th>Project</th>
+                                <th>Threshold</th>
+                                <th>Channel</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alert in alerts %}
+                                <tr>
+                                    <td>{{ project_names.get(alert.project_id|string, alert.project_id|string) }}</td>
+                                    <td><span class="badge badge-outline">{{ alert.severity_threshold }}</span></td>
+                                    <td>{{ alert.notification_type }}</td>
+                                    <td>
+                                        {% if alert.enabled %}
+                                            <span class="badge badge-success">Enabled</span>
+                                        {% else %}
+                                            <span class="badge badge-ghost">Disabled</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="flex gap-1">
+                                            <button class="btn btn-ghost btn-sm"
+                                                    data-id="{{ alert.id }}"
+                                                    data-project="{{ alert.project_id }}"
+                                                    data-severity="{{ alert.severity_threshold }}"
+                                                    data-type="{{ alert.notification_type }}"
+                                                    data-enabled="{{ 'true' if alert.enabled else 'false' }}"
+                                                    @click="openEditAlertRule($event)">
+                                                <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                                                    <use href="#icon-pencil"></use>
+                                                </svg>
+                                            </button>
+                                            <button class="btn btn-ghost btn-sm text-error"
+                                                    data-id="{{ alert.id }}"
+                                                    @click="openDeleteAlertRule($event)">
+                                                <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                                                    <use href="#icon-trash-2"></use>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center opacity-60 py-4">No alert rules configured</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
-</div>
 {% endblock content %}

@@ -1,27 +1,27 @@
 {% for sbom, svc_name in items %}
-<tr>
-    <td>{{ sbom.version or "-" }}</td>
-    <td>
-        {% if svc_name %}
-        <span class="badge badge-ghost badge-sm">{{ svc_name }}</span>
-        {% else %}
-        <span class="text-xs opacity-40">-</span>
-        {% endif %}
-    </td>
-    <td><span class="badge badge-outline">{{ sbom.format }}</span></td>
-    <td>{{ sbom.dependency_count or 0 }}</td>
-    <td>{{ vulns_by_sbom.get(sbom.id, 0) + fixed_by_sbom.get(sbom.id, 0) }}</td>
-    <td>{{ fixed_by_sbom.get(sbom.id, 0) }}</td>
-    <td><code class="text-xs">{{ sbom.sha256[:16] }}...</code></td>
-    <td>{{ sbom.created_at | format_dt('%Y-%m-%d %H:%M') }}</td>
-    <td>
-        <button class="btn btn-ghost btn-sm text-error"
-                @click="openDeleteSbom('{{ sbom.id }}', {{ (sbom.version or 'N/A') | tojson }})">
-            <svg class="w-4 h-4" aria-hidden="true" focusable="false"><use href="#icon-trash-2"></use></svg>
-        </button>
-    </td>
-</tr>
+    <tr>
+        <td>{{ sbom.version or "-" }}</td>
+        <td>
+            {% if svc_name %}
+                <span class="badge badge-ghost badge-sm">{{ svc_name }}</span>
+            {% else %}
+                <span class="text-xs opacity-40">-</span>
+            {% endif %}
+        </td>
+        <td><span class="badge badge-outline">{{ sbom.format }}</span></td>
+        <td>{{ sbom.dependency_count or 0 }}</td>
+        <td>{{ vulns_by_sbom.get(sbom.id, 0) + fixed_by_sbom.get(sbom.id, 0) }}</td>
+        <td>{{ fixed_by_sbom.get(sbom.id, 0) }}</td>
+        <td><code class="text-xs">{{ sbom.sha256[:16] }}...</code></td>
+        <td>{{ sbom.created_at | format_dt("%Y-%m-%d %H:%M") }}</td>
+        <td>
+            <button class="btn btn-ghost btn-sm text-error"
+                    @click="openDeleteSbom('{{ sbom.id }}', {{ (sbom.version or 'N/A') | tojson }})">
+                <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                    <use href="#icon-trash-2"></use>
+                </svg>
+            </button>
+        </td>
+    </tr>
 {% endfor %}
-<div id="load-more-sbom-history-section" hx-swap-oob="true">
-{% include 'partials/load_more.html' with context %}
-</div>
+<div id="load-more-sbom-history-section" hx-swap-oob="true">{% include "partials/load_more.html" with context %}</div>
