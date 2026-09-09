@@ -1,5 +1,28 @@
 # Contributing to Argus SBOM Guard
 
+## Prerequisites (host tools)
+
+The runtime stack runs in Docker — only the tools below live on the host.
+Install them from their official docs; don't install Docker via `apt`.
+
+### Required
+
+- Git
+- Docker Engine ≥ 24
+- Docker Compose v2 ≥ 2.20 (plugin `docker compose`, needs `include:`)
+- Python ≥ 3.9 + pipx
+- pre-commit (via pipx)
+- just ≥ 1
+
+### Optional (only if you use the recipe):
+
+- bun ≥ 1 — `just css`
+- uv ~= 0.12 — `just compile-requirements`
+- syft — `just scan-all`
+- jq — `just scan-all`, `just docs-openapi`
+- cosign — `just verify-image`
+- mkdocs / mike / mkdocstrings — docs (installed in `.docs-venv` by the `just docs-*` recipes that need them)
+
 ## Development Setup
 
 ```bash
@@ -14,24 +37,10 @@ cp .env.example .env
 docker compose up -d
 docker compose exec app alembic upgrade head
 
-# Install pre-commit hooks
-pip install pre-commit && pre-commit install
+# Install pre-commit hooks (once per clone)
+pipx install pre-commit
+pre-commit install
 ```
-
-### Optional host tools
-
-Used by `just` recipes (not required for the dev stack itself):
-
-```bash
-# just — task runner (test-stack, scan-all, …)
-brew install just
-
-# cosign — verify the Sigstore signature of released images (just verify-image)
-brew install cosign
-```
-
-`cosign` is only needed for `just verify-image`; `pre-commit`, `uv` and `docker`
-are required by the workflows above.
 
 ## Project Structure
 
@@ -133,17 +142,17 @@ This runs `uv pip compile` (uv's drop-in replacement for `pip-compile`) with has
 
 ## Documentation
 
-```bash
-# Install docs dependencies
-pip install mkdocs mkdocs-material "mkdocstrings[python]" mike
+Docs tooling (mkdocs, mkdocs-material, mkdocstrings, mike) is managed by the
+`just docs-*` recipes, which install it in a local `.docs-venv`:
 
-# Serve locally
-mkdocs serve
+```bash
+# Serve locally on :8001
+just docs-serve
 
 # Docs deploy is automatic via CI on tag (v*) and main branch — no manual steps needed.
 
 # List published versions
-mike list
+just docs-list
 ```
 
 ## gRPC
@@ -156,7 +165,9 @@ just proto
 
 ## CSS
 
-The frontend uses Tailwind CSS v4 with DaisyUI 5. Rebuild CSS:
+The frontend uses Tailwind CSS v4 with DaisyUI 5. Rebuild CSS (requires
+`bun` on the host — the compiled `dist.css` is gitignored and built into the
+Docker image):
 
 ```bash
 just css
