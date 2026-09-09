@@ -14,6 +14,7 @@
 </head>
 <body class="bg-ctp-base text-ctp-text antialiased">
     {% include "partials/icons_sprite.html" %}
+    {% set active_section = request.url.path.split('/')[1] or 'dashboard' %}
     <div class="flex h-screen overflow-hidden">
         <aside class="hidden lg:flex lg:flex-col w-64 bg-ctp-mantle border-r border-ctp-surface0">
             <div class="px-4 h-14 flex items-center border-b border-ctp-surface0">
@@ -28,23 +29,23 @@
                 </div>
             </div>
             <nav class="flex-1 p-3 space-y-1">
-                <a href="/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0 transition-all">
+                <a href="/" {% if active_section == 'dashboard' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all{% if active_section == 'dashboard' %} sidebar-link-active{% else %} text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0{% endif %}">
                     <svg class="w-5 h-5" aria-hidden="true" focusable="false"><use href="#icon-home"></use></svg>
                     Dashboard
                 </a>
-                <a href="/projects" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0 transition-all">
+                <a href="/projects" {% if active_section == 'projects' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all{% if active_section == 'projects' %} sidebar-link-active{% else %} text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0{% endif %}">
                     <svg class="w-5 h-5" aria-hidden="true" focusable="false"><use href="#icon-folder"></use></svg>
                     Projects
                 </a>
-                <a href="/sboms" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0 transition-all">
+                <a href="/sboms" {% if active_section == 'sboms' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all{% if active_section == 'sboms' %} sidebar-link-active{% else %} text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0{% endif %}">
                     <svg class="w-5 h-5" aria-hidden="true" focusable="false"><use href="#icon-file-text"></use></svg>
                     SBOMs
                 </a>
-                <a href="/vulnerabilities" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0 transition-all">
+                <a href="/vulnerabilities" {% if active_section == 'vulnerabilities' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all{% if active_section == 'vulnerabilities' %} sidebar-link-active{% else %} text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0{% endif %}">
                     <svg class="w-5 h-5" aria-hidden="true" focusable="false"><use href="#icon-triangle-alert"></use></svg>
                     Vulnerabilities
                 </a>
-                <a href="/settings" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0 transition-all">
+                <a href="/settings" {% if active_section == 'settings' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all{% if active_section == 'settings' %} sidebar-link-active{% else %} text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0{% endif %}">
                     <svg class="w-5 h-5" aria-hidden="true" focusable="false"><use href="#icon-settings"></use></svg>
                     Settings
                 </a>
@@ -113,11 +114,11 @@
                 </button>
             </div>
             <nav class="space-y-1">
-                <a href="/" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0">Dashboard</a>
-                <a href="/projects" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0">Projects</a>
-                <a href="/sboms" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0">SBOMs</a>
-                <a href="/vulnerabilities" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0">Vulnerabilities</a>
-                <a href="/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0">Settings</a>
+                <a href="/" {% if active_section == 'dashboard' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all{% if active_section == 'dashboard' %} sidebar-link-active{% else %} text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0{% endif %}">Dashboard</a>
+                <a href="/projects" {% if active_section == 'projects' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all{% if active_section == 'projects' %} sidebar-link-active{% else %} text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0{% endif %}">Projects</a>
+                <a href="/sboms" {% if active_section == 'sboms' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all{% if active_section == 'sboms' %} sidebar-link-active{% else %} text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0{% endif %}">SBOMs</a>
+                <a href="/vulnerabilities" {% if active_section == 'vulnerabilities' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all{% if active_section == 'vulnerabilities' %} sidebar-link-active{% else %} text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0{% endif %}">Vulnerabilities</a>
+                <a href="/settings" {% if active_section == 'settings' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all{% if active_section == 'settings' %} sidebar-link-active{% else %} text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0{% endif %}">Settings</a>
             </nav>
         </aside>
     </div>
