@@ -89,14 +89,16 @@ Responses:
 | `list_alerts` | Alert rules (per-project threshold + notification channel), paginated. |
 | `list_risk_acceptances` | Accepted vulnerabilities (risk acceptances), optionally filtered by project, paginated. |
 
-All tools return JSON. List tools use the envelope
-`{"items": [...], "total": N, "offset": 0, "limit": 50, "has_more": bool}`
-(`limit` max 500). The two per-SBOM child tools return the same pagination
-fields but name their array after the resource — `get_sbom_dependencies` →
-`dependencies`, `get_sbom_vulnerabilities` → `vulnerabilities` — with a
-default `limit` of 200. Unknown identifiers (invalid UUID, missing project or
-SBOM) are reported in the payload as `{"error": "..."}`, so agents can react
-instead of failing silently.
+All tools return JSON and advertise a typed `outputSchema` (validated
+`structuredContent`, with the JSON text kept as a fallback). List tools use the
+envelope `{"items": [...], "total": N, "offset": 0, "limit": 50, "has_more":
+bool}` (`limit` max 500). The two per-SBOM child tools return the same
+pagination fields but name their array after the resource —
+`get_sbom_dependencies` → `dependencies`, `get_sbom_vulnerabilities` →
+`vulnerabilities` — with a default `limit` of 200. Anticipated failures
+(invalid UUID, missing project or SBOM, bad page window) are returned as MCP
+tool errors (`is_error: true`) carrying the reason, so agents can react instead
+of failing silently.
 
 ## Client configuration
 
