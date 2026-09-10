@@ -69,13 +69,13 @@ def _enum_text(value: Any) -> str | None:
 def _fix_info(vuln: Vulnerability) -> dict:
     """Fixed versions and fix state for a vulnerability.
 
-    The ``fixed_versions`` column is not populated by the current scanner, so
-    grype's stored ``extra_data["fix"]`` object (``versions``/``state``) is the
-    authoritative source; the column is used as a fallback when present.
+    Grype's ``vulnerability.fix`` object (``versions``/``state``) is stored in
+    ``Vulnerability.extra_data``; the ``fixed_versions`` column is not populated
+    by the scanner, so the stored payload is the source of truth.
     """
     fix = (vuln.extra_data or {}).get("fix") or {}
     return {
-        "fixed_versions": list(vuln.fixed_versions or fix.get("versions") or []),
+        "fixed_versions": list(fix.get("versions") or []),
         "fix_state": fix.get("state"),
     }
 
@@ -120,7 +120,7 @@ async def list_projects(offset: int = 0, limit: int = 50) -> str:
     if error := _validate_page(offset, limit):
         return _dump({"error": error})
     async with async_session_factory() as db:
-        base = select(Project).order_by(Project.created_at.desc())
+        base = select(Project).order_by(Project.created_at.desc(), Project.id)
         total = await _count(db, base)
         result = await db.execute(base.offset(offset).limit(limit + 1))
         projects = result.scalars().all()
@@ -191,7 +191,7 @@ async def list_sboms(
         select(SBOM, Project.name, Service.name)
         .join(Project, SBOM.project_id == Project.id)
         .outerjoin(Service, SBOM.service_id == Service.id)
-        .order_by(SBOM.uploaded_at.desc())
+        .order_by(SBOM.uploaded_at.desc(), SBOM.id)
     )
     if project_id is not None:
         query = query.where(SBOM.project_id == uuid.UUID(project_id))
@@ -345,7 +345,9 @@ async def get_sbom_dependencies(
         rows = (
             (
                 await db.execute(
-                    base.order_by(Dependency.name, Dependency.version, Dependency.purl)
+                    base.order_by(
+                        Dependency.name, Dependency.version, Dependency.purl, Dependency.id
+                    )
                     .offset(offset)
                     .limit(limit + 1)
                 )
@@ -399,8 +401,8 @@ async def get_sbom_vulnerabilities(
         )
         if status is not None:
             base = base.where(func.lower(SBOMVulnerability.status) == status.lower())
-        if severity is not None:
-            base = base.where(Vulnerability.severity.ilike(f"%{severity}%"))
+        if severity:
+            base = base.where(Vulnerability.severity.ilike(severity.replace("\x00", "")))
 
         total = await _count(db, base)
         rows = (
@@ -441,7 +443,8 @@ async def list_vulnerabilities(
 ) -> str:
     """List currently open vulnerabilities, paginated, with optional filters.
 
-    ``severity`` and ``cve_id`` are substring filters (case-insensitive).
+    ``severity`` is a case-insensitive exact match; ``cve_id`` is a
+    case-insensitive substring filter.
     """
     if error := _validate_page(offset, limit):
         return _dump({"error": error})
@@ -456,7 +459,7 @@ async def list_vulnerabilities(
         query = select(Vulnerability).where(
             Vulnerability.id.in_(build_vuln_subquery(severity, project_id, service_id, cve_id))
         )
-        query = apply_vuln_ordering(query, "severity", "desc")
+        query = apply_vuln_ordering(query, "severity", "desc").order_by(Vulnerability.id)
         total = await _count(db, query)
         rows = (await db.execute(query.offset(offset).limit(limit + 1))).scalars().all()
         vulns = rows[:limit]
@@ -628,7 +631,7 @@ async def list_alerts(offset: int = 0, limit: int = 50) -> str:
         base = (
             select(AlertRule, Project.name)
             .join(Project, AlertRule.project_id == Project.id)
-            .order_by(AlertRule.created_at.desc())
+            .order_by(AlertRule.created_at.desc(), AlertRule.id)
         )
         total = await _count(db, base)
         rows = (await db.execute(base.offset(offset).limit(limit + 1))).all()
@@ -673,7 +676,7 @@ async def list_risk_acceptances(
         .join(Vulnerability, RiskAcceptance.vulnerability_id == Vulnerability.id)
         .join(Project, RiskAcceptance.project_id == Project.id)
         .outerjoin(Service, RiskAcceptance.service_id == Service.id)
-        .order_by(RiskAcceptance.created_at.desc())
+        .order_by(RiskAcceptance.created_at.desc(), RiskAcceptance.id)
     )
     if project_id is not None:
         query = query.where(RiskAcceptance.project_id == uuid.UUID(project_id))

@@ -568,7 +568,7 @@ async def test_get_sbom_vulnerabilities_pagination_and_filters(db_session, monke
         cvss_score=9.8,
         summary="critical issue",
         published_at=datetime.now(UTC),
-        fixed_versions=["9.8.1"],
+        extra_data={"fix": {"state": "wont-fix"}},
     )
     db_session.add_all([fixed, critical])
     await db_session.flush()
@@ -599,8 +599,8 @@ async def test_get_sbom_vulnerabilities_pagination_and_filters(db_session, monke
     by_cve = {item["cve_id"]: item for item in all_links["vulnerabilities"]}
     assert by_cve[fixed.cve_id]["fixed_versions"] == ["3.1.1"]
     assert by_cve[fixed.cve_id]["fix_state"] == "fixed"
-    assert by_cve[critical.cve_id]["fixed_versions"] == ["9.8.1"]
-    assert by_cve[critical.cve_id]["fix_state"] is None
+    assert by_cve[critical.cve_id]["fixed_versions"] == []
+    assert by_cve[critical.cve_id]["fix_state"] == "wont-fix"
 
     open_only = await _call_tool(
         db_session,
