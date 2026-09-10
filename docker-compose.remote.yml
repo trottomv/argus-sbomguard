@@ -15,14 +15,14 @@ include:
 
 services:
   backup:
-    image: ghcr.io/trottomv/argus-sbomguard-backup:${APP_VERSION:-1.0.1}
+    image: ghcr.io/trottomv/argus-sbomguard-backup:${APP_VERSION:-1.0.2}
     volumes:
       - type: bind
         source: ${BACKUP_DIR:-./backups}
         target: /backups
 
   app:
-    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-1.0.1}
+    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-1.0.2}
     deploy:
       resources:
         limits:
@@ -33,7 +33,7 @@ services:
     restart: unless-stopped
 
   worker:
-    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-1.0.1}
+    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-1.0.2}
     deploy:
       resources:
         limits:
@@ -44,7 +44,7 @@ services:
     restart: unless-stopped
 
   scheduler:
-    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-1.0.1}
+    image: ghcr.io/trottomv/argus-sbomguard:${APP_VERSION:-1.0.2}
     deploy:
       resources:
         limits:
