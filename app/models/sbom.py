@@ -54,6 +54,16 @@ class SBOM(BaseModel):
         "SBOMVulnerability", back_populates="sbom", cascade="all, delete-orphan"
     )
 
+    @property
+    def service_name(self) -> str | None:
+        """Display name of the associated service, if any.
+
+        Requires the ``service`` relationship to be eager-loaded (e.g.
+        ``joinedload``) when read from an async session, otherwise SQLAlchemy
+        would attempt a lazy load outside the greenlet context.
+        """
+        return self.service.name if self.service else None
+
 
 class Dependency(BaseModel):
     __tablename__ = "dependencies"

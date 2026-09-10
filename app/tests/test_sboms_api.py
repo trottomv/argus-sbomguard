@@ -174,7 +174,7 @@ async def test_get_sbom_detail(client):
 
     upload = await client.post(
         "/api/v1/sboms/upload",
-        data={"project_id": pid},
+        data={"project_id": pid, "service_name": "api-gateway"},
         files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
     )
     sid = upload.json()["id"]
@@ -183,6 +183,8 @@ async def test_get_sbom_detail(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["id"] == sid
+    assert data["service_name"] == "api-gateway"
+    assert data["service_id"] is not None
     assert data["dependency_count"] == 2
     assert len(data["dependencies"]) == 2
     assert data["dependencies"][0]["name"] == "lodash"

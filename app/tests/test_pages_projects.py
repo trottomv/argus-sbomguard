@@ -244,6 +244,18 @@ async def test_project_sboms_lazy_load(client):
     assert "text/html" in resp.headers["content-type"]
 
 
+@pytest.mark.asyncio
+async def test_project_sboms_page_offset(client):
+    proj = await client.post("/api/v1/projects", json={"name": "offset-test"})
+    pid = proj.json()["id"]
+    for name in ("a", "b", "c", "d"):
+        await _upload(client, pid, name, "1.0")
+
+    resp = await client.get(f"/projects/{pid}/sboms?per_page=2&offset=1")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+
+
 # ── Project vulnerabilities ──
 
 

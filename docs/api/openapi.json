@@ -331,7 +331,7 @@
               "type": "integer",
               "maximum": 200,
               "minimum": 1,
-              "default": 3,
+              "default": 25,
               "title": "Per Page"
             }
           }
@@ -1984,6 +1984,29 @@
             "format": "uuid",
             "title": "Id"
           },
+          "service_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Id"
+          },
+          "service_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Name"
+          },
           "version": {
             "anyOf": [
               {
@@ -2033,6 +2056,8 @@
         "type": "object",
         "required": [
           "id",
+          "service_id",
+          "service_name",
           "version",
           "format",
           "dependency_count",
@@ -2214,6 +2239,29 @@
             "format": "uuid",
             "title": "Project Id"
           },
+          "service_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Id"
+          },
+          "service_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Name"
+          },
           "version": {
             "anyOf": [
               {
@@ -2282,6 +2330,8 @@
         "required": [
           "id",
           "project_id",
+          "service_id",
+          "service_name",
           "version",
           "format",
           "sha256",

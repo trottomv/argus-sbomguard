@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 
 from config import settings
 from database import get_db
@@ -64,6 +65,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
 
     recent_result = await db.execute(
         select(SBOM, Project.name, Service.name)
+        .options(defer(SBOM.raw_sbom))
         .outerjoin(Service, SBOM.service_id == Service.id)
         .join(Project, SBOM.project_id == Project.id)
         .order_by(SBOM.uploaded_at.desc())
