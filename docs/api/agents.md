@@ -98,7 +98,8 @@ pagination fields but name their array after the resource —
 `vulnerabilities` — with a default `limit` of 200. Anticipated failures
 (invalid UUID, missing project or SBOM, bad page window) are returned as MCP
 tool errors (`is_error: true`) carrying the reason, so agents can react instead
-of failing silently.
+of failing silently. Vulnerability listings and counts exclude findings covered
+by a risk acceptance (list them with `list_risk_acceptances`).
 
 ## Client configuration
 
