@@ -95,6 +95,17 @@ async def _call_tool(db_session, monkeypatch, name: str, arguments: dict):
     return json.loads(result.content[0].text)
 
 
+async def _call_tool_error(db_session, monkeypatch, name: str, arguments: dict) -> str:
+    """Call one MCP tool and return its error text (asserting ``is_error``)."""
+    factory = _session_factory_for(db_session)
+    monkeypatch.setattr(mcp_server_module, "async_session_factory", factory)
+    server = mcp_server_module.build_mcp_server()
+    async with _client_session(server) as client:
+        result = await client.call_tool(name, arguments)
+    assert result.is_error is True, result
+    return result.content[0].text
+
+
 async def _seed_project(db: AsyncSession, name: str = "Alpha"):
     project = Project(
         name=name,
@@ -240,6 +251,28 @@ async def test_build_mcp_server_registers_read_only_tools():
     server = mcp_server_module.build_mcp_server()
     names = {tool.name for tool in await server.list_tools()}
     assert names == EXPECTED_TOOLS
+
+
+@pytest.mark.asyncio
+async def test_tools_expose_output_schema_and_structured_content(db_session, monkeypatch):
+    project = await _seed_project(db_session)
+    await db_session.commit()
+    factory = _session_factory_for(db_session)
+    monkeypatch.setattr(mcp_server_module, "async_session_factory", factory)
+    server = mcp_server_module.build_mcp_server()
+    async with _client_session(server) as client:
+        listed = await client.list_tools()
+        tool = next(t for t in listed.tools if t.name == "list_projects")
+        assert tool.output_schema is not None
+        assert "items" in tool.output_schema["properties"]
+
+        result = await client.call_tool("list_projects", {})
+        assert result.is_error is False
+        assert result.structured_content is not None
+        assert result.structured_content["total"] == 1
+        assert result.structured_content["has_more"] is False
+        assert result.structured_content["items"][0]["name"] == "Alpha"
+        assert result.structured_content["items"][0]["id"] == str(project.id)
 
 
 def test_api_module_exposes_server_transport_and_session_manager():
@@ -447,12 +480,12 @@ async def test_list_sboms_filters(db_session, monkeypatch):
     assert detached["project_name"] == "Beta"
     assert detached["service_name"] is None
     assert detached["format"] is None
-    assert await _call_tool(
+    assert "project_id must be a valid UUID" in await _call_tool_error(
         db_session, monkeypatch, "list_sboms", {"project_id": "not-a-uuid"}
-    ) == {"error": "project_id must be a valid UUID"}
-    assert await _call_tool(
+    )
+    assert "service_id must be a valid UUID" in await _call_tool_error(
         db_session, monkeypatch, "list_sboms", {"service_id": "not-a-uuid"}
-    ) == {"error": "service_id must be a valid UUID"}
+    )
 
 
 @pytest.mark.asyncio
@@ -467,15 +500,15 @@ async def test_list_sboms_empty_and_vuln_empty(db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_get_sbom_not_found_and_invalid(db_session, monkeypatch):
-    missing = await _call_tool(
+    missing = await _call_tool_error(
         db_session,
         monkeypatch,
         "get_sbom",
         {"sbom_id": "00000000-0000-0000-0000-000000000000"},
     )
-    assert missing == {"error": "SBOM not found"}
-    invalid = await _call_tool(db_session, monkeypatch, "get_sbom", {"sbom_id": "zz"})
-    assert invalid == {"error": "sbom_id must be a valid UUID"}
+    assert "SBOM not found" in missing
+    invalid = await _call_tool_error(db_session, monkeypatch, "get_sbom", {"sbom_id": "zz"})
+    assert "sbom_id must be a valid UUID" in invalid
 
 
 @pytest.mark.asyncio
@@ -634,21 +667,21 @@ async def test_get_sbom_vulnerabilities_pagination_and_filters(db_session, monke
 async def test_get_sbom_children_not_found_and_invalid(db_session, monkeypatch):
     missing = "00000000-0000-0000-0000-000000000000"
     for tool in ("get_sbom_dependencies", "get_sbom_vulnerabilities"):
-        assert await _call_tool(db_session, monkeypatch, tool, {"sbom_id": missing}) == {
-            "error": "SBOM not found"
-        }
-        assert await _call_tool(db_session, monkeypatch, tool, {"sbom_id": "zz"}) == {
-            "error": "sbom_id must be a valid UUID"
-        }
-        assert await _call_tool(
+        assert "SBOM not found" in await _call_tool_error(
+            db_session, monkeypatch, tool, {"sbom_id": missing}
+        )
+        assert "sbom_id must be a valid UUID" in await _call_tool_error(
+            db_session, monkeypatch, tool, {"sbom_id": "zz"}
+        )
+        assert "offset must be >= 0" in await _call_tool_error(
             db_session, monkeypatch, tool, {"sbom_id": missing, "offset": -1}
-        ) == {"error": "offset must be >= 0"}
-        assert await _call_tool(
+        )
+        assert "limit must be between 1 and 500" in await _call_tool_error(
             db_session, monkeypatch, tool, {"sbom_id": missing, "limit": 0}
-        ) == {"error": "limit must be between 1 and 500"}
-        assert await _call_tool(
+        )
+        assert "limit must be between 1 and 500" in await _call_tool_error(
             db_session, monkeypatch, tool, {"sbom_id": missing, "limit": 501}
-        ) == {"error": "limit must be between 1 and 500"}
+        )
 
 
 @pytest.mark.asyncio
@@ -656,15 +689,17 @@ async def test_list_services_errors(db_session, monkeypatch):
     project = await _seed_project(db_session)
     await db_session.commit()
 
-    not_found = await _call_tool(
+    not_found = await _call_tool_error(
         db_session,
         monkeypatch,
         "list_services",
         {"project_id": "00000000-0000-0000-0000-000000000000"},
     )
-    assert not_found == {"error": "Project not found"}
-    invalid = await _call_tool(db_session, monkeypatch, "list_services", {"project_id": "nope"})
-    assert invalid == {"error": "project_id must be a valid UUID"}
+    assert "Project not found" in not_found
+    invalid = await _call_tool_error(
+        db_session, monkeypatch, "list_services", {"project_id": "nope"}
+    )
+    assert "project_id must be a valid UUID" in invalid
     assert await _call_tool(
         db_session, monkeypatch, "list_services", {"project_id": str(project.id)}
     ) == {"items": [], "total": 0, "offset": 0, "limit": 50, "has_more": False}
@@ -695,12 +730,12 @@ async def test_list_vulnerabilities_filters_and_errors(db_session, monkeypatch):
     assert await _call_tool(
         db_session, monkeypatch, "list_vulnerabilities", {"severity": "unknown"}
     ) == {"items": [], "total": 0, "offset": 0, "limit": 50, "has_more": False}
-    assert await _call_tool(
+    assert "project_id must be a valid UUID" in await _call_tool_error(
         db_session, monkeypatch, "list_vulnerabilities", {"project_id": "bogus"}
-    ) == {"error": "project_id must be a valid UUID"}
-    assert await _call_tool(
+    )
+    assert "service_id must be a valid UUID" in await _call_tool_error(
         db_session, monkeypatch, "list_vulnerabilities", {"service_id": "bogus"}
-    ) == {"error": "service_id must be a valid UUID"}
+    )
 
 
 @pytest.mark.asyncio
@@ -716,12 +751,12 @@ async def test_list_tools_reject_invalid_page(db_session, monkeypatch):
         ("list_risk_acceptances", {}),
     ]
     for tool, args in calls:
-        assert await _call_tool(db_session, monkeypatch, tool, {**args, "limit": 0}) == {
-            "error": "limit must be between 1 and 500"
-        }
-        assert await _call_tool(db_session, monkeypatch, tool, {**args, "offset": -1}) == {
-            "error": "offset must be >= 0"
-        }
+        assert "limit must be between 1 and 500" in await _call_tool_error(
+            db_session, monkeypatch, tool, {**args, "limit": 0}
+        )
+        assert "offset must be >= 0" in await _call_tool_error(
+            db_session, monkeypatch, tool, {**args, "offset": -1}
+        )
 
 
 @pytest.mark.asyncio
@@ -775,12 +810,12 @@ async def test_summarize_fixed_and_get_snapshot_validation(db_session, monkeypat
     assert summary["fixed"] == 1
     assert summary["affected_projects"] == 1
 
-    assert await _call_tool(db_session, monkeypatch, "get_snapshot", {"days": 0}) == {
-        "error": "days must be between 1 and 365"
-    }
-    assert await _call_tool(db_session, monkeypatch, "get_snapshot", {"days": 366}) == {
-        "error": "days must be between 1 and 365"
-    }
+    assert "days must be between 1 and 365" in await _call_tool_error(
+        db_session, monkeypatch, "get_snapshot", {"days": 0}
+    )
+    assert "days must be between 1 and 365" in await _call_tool_error(
+        db_session, monkeypatch, "get_snapshot", {"days": 366}
+    )
     assert await _call_tool(db_session, monkeypatch, "get_snapshot", {}) == {
         "count": 0,
         "snapshots": [],
@@ -883,9 +918,9 @@ async def test_list_risk_acceptances(db_session, monkeypatch):
         db_session, monkeypatch, "list_risk_acceptances", {"project_id": str(project.id)}
     )
     assert scoped["total"] == 2
-    assert await _call_tool(
+    assert "project_id must be a valid UUID" in await _call_tool_error(
         db_session, monkeypatch, "list_risk_acceptances", {"project_id": "bogus"}
-    ) == {"error": "project_id must be a valid UUID"}
+    )
 
 
 @pytest.mark.asyncio
