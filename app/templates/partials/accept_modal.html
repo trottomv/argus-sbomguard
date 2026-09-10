@@ -1,0 +1,49 @@
+<dialog id="accept_modal"
+        class="modal focus:outline-none"
+        tabindex="-1"
+        autofocus
+        @click.self="$el.close()"
+        @close="acceptError = ''">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg">Accept risk</h3>
+        <p class="text-sm opacity-70 mt-1">
+            Mark <code x-text="acceptCve"></code> as "won't fix". It will be excluded from active
+            vulnerabilities, dashboard counts, snapshots and alerts.
+        </p>
+        <div class="alert alert-error mt-4"
+             role="alert"
+             x-show="acceptError"
+             x-cloak>
+            <svg class="w-4 h-4 shrink-0" aria-hidden="true" focusable="false">
+                <use href="#icon-triangle-alert"></use>
+            </svg>
+            <span class="text-sm" x-text="acceptError"></span>
+        </div>
+        <form class="space-y-4 mt-4" @submit.prevent="submitAccept()">
+            <fieldset class="fieldset">
+                <legend class="fieldset-legend">Scope</legend>
+                <select class="select w-full" x-model="acceptScope" required>
+                    <template x-for="scope in acceptScopes"
+                              :key="scope.project_id + '::' + scope.service_id">
+                        <option :value="scope.project_id + '::' + scope.service_id"
+                                x-text="scope.service_name ? (scope.project_name + ' / ' + scope.service_name) : (scope.project_name + ' (whole project)')">
+                        </option>
+                    </template>
+                </select>
+            </fieldset>
+            <fieldset class="fieldset">
+                <legend class="fieldset-legend">Reason</legend>
+                <textarea class="textarea w-full"
+                          rows="4"
+                          maxlength="2000"
+                          required
+                          x-model="acceptReason"
+                          placeholder="Why is this risk accepted?"></textarea>
+            </fieldset>
+            <div class="modal-action">
+                <button type="submit" class="btn btn-primary">Accept</button>
+                <button type="button" class="btn btn-outline" data-close-modal="accept_modal">Cancel</button>
+            </div>
+        </form>
+    </div>
+</dialog>

@@ -1,4 +1,8 @@
-<dialog id="detail_modal" class="modal" @click.self="$el.close()">
+<dialog id="detail_modal"
+        class="modal focus:outline-none"
+        tabindex="-1"
+        autofocus
+        @click.self="$el.close()">
     <div class="modal-box max-w-lg">
         <h3 class="font-bold text-lg flex items-center gap-2">
             <code class="text-sm" x-text="detail.cve_id"></code>
@@ -10,6 +14,12 @@
             }"
                   x-text="detail.severity"></span>
         </h3>
+        <div class="mt-4 rounded-lg border border-ctp-surface0 bg-ctp-surface0/40 p-3"
+             x-show="detail.accepted && detail.reason"
+             x-cloak>
+            <span class="text-xs uppercase tracking-wide text-ctp-overlay0">Accepted risk — reason</span>
+            <p class="mt-1 text-sm" x-text="detail.reason"></p>
+        </div>
         <div class="mt-4 space-y-3 text-sm max-h-80 overflow-y-auto">
             <div x-show="detail.dependency">
                 <span class="text-xs opacity-60">Library</span>
@@ -69,7 +79,23 @@
                     <use href="#icon-arrow-up-right"></use>
                 </svg>
             </a>
-            <button class="btn btn-outline" data-close-modal="detail_modal">Close</button>
+            <button class="btn btn-outline" data-close-modal="detail_modal">
+                Close
+                <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                    <use href="#icon-x"></use>
+                </svg>
+            </button>
+        </div>
+        <div class="mt-4 border-t border-ctp-surface0 pt-4"
+             x-show="detail.scopes && detail.scopes.length && !detail.accepted"
+             x-cloak>
+            <div class="flex flex-col items-end gap-2">
+                <p class="text-xs text-ctp-overlay0 max-w-md">
+                    Accepting marks this vulnerability as "won't fix". It is excluded from the active list, dashboard counts, snapshots
+                    and alerts, and can be reverted later from the Accepted view.
+                </p>
+                <button class="btn btn-primary" @click="openAccept()">Accept</button>
+            </div>
         </div>
     </div>
 </dialog>

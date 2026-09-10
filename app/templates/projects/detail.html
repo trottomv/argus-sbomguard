@@ -138,6 +138,7 @@
             </div>
         </dialog>
         {% include "partials/vuln_detail_modal.html" %}
+        {% include "partials/accept_modal.html" %}
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
             <a href="/sboms?project_id={{ project.id }}"
                class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-5 card-hover">
@@ -281,7 +282,7 @@
                             <tbody id="project-vuln-tbody">
                                 {% for vuln in project_vulns %}
                                     <tr class="hover:bg-base-200 cursor-pointer"
-                                        data-detail='{{ { 'cve_id': vuln.cve_id, 'severity': vuln.severity, 'cvss': (vuln.cvss_score or ""), 'cvss_vector': vuln.cvss_vector, 'epss_score': (vuln.epss_score if vuln.epss_score is not none else ""), 'epss_percentile': (vuln.epss_percentile if vuln.epss_percentile is not none else ""), 'summary': (vuln.summary or ""), 'published': vuln.published, 'dependency': (vuln.dependency_name or ""), 'urls': vuln.urls, 'fixed': vuln.fix_versions } | tojson }}'
+                                        data-detail='{{ { 'vulnerability_id': vuln.vulnerability_id, 'cve_id': vuln.cve_id, 'severity': vuln.severity, 'cvss': (vuln.cvss_score or ""), 'cvss_vector': vuln.cvss_vector, 'epss_score': (vuln.epss_score if vuln.epss_score is not none else ""), 'epss_percentile': (vuln.epss_percentile if vuln.epss_percentile is not none else ""), 'summary': (vuln.summary or ""), 'published': vuln.published, 'dependency': (vuln.dependency_name or ""), 'urls': vuln.urls, 'fixed': vuln.fix_versions, 'scopes': vuln.scopes } | tojson }}'
                                         x-on:click="openDetail($event)">
                                         <td>
                                             <code class="text-sm font-mono">{{ vuln.cve_id }}</code>
