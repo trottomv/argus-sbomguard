@@ -77,16 +77,21 @@ Responses:
 
 | Tool | Description |
 |------|-------------|
-| `list_projects` | List all projects (name, slug, repo URL, platform). |
-| `list_services` | List the services of a project (`project_id`). |
-| `list_sboms` | List SBOMs newest-first, optionally filtered by project/service. |
-| `get_sbom` | Full SBOM detail: metadata, dependencies, known vulnerabilities. |
-| `list_vulnerabilities` | Currently open vulnerabilities, with severity/project/service/CVE filters. |
+| `list_projects` | Projects (name, slug, repo URL, platform), paginated. |
+| `list_services` | Services of a project (`project_id`), paginated. |
+| `list_sboms` | SBOMs newest-first, optionally filtered by project/service, paginated. |
+| `get_sbom` | SBOM metadata and vulnerability counts (no dependency/vulnerability lists). |
+| `get_sbom_dependencies` | SBOM dependencies, paginated (`offset`/`limit`, max 500), optional `dep_type`/`direct_only`. |
+| `get_sbom_vulnerabilities` | SBOM vulnerabilities, paginated, optional `status`/`severity` filters; each item carries `fixed_versions`/`fix_state`. |
+| `list_vulnerabilities` | Currently open vulnerabilities, with severity/project/service/CVE filters, paginated. |
 | `summarize_vulnerabilities` | Platform-wide posture: open counts by severity, affected projects/services, fixed. |
-| `get_snapshot` | Daily platform-wide vulnerability snapshot trend (last N days). |
-| `list_alerts` | Alert rules (per-project threshold + notification channel). |
+| `get_snapshot` | Daily platform-wide vulnerability snapshot trend (last 1–365 days). |
+| `list_alerts` | Alert rules (per-project threshold + notification channel), paginated. |
+| `list_risk_acceptances` | Accepted vulnerabilities (risk acceptances), optionally filtered by project, paginated. |
 
-All tools return JSON. Unknown identifiers (invalid UUID, missing project or
+All tools return JSON. Paginated list tools use the envelope
+`{"items": [...], "total": N, "offset": 0, "limit": 50, "has_more": bool}`
+(`limit` max 500). Unknown identifiers (invalid UUID, missing project or
 SBOM) are reported in the payload as `{"error": "..."}`, so agents can react
 instead of failing silently.
 

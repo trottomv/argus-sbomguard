@@ -28,6 +28,7 @@ from api import mcp_server as mcp_api_module
 from config import settings
 from middleware import mcp_auth as mcp_auth_module
 from middleware.mcp_auth import MCPAuthMiddleware
+from models.acceptance import RiskAcceptance
 from models.alert import AlertRule, NotificationChannel, SeverityThreshold
 from models.auth import ApiKey, User
 from models.project import Project
@@ -48,10 +49,13 @@ EXPECTED_TOOLS = {
     "list_services",
     "list_sboms",
     "get_sbom",
+    "get_sbom_dependencies",
+    "get_sbom_vulnerabilities",
     "list_vulnerabilities",
     "summarize_vulnerabilities",
     "get_snapshot",
     "list_alerts",
+    "list_risk_acceptances",
 }
 
 
@@ -284,40 +288,64 @@ async def test_tools_against_seeded_data(db_session, monkeypatch):
         assert {tool.name for tool in listed.tools} == EXPECTED_TOOLS
 
         projects = json.loads((await client.call_tool("list_projects", {})).content[0].text)
-        assert len(projects) == 1
-        assert projects[0]["name"] == "Alpha"
-        assert projects[0]["slug"] == project.slug
-        assert projects[0]["repo_url"] == "https://github.com/acme/alpha"
-        assert projects[0]["platform"] == "github"
-        assert projects[0]["id"] == str(project.id)
-        assert projects[0]["created_at"]
+        assert projects["total"] == 1
+        assert projects["has_more"] is False
+        assert len(projects["items"]) == 1
+        assert projects["items"][0]["name"] == "Alpha"
+        assert projects["items"][0]["slug"] == project.slug
+        assert projects["items"][0]["repo_url"] == "https://github.com/acme/alpha"
+        assert projects["items"][0]["platform"] == "github"
+        assert projects["items"][0]["id"] == str(project.id)
+        assert projects["items"][0]["created_at"]
 
         services = json.loads(
             (await client.call_tool("list_services", {"project_id": str(project.id)}))
             .content[0]
             .text
         )
-        assert len(services) == 1
-        assert services[0]["name"] == "api"
-        assert services[0]["project_id"] == str(project.id)
-        assert services[0]["id"] == str(service.id)
+        assert services["total"] == 1
+        assert len(services["items"]) == 1
+        assert services["items"][0]["name"] == "api"
+        assert services["items"][0]["project_id"] == str(project.id)
+        assert services["items"][0]["id"] == str(service.id)
 
         sboms = json.loads((await client.call_tool("list_sboms", {})).content[0].text)
-        assert len(sboms) == 1
-        assert sboms[0]["project_name"] == "Alpha"
-        assert sboms[0]["service_name"] == "api"
-        assert sboms[0]["version"] == "1.2.3"
-        assert sboms[0]["format"] == "cyclonedx"
-        assert sboms[0]["dependency_count"] == 1
-        assert sboms[0]["id"] == str(sbom.id)
-        assert sboms[0]["uploaded_at"]
+        assert sboms["total"] == 1
+        assert len(sboms["items"]) == 1
+        assert sboms["items"][0]["project_name"] == "Alpha"
+        assert sboms["items"][0]["service_name"] == "api"
+        assert sboms["items"][0]["version"] == "1.2.3"
+        assert sboms["items"][0]["format"] == "cyclonedx"
+        assert sboms["items"][0]["dependency_count"] == 1
+        assert sboms["items"][0]["id"] == str(sbom.id)
+        assert sboms["items"][0]["uploaded_at"]
 
         detail = json.loads(
             (await client.call_tool("get_sbom", {"sbom_id": str(sbom.id)})).content[0].text
         )
         assert detail["project_name"] == "Alpha"
         assert detail["service_name"] == "api"
-        assert detail["dependencies"] == [
+        assert "dependencies" not in detail
+        assert "vulnerabilities" not in detail
+        assert detail["vulnerability_counts"] == {
+            "critical": 0,
+            "high": 1,
+            "medium": 0,
+            "low": 0,
+            "unknown": 0,
+            "total": 1,
+        }
+        assert detail["open_count"] == 1
+        assert detail["fixed_count"] == 0
+
+        deps = json.loads(
+            (await client.call_tool("get_sbom_dependencies", {"sbom_id": str(sbom.id)}))
+            .content[0]
+            .text
+        )
+        assert deps["total"] == 1
+        assert deps["has_more"] is False
+        assert deps["dependencies"] == [
             {
                 "name": "lodash",
                 "version": "4.17.20",
@@ -327,7 +355,15 @@ async def test_tools_against_seeded_data(db_session, monkeypatch):
                 "is_direct": True,
             }
         ]
-        assert detail["vulnerabilities"] == [
+
+        sbom_vulns = json.loads(
+            (await client.call_tool("get_sbom_vulnerabilities", {"sbom_id": str(sbom.id)}))
+            .content[0]
+            .text
+        )
+        assert sbom_vulns["total"] == 1
+        assert sbom_vulns["has_more"] is False
+        assert sbom_vulns["vulnerabilities"] == [
             {
                 "cve_id": vuln.cve_id,
                 "severity": "HIGH",
@@ -335,17 +371,20 @@ async def test_tools_against_seeded_data(db_session, monkeypatch):
                 "summary": "lodash prototype pollution",
                 "status": "open",
                 "dependency_purl": "pkg:npm/lodash@4.17.20",
+                "fixed_versions": [],
+                "fix_state": None,
             }
         ]
 
         vulns = json.loads((await client.call_tool("list_vulnerabilities", {})).content[0].text)
-        assert len(vulns) == 1
-        assert vulns[0]["cve_id"] == vuln.cve_id
-        assert vulns[0]["severity"] == "HIGH"
-        assert vulns[0]["projects"] == ["Alpha"]
-        assert vulns[0]["services"] == ["api"]
-        assert vulns[0]["dependency_purls"] == ["pkg:npm/lodash@4.17.20"]
-        assert vulns[0]["id"] == str(vuln.id)
+        assert vulns["total"] == 1
+        assert len(vulns["items"]) == 1
+        assert vulns["items"][0]["cve_id"] == vuln.cve_id
+        assert vulns["items"][0]["severity"] == "HIGH"
+        assert vulns["items"][0]["projects"] == ["Alpha"]
+        assert vulns["items"][0]["services"] == ["api"]
+        assert vulns["items"][0]["dependency_purls"] == ["pkg:npm/lodash@4.17.20"]
+        assert vulns["items"][0]["id"] == str(vuln.id)
 
         summary = json.loads(
             (await client.call_tool("summarize_vulnerabilities", {})).content[0].text
@@ -363,12 +402,13 @@ async def test_tools_against_seeded_data(db_session, monkeypatch):
         assert snapshot["snapshots"][0]["critical"] == 1
 
         alerts = json.loads((await client.call_tool("list_alerts", {})).content[0].text)
-        assert len(alerts) == 1
-        assert alerts[0]["project_id"] == str(project.id)
-        assert alerts[0]["project_name"] == "Alpha"
-        assert alerts[0]["severity_threshold"] == "high"
-        assert alerts[0]["notification_type"] == "email"
-        assert alerts[0]["enabled"] is True
+        assert alerts["total"] == 1
+        assert len(alerts["items"]) == 1
+        assert alerts["items"][0]["project_id"] == str(project.id)
+        assert alerts["items"][0]["project_name"] == "Alpha"
+        assert alerts["items"][0]["severity_threshold"] == "high"
+        assert alerts["items"][0]["notification_type"] == "email"
+        assert alerts["items"][0]["enabled"] is True
 
 
 # --------------------------------------------------------------------------- #
@@ -386,20 +426,21 @@ async def test_list_sboms_filters(db_session, monkeypatch):
     )
 
     listed = await _call_tool(db_session, monkeypatch, "list_sboms", {"limit": 1})
-    assert len(listed) == 1
+    assert len(listed["items"]) == 1
+    assert listed["has_more"] is True
     beta = await _call_tool(
         db_session, monkeypatch, "list_sboms", {"project_id": str(project_other.id)}
     )
-    assert beta[0]["project_name"] == "Beta"
+    assert beta["items"][0]["project_name"] == "Beta"
     alpha = await _call_tool(db_session, monkeypatch, "list_sboms", {"project_id": str(project.id)})
-    assert alpha[0]["service_name"] == "api"
+    assert alpha["items"][0]["service_name"] == "api"
     scoped = await _call_tool(
         db_session,
         monkeypatch,
         "list_sboms",
         {"project_id": str(project.id), "service_id": str(service.id), "limit": 1},
     )
-    assert scoped[0]["id"] == str(sbom.id)
+    assert scoped["items"][0]["id"] == str(sbom.id)
     detached = await _call_tool(
         db_session, monkeypatch, "get_sbom", {"sbom_id": str(other_sbom.id)}
     )
@@ -416,10 +457,11 @@ async def test_list_sboms_filters(db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_list_sboms_empty_and_vuln_empty(db_session, monkeypatch):
-    assert await _call_tool(db_session, monkeypatch, "list_sboms", {}) == []
+    empty = {"items": [], "total": 0, "offset": 0, "limit": 50, "has_more": False}
+    assert await _call_tool(db_session, monkeypatch, "list_sboms", {}) == empty
     assert (
         await _call_tool(db_session, monkeypatch, "list_vulnerabilities", {"severity": "critical"})
-        == []
+        == empty
     )
 
 
@@ -437,6 +479,179 @@ async def test_get_sbom_not_found_and_invalid(db_session, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_get_sbom_dependencies_pagination_and_filters(db_session, monkeypatch):
+    project = await _seed_project(db_session)
+    sbom, _, _ = await _seed_sbom(db_session, project)
+    db_session.add_all(
+        [
+            Dependency(
+                sbom_id=sbom.id,
+                name="react",
+                version="18.2.0",
+                purl="pkg:npm/react@18.2.0",
+                dep_type="library",
+                is_direct=True,
+            ),
+            Dependency(
+                sbom_id=sbom.id,
+                name="left-pad",
+                version="1.3.0",
+                purl="pkg:npm/left-pad@1.3.0",
+                dep_type="library",
+                is_direct=False,
+            ),
+            Dependency(
+                sbom_id=sbom.id,
+                name="openssl",
+                version="3.0.0",
+                purl="pkg:deb/openssl@3.0.0",
+                dep_type="operating-system",
+                is_direct=False,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    first = await _call_tool(
+        db_session, monkeypatch, "get_sbom_dependencies", {"sbom_id": str(sbom.id), "limit": 2}
+    )
+    assert first["total"] == 4
+    assert first["has_more"] is True
+    assert len(first["dependencies"]) == 2
+
+    second = await _call_tool(
+        db_session,
+        monkeypatch,
+        "get_sbom_dependencies",
+        {"sbom_id": str(sbom.id), "offset": 2, "limit": 2},
+    )
+    assert second["has_more"] is False
+    assert len(second["dependencies"]) == 2
+
+    direct = await _call_tool(
+        db_session,
+        monkeypatch,
+        "get_sbom_dependencies",
+        {"sbom_id": str(sbom.id), "direct_only": True},
+    )
+    assert direct["total"] == 2
+    assert {dep["name"] for dep in direct["dependencies"]} == {"lodash", "react"}
+
+    typed = await _call_tool(
+        db_session,
+        monkeypatch,
+        "get_sbom_dependencies",
+        {"sbom_id": str(sbom.id), "dep_type": "operating-system"},
+    )
+    assert typed["total"] == 1
+    assert typed["dependencies"][0]["name"] == "openssl"
+
+
+@pytest.mark.asyncio
+async def test_get_sbom_vulnerabilities_pagination_and_filters(db_session, monkeypatch):
+    project = await _seed_project(db_session)
+    sbom, _, _ = await _seed_sbom(db_session, project)
+
+    fixed = Vulnerability(
+        cve_id=f"CVE-2026-{uuid4().hex[:6]}",
+        source="grype",
+        severity=VulnerabilitySeverity.LOW,
+        cvss_score=3.1,
+        summary="low issue",
+        published_at=datetime.now(UTC),
+        extra_data={"fix": {"versions": ["3.1.1"], "state": "fixed"}},
+    )
+    critical = Vulnerability(
+        cve_id=f"CVE-2026-{uuid4().hex[:6]}",
+        source="grype",
+        severity=VulnerabilitySeverity.CRITICAL,
+        cvss_score=9.8,
+        summary="critical issue",
+        published_at=datetime.now(UTC),
+        fixed_versions=["9.8.1"],
+    )
+    db_session.add_all([fixed, critical])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            SBOMVulnerability(
+                sbom_id=sbom.id,
+                dependency_purl="pkg:npm/lodash@4.17.20",
+                vulnerability_id=fixed.id,
+                status=VulnerabilityStatus.FIXED,
+                detected_at=datetime.now(UTC),
+            ),
+            SBOMVulnerability(
+                sbom_id=sbom.id,
+                dependency_purl="pkg:npm/lodash@4.17.20",
+                vulnerability_id=critical.id,
+                status=VulnerabilityStatus.OPEN,
+                detected_at=datetime.now(UTC),
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    all_links = await _call_tool(
+        db_session, monkeypatch, "get_sbom_vulnerabilities", {"sbom_id": str(sbom.id)}
+    )
+    assert all_links["total"] == 3
+    by_cve = {item["cve_id"]: item for item in all_links["vulnerabilities"]}
+    assert by_cve[fixed.cve_id]["fixed_versions"] == ["3.1.1"]
+    assert by_cve[fixed.cve_id]["fix_state"] == "fixed"
+    assert by_cve[critical.cve_id]["fixed_versions"] == ["9.8.1"]
+    assert by_cve[critical.cve_id]["fix_state"] is None
+
+    open_only = await _call_tool(
+        db_session,
+        monkeypatch,
+        "get_sbom_vulnerabilities",
+        {"sbom_id": str(sbom.id), "status": "OPEN"},
+    )
+    assert open_only["total"] == 2
+    assert {item["status"] for item in open_only["vulnerabilities"]} == {"open"}
+
+    high = await _call_tool(
+        db_session,
+        monkeypatch,
+        "get_sbom_vulnerabilities",
+        {"sbom_id": str(sbom.id), "severity": "high"},
+    )
+    assert high["total"] == 1
+    assert high["vulnerabilities"][0]["severity"] == "HIGH"
+
+    paged = await _call_tool(
+        db_session,
+        monkeypatch,
+        "get_sbom_vulnerabilities",
+        {"sbom_id": str(sbom.id), "limit": 2},
+    )
+    assert paged["has_more"] is True
+    assert len(paged["vulnerabilities"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_sbom_children_not_found_and_invalid(db_session, monkeypatch):
+    missing = "00000000-0000-0000-0000-000000000000"
+    for tool in ("get_sbom_dependencies", "get_sbom_vulnerabilities"):
+        assert await _call_tool(db_session, monkeypatch, tool, {"sbom_id": missing}) == {
+            "error": "SBOM not found"
+        }
+        assert await _call_tool(db_session, monkeypatch, tool, {"sbom_id": "zz"}) == {
+            "error": "sbom_id must be a valid UUID"
+        }
+        assert await _call_tool(
+            db_session, monkeypatch, tool, {"sbom_id": missing, "offset": -1}
+        ) == {"error": "offset must be >= 0"}
+        assert await _call_tool(
+            db_session, monkeypatch, tool, {"sbom_id": missing, "limit": 0}
+        ) == {"error": "limit must be between 1 and 500"}
+        assert await _call_tool(
+            db_session, monkeypatch, tool, {"sbom_id": missing, "limit": 501}
+        ) == {"error": "limit must be between 1 and 500"}
+
+
+@pytest.mark.asyncio
 async def test_list_services_errors(db_session, monkeypatch):
     project = await _seed_project(db_session)
     await db_session.commit()
@@ -450,10 +665,9 @@ async def test_list_services_errors(db_session, monkeypatch):
     assert not_found == {"error": "Project not found"}
     invalid = await _call_tool(db_session, monkeypatch, "list_services", {"project_id": "nope"})
     assert invalid == {"error": "project_id must be a valid UUID"}
-    assert (
-        await _call_tool(db_session, monkeypatch, "list_services", {"project_id": str(project.id)})
-        == []
-    )
+    assert await _call_tool(
+        db_session, monkeypatch, "list_services", {"project_id": str(project.id)}
+    ) == {"items": [], "total": 0, "offset": 0, "limit": 50, "has_more": False}
 
 
 @pytest.mark.asyncio
@@ -464,28 +678,50 @@ async def test_list_vulnerabilities_filters_and_errors(db_session, monkeypatch):
     by_severity = await _call_tool(
         db_session, monkeypatch, "list_vulnerabilities", {"severity": "high"}
     )
-    assert by_severity[0]["cve_id"] == vuln.cve_id
+    assert by_severity["items"][0]["cve_id"] == vuln.cve_id
+    assert by_severity["items"][0]["fixed_versions"] == []
+    assert by_severity["items"][0]["fix_state"] is None
     by_project = await _call_tool(
         db_session,
         monkeypatch,
         "list_vulnerabilities",
         {"project_id": str(project.id)},
     )
-    assert by_project[0]["projects"] == ["Alpha"]
+    assert by_project["items"][0]["projects"] == ["Alpha"]
     by_cve = await _call_tool(
         db_session, monkeypatch, "list_vulnerabilities", {"cve_id": vuln.cve_id[:10]}
     )
-    assert len(by_cve) == 1
-    assert (
-        await _call_tool(db_session, monkeypatch, "list_vulnerabilities", {"severity": "unknown"})
-        == []
-    )
+    assert len(by_cve["items"]) == 1
+    assert await _call_tool(
+        db_session, monkeypatch, "list_vulnerabilities", {"severity": "unknown"}
+    ) == {"items": [], "total": 0, "offset": 0, "limit": 50, "has_more": False}
     assert await _call_tool(
         db_session, monkeypatch, "list_vulnerabilities", {"project_id": "bogus"}
     ) == {"error": "project_id must be a valid UUID"}
     assert await _call_tool(
         db_session, monkeypatch, "list_vulnerabilities", {"service_id": "bogus"}
     ) == {"error": "service_id must be a valid UUID"}
+
+
+@pytest.mark.asyncio
+async def test_list_tools_reject_invalid_page(db_session, monkeypatch):
+    project = await _seed_project(db_session)
+    await db_session.commit()
+    calls = [
+        ("list_projects", {}),
+        ("list_services", {"project_id": str(project.id)}),
+        ("list_sboms", {}),
+        ("list_vulnerabilities", {}),
+        ("list_alerts", {}),
+        ("list_risk_acceptances", {}),
+    ]
+    for tool, args in calls:
+        assert await _call_tool(db_session, monkeypatch, tool, {**args, "limit": 0}) == {
+            "error": "limit must be between 1 and 500"
+        }
+        assert await _call_tool(db_session, monkeypatch, tool, {**args, "offset": -1}) == {
+            "error": "offset must be >= 0"
+        }
 
 
 @pytest.mark.asyncio
@@ -540,7 +776,10 @@ async def test_summarize_fixed_and_get_snapshot_validation(db_session, monkeypat
     assert summary["affected_projects"] == 1
 
     assert await _call_tool(db_session, monkeypatch, "get_snapshot", {"days": 0}) == {
-        "error": "days must be >= 1"
+        "error": "days must be between 1 and 365"
+    }
+    assert await _call_tool(db_session, monkeypatch, "get_snapshot", {"days": 366}) == {
+        "error": "days must be between 1 and 365"
     }
     assert await _call_tool(db_session, monkeypatch, "get_snapshot", {}) == {
         "count": 0,
@@ -587,7 +826,77 @@ async def test_get_snapshot_returns_chronological_trend(db_session, monkeypatch)
 
 @pytest.mark.asyncio
 async def test_list_alerts_empty(db_session, monkeypatch):
-    assert await _call_tool(db_session, monkeypatch, "list_alerts", {}) == []
+    assert await _call_tool(db_session, monkeypatch, "list_alerts", {}) == {
+        "items": [],
+        "total": 0,
+        "offset": 0,
+        "limit": 50,
+        "has_more": False,
+    }
+
+
+@pytest.mark.asyncio
+async def test_list_risk_acceptances(db_session, monkeypatch):
+    project = await _seed_project(db_session)
+    _sbom, service, vuln = await _seed_sbom(db_session, project)
+    other_vuln = Vulnerability(
+        cve_id=f"CVE-2026-{uuid4().hex[:6]}",
+        source="grype",
+        severity=VulnerabilitySeverity.LOW,
+    )
+    db_session.add(other_vuln)
+    await db_session.flush()
+    db_session.add_all(
+        [
+            RiskAcceptance(
+                project_id=project.id,
+                service_id=service.id,
+                vulnerability_id=vuln.id,
+                reason="wont-fix upstream",
+            ),
+            RiskAcceptance(
+                project_id=project.id,
+                service_id=None,
+                vulnerability_id=other_vuln.id,
+                reason="accepted at project scope",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    result = await _call_tool(db_session, monkeypatch, "list_risk_acceptances", {})
+    assert result["total"] == 2
+    assert result["has_more"] is False
+    by_cve = {item["cve_id"]: item for item in result["items"]}
+    service_scoped = by_cve[vuln.cve_id]
+    assert service_scoped["project_id"] == str(project.id)
+    assert service_scoped["project_name"] == "Alpha"
+    assert service_scoped["service_id"] == str(service.id)
+    assert service_scoped["service_name"] == "api"
+    assert service_scoped["vulnerability_id"] == str(vuln.id)
+    assert service_scoped["reason"] == "wont-fix upstream"
+    project_scoped = by_cve[other_vuln.cve_id]
+    assert project_scoped["service_id"] is None
+    assert project_scoped["service_name"] is None
+
+    scoped = await _call_tool(
+        db_session, monkeypatch, "list_risk_acceptances", {"project_id": str(project.id)}
+    )
+    assert scoped["total"] == 2
+    assert await _call_tool(
+        db_session, monkeypatch, "list_risk_acceptances", {"project_id": "bogus"}
+    ) == {"error": "project_id must be a valid UUID"}
+
+
+@pytest.mark.asyncio
+async def test_list_risk_acceptances_empty(db_session, monkeypatch):
+    assert await _call_tool(db_session, monkeypatch, "list_risk_acceptances", {}) == {
+        "items": [],
+        "total": 0,
+        "offset": 0,
+        "limit": 50,
+        "has_more": False,
+    }
 
 
 # --------------------------------------------------------------------------- #

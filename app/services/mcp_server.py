@@ -23,6 +23,7 @@ from sqlalchemy import func, select
 
 from config import settings
 from database import async_session_factory
+from models.acceptance import RiskAcceptance
 from models.alert import AlertRule
 from models.project import Project
 from models.sbom import SBOM, Dependency
@@ -65,6 +66,20 @@ def _enum_text(value: Any) -> str | None:
     return str(getattr(value, "value", value))
 
 
+def _fix_info(vuln: Vulnerability) -> dict:
+    """Fixed versions and fix state for a vulnerability.
+
+    The ``fixed_versions`` column is not populated by the current scanner, so
+    grype's stored ``extra_data["fix"]`` object (``versions``/``state``) is the
+    authoritative source; the column is used as a fallback when present.
+    """
+    fix = (vuln.extra_data or {}).get("fix") or {}
+    return {
+        "fixed_versions": list(vuln.fixed_versions or fix.get("versions") or []),
+        "fix_state": fix.get("state"),
+    }
+
+
 def mcp_transport_security() -> TransportSecuritySettings:
     """Build the DNS-rebinding allow-list for the MCP transport.
 
@@ -100,16 +115,26 @@ def _project_dict(project: Project) -> dict:
     }
 
 
-async def list_projects(limit: int = 50) -> str:
-    """List all projects (name, slug, repo URL, platform, timestamps)."""
+async def list_projects(offset: int = 0, limit: int = 50) -> str:
+    """List all projects (name, slug, repo URL, platform, timestamps), paginated."""
+    if error := _validate_page(offset, limit):
+        return _dump({"error": error})
     async with async_session_factory() as db:
-        result = await db.execute(select(Project).order_by(Project.created_at.desc()).limit(limit))
+        base = select(Project).order_by(Project.created_at.desc())
+        total = await _count(db, base)
+        result = await db.execute(base.offset(offset).limit(limit + 1))
         projects = result.scalars().all()
-    return _dump([_project_dict(project) for project in projects])
+    return _dump(
+        _page_envelope(
+            [_project_dict(project) for project in projects[:limit]], total, offset, limit
+        )
+    )
 
 
-async def list_services(project_id: str) -> str:
-    """List the services of a project (pass the project UUID)."""
+async def list_services(project_id: str, offset: int = 0, limit: int = 50) -> str:
+    """List the services of a project (pass the project UUID), paginated."""
+    if error := _validate_page(offset, limit):
+        return _dump({"error": error})
     try:
         project_uuid = uuid.UUID(project_id)
     except ValueError:
@@ -120,29 +145,37 @@ async def list_services(project_id: str) -> str:
         ).scalar_one_or_none()
         if project is None:
             return _dump({"error": "Project not found"})
-        result = await db.execute(
-            select(Service).where(Service.project_id == project_uuid).order_by(Service.name)
-        )
+        base = select(Service).where(Service.project_id == project_uuid).order_by(Service.name)
+        total = await _count(db, base)
+        result = await db.execute(base.offset(offset).limit(limit + 1))
         services = result.scalars().all()
     return _dump(
-        [
-            {
-                "id": str(service.id),
-                "project_id": project_id,
-                "name": service.name,
-                "created_at": service.created_at,
-            }
-            for service in services
-        ]
+        _page_envelope(
+            [
+                {
+                    "id": str(service.id),
+                    "project_id": str(project_uuid),
+                    "name": service.name,
+                    "created_at": service.created_at,
+                }
+                for service in services[:limit]
+            ],
+            total,
+            offset,
+            limit,
+        )
     )
 
 
 async def list_sboms(
     project_id: str | None = None,
     service_id: str | None = None,
-    limit: int = 10,
+    offset: int = 0,
+    limit: int = 50,
 ) -> str:
-    """List SBOMs, newest first, optionally filtered by project or service."""
+    """List SBOMs, newest first, optionally filtered by project or service, paginated."""
+    if error := _validate_page(offset, limit):
+        return _dump({"error": error})
     if project_id is not None:
         try:
             project_id = str(uuid.UUID(project_id))
@@ -159,7 +192,6 @@ async def list_sboms(
         .join(Project, SBOM.project_id == Project.id)
         .outerjoin(Service, SBOM.service_id == Service.id)
         .order_by(SBOM.uploaded_at.desc())
-        .limit(limit)
     )
     if project_id is not None:
         query = query.where(SBOM.project_id == uuid.UUID(project_id))
@@ -167,36 +199,84 @@ async def list_sboms(
         query = query.where(SBOM.service_id == uuid.UUID(service_id))
 
     async with async_session_factory() as db:
-        rows = (await db.execute(query)).all()
+        total = await _count(db, query)
+        rows = (await db.execute(query.offset(offset).limit(limit + 1))).all()
     return _dump(
-        [
-            {
-                "id": str(sbom.id),
-                "project_id": str(sbom.project_id),
-                "project_name": project_name,
-                "service_id": str(sbom.service_id) if sbom.service_id else None,
-                "service_name": service_name,
-                "version": sbom.version,
-                "format": _enum_text(sbom.format),
-                "sha256": sbom.sha256,
-                "dependency_count": sbom.dependency_count,
-                "uploaded_at": sbom.uploaded_at,
-            }
-            for sbom, project_name, service_name in rows
-        ]
+        _page_envelope(
+            [
+                {
+                    "id": str(sbom.id),
+                    "project_id": str(sbom.project_id),
+                    "project_name": project_name,
+                    "service_id": str(sbom.service_id) if sbom.service_id else None,
+                    "service_name": service_name,
+                    "version": sbom.version,
+                    "format": _enum_text(sbom.format),
+                    "sha256": sbom.sha256,
+                    "dependency_count": sbom.dependency_count,
+                    "uploaded_at": sbom.uploaded_at,
+                }
+                for sbom, project_name, service_name in rows[:limit]
+            ],
+            total,
+            offset,
+            limit,
+        )
     )
 
 
-async def get_sbom(sbom_id: str) -> str:
-    """Get a single SBOM with its dependencies and known vulnerabilities."""
+_PAGE_LIMIT_DEFAULT = 200
+_PAGE_LIMIT_MAX = 500
+
+
+async def _load_sbom(db, sbom_id: str) -> tuple[SBOM | None, str | None]:
+    """Load an SBOM by id, returning ``(sbom, error_message)``."""
     try:
         sbom_uuid = uuid.UUID(sbom_id)
     except ValueError:
-        return _dump({"error": "sbom_id must be a valid UUID"})
+        return None, "sbom_id must be a valid UUID"
+    sbom = (await db.execute(select(SBOM).where(SBOM.id == sbom_uuid))).scalar_one_or_none()
+    if sbom is None:
+        return None, "SBOM not found"
+    return sbom, None
+
+
+def _validate_page(offset: int, limit: int) -> str | None:
+    """Return an error message when the offset/limit window is invalid."""
+    if offset < 0:
+        return "offset must be >= 0"
+    if limit < 1 or limit > _PAGE_LIMIT_MAX:
+        return f"limit must be between 1 and {_PAGE_LIMIT_MAX}"
+    return None
+
+
+async def _count(db, base) -> int:
+    """Count the rows a filtered query would return (ordering dropped)."""
+    return (
+        await db.execute(select(func.count()).select_from(base.order_by(None).subquery()))
+    ).scalar() or 0
+
+
+def _page_envelope(items: list, total: int, offset: int, limit: int) -> dict:
+    """Uniform pagination envelope shared by every list tool."""
+    return {
+        "items": items,
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "has_more": offset + len(items) < total,
+    }
+
+
+async def get_sbom(sbom_id: str) -> str:
+    """Get SBOM metadata and vulnerability counts (no dependency/vulnerability lists).
+
+    Use ``get_sbom_dependencies`` / ``get_sbom_vulnerabilities`` for the paginated lists.
+    """
     async with async_session_factory() as db:
-        sbom = (await db.execute(select(SBOM).where(SBOM.id == sbom_uuid))).scalar_one_or_none()
-        if sbom is None:
-            return _dump({"error": "SBOM not found"})
+        sbom, error = await _load_sbom(db, sbom_id)
+        if error:
+            return _dump({"error": error})
 
         project_name = (
             await db.execute(select(Project.name).where(Project.id == sbom.project_id))
@@ -207,23 +287,23 @@ async def get_sbom(sbom_id: str) -> str:
                 await db.execute(select(Service.name).where(Service.id == sbom.service_id))
             ).scalar_one()
 
-        deps_result = await db.execute(
-            select(Dependency).where(Dependency.sbom_id == sbom_uuid).order_by(Dependency.name)
-        )
-        deps = deps_result.scalars().all()
-
-        vuln_rows = (
+        counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "unknown": 0}
+        status_counts = {"open": 0, "fixed": 0}
+        rows = (
             await db.execute(
-                select(Vulnerability, SBOMVulnerability)
+                select(Vulnerability.severity, SBOMVulnerability.status, func.count())
                 .join(SBOMVulnerability, SBOMVulnerability.vulnerability_id == Vulnerability.id)
-                .where(SBOMVulnerability.sbom_id == sbom_uuid)
-                .order_by(Vulnerability.severity)
+                .where(SBOMVulnerability.sbom_id == sbom.id)
+                .group_by(Vulnerability.severity, SBOMVulnerability.status)
             )
         ).all()
+        for severity, status, count in rows:
+            counts[(_enum_text(severity) or "unknown").lower()] += count
+            status_counts[_enum_text(status)] += count
 
     return _dump(
         {
-            "id": sbom_id,
+            "id": str(sbom.id),
             "project_id": str(sbom.project_id),
             "project_name": project_name,
             "service_id": str(sbom.service_id) if sbom.service_id else None,
@@ -233,6 +313,55 @@ async def get_sbom(sbom_id: str) -> str:
             "sha256": sbom.sha256,
             "dependency_count": sbom.dependency_count,
             "uploaded_at": sbom.uploaded_at,
+            "vulnerability_counts": {**counts, "total": sum(counts.values())},
+            "open_count": status_counts["open"],
+            "fixed_count": status_counts["fixed"],
+        }
+    )
+
+
+async def get_sbom_dependencies(
+    sbom_id: str,
+    offset: int = 0,
+    limit: int = _PAGE_LIMIT_DEFAULT,
+    dep_type: str | None = None,
+    direct_only: bool = False,
+) -> str:
+    """List an SBOM's dependencies, paginated (offset/limit, max 500)."""
+    if error := _validate_page(offset, limit):
+        return _dump({"error": error})
+    async with async_session_factory() as db:
+        sbom, error = await _load_sbom(db, sbom_id)
+        if error:
+            return _dump({"error": error})
+
+        base = select(Dependency).where(Dependency.sbom_id == sbom.id)
+        if dep_type is not None:
+            base = base.where(Dependency.dep_type == dep_type)
+        if direct_only:
+            base = base.where(Dependency.is_direct.is_(True))
+
+        total = await _count(db, base)
+        rows = (
+            (
+                await db.execute(
+                    base.order_by(Dependency.name, Dependency.version, Dependency.purl)
+                    .offset(offset)
+                    .limit(limit + 1)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+    has_more = len(rows) > limit
+    return _dump(
+        {
+            "sbom_id": str(sbom.id),
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "has_more": has_more,
             "dependencies": [
                 {
                     "name": dep.name,
@@ -242,8 +371,50 @@ async def get_sbom(sbom_id: str) -> str:
                     "license": dep.license,
                     "is_direct": dep.is_direct,
                 }
-                for dep in deps
+                for dep in rows[:limit]
             ],
+        }
+    )
+
+
+async def get_sbom_vulnerabilities(
+    sbom_id: str,
+    offset: int = 0,
+    limit: int = _PAGE_LIMIT_DEFAULT,
+    status: str | None = None,
+    severity: str | None = None,
+) -> str:
+    """List an SBOM's vulnerabilities, paginated, with optional status/severity filters."""
+    if error := _validate_page(offset, limit):
+        return _dump({"error": error})
+    async with async_session_factory() as db:
+        sbom, error = await _load_sbom(db, sbom_id)
+        if error:
+            return _dump({"error": error})
+
+        base = (
+            select(Vulnerability, SBOMVulnerability)
+            .join(SBOMVulnerability, SBOMVulnerability.vulnerability_id == Vulnerability.id)
+            .where(SBOMVulnerability.sbom_id == sbom.id)
+        )
+        if status is not None:
+            base = base.where(func.lower(SBOMVulnerability.status) == status.lower())
+        if severity is not None:
+            base = base.where(Vulnerability.severity.ilike(f"%{severity}%"))
+
+        total = await _count(db, base)
+        rows = (
+            await db.execute(base.order_by(Vulnerability.cve_id).offset(offset).limit(limit + 1))
+        ).all()
+
+    has_more = len(rows) > limit
+    return _dump(
+        {
+            "sbom_id": str(sbom.id),
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "has_more": has_more,
             "vulnerabilities": [
                 {
                     "cve_id": vuln.cve_id,
@@ -252,8 +423,9 @@ async def get_sbom(sbom_id: str) -> str:
                     "summary": vuln.summary,
                     "status": _enum_text(link.status),
                     "dependency_purl": link.dependency_purl,
+                    **_fix_info(vuln),
                 }
-                for vuln, link in vuln_rows
+                for vuln, link in rows[:limit]
             ],
         }
     )
@@ -264,12 +436,15 @@ async def list_vulnerabilities(
     project_id: str | None = None,
     service_id: str | None = None,
     cve_id: str | None = None,
+    offset: int = 0,
     limit: int = 50,
 ) -> str:
-    """List currently open vulnerabilities with affected projects/services.
+    """List currently open vulnerabilities, paginated, with optional filters.
 
     ``severity`` and ``cve_id`` are substring filters (case-insensitive).
     """
+    if error := _validate_page(offset, limit):
+        return _dump({"error": error})
     for field_name, value in (("project_id", project_id), ("service_id", service_id)):
         if value is not None:
             try:
@@ -278,17 +453,15 @@ async def list_vulnerabilities(
                 return _dump({"error": f"{field_name} must be a valid UUID"})
 
     async with async_session_factory() as db:
-        query = (
-            select(Vulnerability)
-            .where(
-                Vulnerability.id.in_(build_vuln_subquery(severity, project_id, service_id, cve_id))
-            )
-            .limit(limit)
+        query = select(Vulnerability).where(
+            Vulnerability.id.in_(build_vuln_subquery(severity, project_id, service_id, cve_id))
         )
         query = apply_vuln_ordering(query, "severity", "desc")
-        vulns = (await db.execute(query)).scalars().all()
+        total = await _count(db, query)
+        rows = (await db.execute(query.offset(offset).limit(limit + 1))).scalars().all()
+        vulns = rows[:limit]
         if not vulns:
-            return _dump([])
+            return _dump(_page_envelope([], total, offset, limit))
 
         vuln_ids = [vuln.id for vuln in vulns]
         project_map: dict[str, set[str]] = {}
@@ -342,10 +515,11 @@ async def list_vulnerabilities(
                 "projects": sorted(project_map.get(str(vuln.id), [])),
                 "services": sorted(service_map.get(str(vuln.id), [])),
                 "dependency_purls": sorted(purl_map.get(str(vuln.id), [])),
+                **_fix_info(vuln),
             }
             for vuln in vulns
         ]
-    return _dump(items)
+    return _dump(_page_envelope(items, total, offset, limit))
 
 
 async def summarize_vulnerabilities() -> str:
@@ -411,8 +585,8 @@ async def summarize_vulnerabilities() -> str:
 
 async def get_snapshot(days: int = 30) -> str:
     """Return the platform-wide daily vulnerability snapshot trend."""
-    if days < 1:
-        return _dump({"error": "days must be >= 1"})
+    if days < 1 or days > 365:
+        return _dump({"error": "days must be between 1 and 365"})
     async with async_session_factory() as db:
         rows = (
             await db.execute(
@@ -446,30 +620,87 @@ async def get_snapshot(days: int = 30) -> str:
     return _dump({"count": len(snapshots), "snapshots": snapshots})
 
 
-async def list_alerts() -> str:
-    """List alert rules (per-project thresholds and notification channels)."""
+async def list_alerts(offset: int = 0, limit: int = 50) -> str:
+    """List alert rules (per-project thresholds and notification channels), paginated."""
+    if error := _validate_page(offset, limit):
+        return _dump({"error": error})
     async with async_session_factory() as db:
-        rows = (
-            await db.execute(
-                select(AlertRule, Project.name)
-                .join(Project, AlertRule.project_id == Project.id)
-                .order_by(AlertRule.created_at.desc())
-            )
-        ).all()
+        base = (
+            select(AlertRule, Project.name)
+            .join(Project, AlertRule.project_id == Project.id)
+            .order_by(AlertRule.created_at.desc())
+        )
+        total = await _count(db, base)
+        rows = (await db.execute(base.offset(offset).limit(limit + 1))).all()
     return _dump(
-        [
-            {
-                "id": str(alert.id),
-                "project_id": str(alert.project_id),
-                "project_name": project_name,
-                "severity_threshold": _enum_text(alert.severity_threshold),
-                "notification_type": _enum_text(alert.notification_type),
-                "enabled": alert.enabled,
-                "config": alert.config,
-                "created_at": alert.created_at,
-            }
-            for alert, project_name in rows
-        ]
+        _page_envelope(
+            [
+                {
+                    "id": str(alert.id),
+                    "project_id": str(alert.project_id),
+                    "project_name": project_name,
+                    "severity_threshold": _enum_text(alert.severity_threshold),
+                    "notification_type": _enum_text(alert.notification_type),
+                    "enabled": alert.enabled,
+                    "config": alert.config,
+                    "created_at": alert.created_at,
+                }
+                for alert, project_name in rows[:limit]
+            ],
+            total,
+            offset,
+            limit,
+        )
+    )
+
+
+async def list_risk_acceptances(
+    project_id: str | None = None,
+    offset: int = 0,
+    limit: int = 50,
+) -> str:
+    """List accepted vulnerabilities (risk acceptances), paginated."""
+    if error := _validate_page(offset, limit):
+        return _dump({"error": error})
+    if project_id is not None:
+        try:
+            project_id = str(uuid.UUID(project_id))
+        except ValueError:
+            return _dump({"error": "project_id must be a valid UUID"})
+
+    query = (
+        select(RiskAcceptance, Vulnerability.cve_id, Project.name, Service.name)
+        .join(Vulnerability, RiskAcceptance.vulnerability_id == Vulnerability.id)
+        .join(Project, RiskAcceptance.project_id == Project.id)
+        .outerjoin(Service, RiskAcceptance.service_id == Service.id)
+        .order_by(RiskAcceptance.created_at.desc())
+    )
+    if project_id is not None:
+        query = query.where(RiskAcceptance.project_id == uuid.UUID(project_id))
+
+    async with async_session_factory() as db:
+        total = await _count(db, query)
+        rows = (await db.execute(query.offset(offset).limit(limit + 1))).all()
+    return _dump(
+        _page_envelope(
+            [
+                {
+                    "id": str(acceptance.id),
+                    "project_id": str(acceptance.project_id),
+                    "project_name": project_name,
+                    "service_id": str(acceptance.service_id) if acceptance.service_id else None,
+                    "service_name": service_name,
+                    "vulnerability_id": str(acceptance.vulnerability_id),
+                    "cve_id": cve_id,
+                    "reason": acceptance.reason,
+                    "created_at": acceptance.created_at,
+                }
+                for acceptance, cve_id, project_name, service_name in rows[:limit]
+            ],
+            total,
+            offset,
+            limit,
+        )
     )
 
 
@@ -481,23 +712,41 @@ def build_mcp_server() -> MCPServer:
         log_level="WARNING",
     )
     tools = [
-        (list_projects, "List all projects (name, slug, repo URL, platform)."),
-        (list_services, "List the services of a project (project_id UUID)."),
+        (list_projects, "List all projects (name, slug, repo URL, platform), paginated."),
+        (list_services, "List the services of a project (project_id UUID), paginated."),
         (
             list_sboms,
-            "List SBOMs newest-first, optionally filtered by project_id/service_id.",
+            "List SBOMs newest-first, optionally filtered by project_id/service_id, paginated.",
         ),
-        (get_sbom, "Get a single SBOM with dependencies and known vulnerabilities."),
+        (
+            get_sbom,
+            "Get SBOM metadata and vulnerability counts (no dependency/vulnerability lists).",
+        ),
+        (
+            get_sbom_dependencies,
+            "List an SBOM's dependencies, paginated (offset/limit, max 500).",
+        ),
+        (
+            get_sbom_vulnerabilities,
+            "List an SBOM's vulnerabilities, paginated, with optional status/severity filters.",
+        ),
         (
             list_vulnerabilities,
-            "List currently open vulnerabilities, with optional severity/project/service/cve filters.",
+            "List currently open vulnerabilities, with optional severity/project/service/cve filters, paginated.",
         ),
         (
             summarize_vulnerabilities,
             "Platform-wide vulnerability posture (open counts, fixed, affected).",
         ),
         (get_snapshot, "Platform-wide daily vulnerability snapshot trend for the last N days."),
-        (list_alerts, "List alert rules (per-project thresholds and notification channels)."),
+        (
+            list_alerts,
+            "List alert rules (per-project thresholds and notification channels), paginated.",
+        ),
+        (
+            list_risk_acceptances,
+            "List accepted vulnerabilities (risk acceptances), optionally filtered by project_id.",
+        ),
     ]
     for tool_fn, description in tools:
         server.tool(description=description)(tool_fn)
