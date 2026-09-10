@@ -42,6 +42,20 @@ async def test_paginate_scalar_pages(db_session):
 
 
 @pytest.mark.asyncio
+async def test_paginate_explicit_offset(db_session):
+    for i in range(5):
+        db_session.add(User(email=f"offset{i}@example.com", is_admin=False))
+    await db_session.commit()
+
+    query = select(User).order_by(User.email)
+    page = await paginate(db_session, query, per_page=2, offset=1)
+    assert page.total == 5
+    assert page.offset == 1
+    assert page.has_more is True
+    assert [u.email for u in page.items] == ["offset1@example.com", "offset2@example.com"]
+
+
+@pytest.mark.asyncio
 async def test_paginate_tuple_rows(db_session):
     db_session.add(User(email="tuple@example.com", is_admin=False))
     await db_session.commit()

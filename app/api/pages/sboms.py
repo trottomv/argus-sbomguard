@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 
 from database import get_db
 from models.project import Project
@@ -28,6 +29,7 @@ async def sboms_page(
 ):
     query = (
         select(SBOM, Project.name, Service.name)
+        .options(defer(SBOM.raw_sbom))
         .outerjoin(Service, SBOM.service_id == Service.id)
         .join(Project, SBOM.project_id == Project.id)
     )

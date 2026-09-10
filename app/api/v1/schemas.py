@@ -109,6 +109,8 @@ class ProjectResponse(BaseModel):
 
 class ProjectSBOMHistoryItem(BaseModel):
     id: uuid.UUID
+    service_id: uuid.UUID | None
+    service_name: str | None
     version: str | None
     format: str | None
     dependency_count: int | None
@@ -191,6 +193,8 @@ class VulnerabilityBriefResponse(BaseModel):
 class SBOMDetailResponse(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
+    service_id: uuid.UUID | None
+    service_name: str | None
     version: str | None
     format: str | None
     sha256: str

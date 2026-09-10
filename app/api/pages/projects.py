@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 
 from api.pages.common import dep_name
 from database import get_db
@@ -16,6 +17,7 @@ from services.acceptance import covered_by_acceptance
 from services.pagination import (
     PROJECT_PER_PAGE,
     PROJECT_SBOM_HISTORY_PER_PAGE,
+    PROJECT_SBOM_HISTORY_PREVIEW,
     PROJECT_VULN_PER_PAGE,
     Page,
     paginate,
@@ -216,6 +218,7 @@ async def project_detail_page(
     if not project:
         return RedirectResponse(url="/projects")
 
+    sbom_history_preview = PROJECT_SBOM_HISTORY_PREVIEW
     sbom_history_per_page = PROJECT_SBOM_HISTORY_PER_PAGE
 
     sbom_base = select(SBOM.id).where(SBOM.project_id == project_id)
@@ -234,12 +237,13 @@ async def project_detail_page(
 
     sboms_query = (
         select(SBOM, Service.name)
+        .options(defer(SBOM.raw_sbom))
         .outerjoin(Service, SBOM.service_id == Service.id)
         .where(SBOM.project_id == project_id)
     )
     if service_id and service_id != "":
         sboms_query = sboms_query.where(SBOM.service_id == service_id)
-    sboms_query = sboms_query.order_by(SBOM.created_at.desc()).limit(sbom_history_per_page)
+    sboms_query = sboms_query.order_by(SBOM.created_at.desc()).limit(sbom_history_preview)
 
     sbom_rows = (await db.execute(sboms_query)).all()
     sboms_with_svc = [(row[0], row[1]) for row in sbom_rows]
@@ -283,8 +287,8 @@ async def project_detail_page(
     services = services_result.scalars().all()
 
     sbom_history_pages = (
-        max(1, (sbom_history_total + sbom_history_per_page - 1) // sbom_history_per_page)
-        if sbom_history_total > sbom_history_per_page
+        max(1, (sbom_history_total + sbom_history_preview - 1) // sbom_history_preview)
+        if sbom_history_total > sbom_history_preview
         else 1
     )
 
@@ -301,6 +305,7 @@ async def project_detail_page(
         "project_vuln_has_more": project_vuln_has_more,
         "sbom_history_total": sbom_history_total,
         "sbom_history_pages": sbom_history_pages,
+        "sbom_history_preview": sbom_history_preview,
         "sbom_history_per_page": sbom_history_per_page,
         "total_dependency_count": total_dependency_count,
     }
@@ -315,6 +320,7 @@ async def project_sboms_page(
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     per_page: int = Query(PROJECT_SBOM_HISTORY_PER_PAGE, ge=1, le=200),
+    offset: int | None = Query(None, ge=0),
     service_id: str = Query(None),
 ):
     result = await db.execute(select(Project).where(Project.id == project_id))
@@ -324,6 +330,7 @@ async def project_sboms_page(
 
     sboms_query = (
         select(SBOM, Service.name)
+        .options(defer(SBOM.raw_sbom))
         .outerjoin(Service, SBOM.service_id == Service.id)
         .where(SBOM.project_id == project_id)
     )
@@ -331,7 +338,9 @@ async def project_sboms_page(
         sboms_query = sboms_query.where(SBOM.service_id == service_id)
     sboms_query = sboms_query.order_by(SBOM.created_at.desc())
 
-    pg: Page = await paginate(db, sboms_query, page=page, per_page=per_page, scalar=False)
+    pg: Page = await paginate(
+        db, sboms_query, page=page, per_page=per_page, scalar=False, offset=offset
+    )
     sbom_ids = [row[0].id for row in pg.items]
 
     vulns_by_sbom: dict = {}
@@ -373,6 +382,7 @@ async def project_sboms_page(
         "per_page": pg.per_page,
         "total_pages": pg.total_pages,
         "has_more": pg.has_more,
+        "offset": pg.offset,
         "target": "sbom-history",
         "load_more_url": load_url,
     }

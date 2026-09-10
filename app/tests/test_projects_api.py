@@ -258,7 +258,7 @@ async def test_project_history_with_sboms(client):
 
     await client.post(
         "/api/v1/sboms/upload",
-        data={"project_id": pid, "version": "v1"},
+        data={"project_id": pid, "version": "v1", "service_name": "api-gateway"},
         files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
     )
 
@@ -267,6 +267,26 @@ async def test_project_history_with_sboms(client):
     data = resp.json()
     assert len(data["items"]) == 1
     assert data["total"] == 1
+    assert data["items"][0]["service_name"] == "api-gateway"
+    assert data["items"][0]["service_id"] is not None
+
+
+@pytest.mark.asyncio
+async def test_project_history_without_service(client):
+    proj = await client.post("/api/v1/projects", json={"name": "history-no-service"})
+    pid = proj.json()["id"]
+
+    await client.post(
+        "/api/v1/sboms/upload",
+        data={"project_id": pid, "version": "v1"},
+        files={"file": ("sbom.json", json.dumps(SAMPLE_CYCLONEDX), "application/json")},
+    )
+
+    resp = await client.get(f"/api/v1/projects/{pid}/history")
+    assert resp.status_code == 200
+    item = resp.json()["items"][0]
+    assert item["service_id"] is None
+    assert item["service_name"] is None
 
 
 @pytest.mark.asyncio

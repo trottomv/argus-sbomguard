@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import Response
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer, joinedload
 
 from api.constants import API_V1_PREFIX
 from api.v1.schemas import (
@@ -130,7 +131,11 @@ async def download_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     responses={**UNAUTHORIZED_RESPONSE, **NOT_FOUND_RESPONSE},
 )
 async def get_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(SBOM).where(SBOM.id == sbom_id))
+    result = await db.execute(
+        select(SBOM)
+        .options(joinedload(SBOM.service), defer(SBOM.raw_sbom))
+        .where(SBOM.id == sbom_id)
+    )
     sbom = result.scalar_one_or_none()
     if not sbom:
         raise HTTPException(status_code=404, detail="SBOM not found")
@@ -146,6 +151,8 @@ async def get_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     return SBOMDetailResponse(
         id=sbom.id,
         project_id=sbom.project_id,
+        service_id=sbom.service_id,
+        service_name=sbom.service_name,
         version=sbom.version,
         format=sbom.format,
         sha256=sbom.sha256,

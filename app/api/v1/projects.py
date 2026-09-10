@@ -5,6 +5,7 @@ from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer, joinedload
 
 from api.constants import API_V1_PREFIX
 from api.v1.schemas import (
@@ -112,7 +113,12 @@ async def project_history(
     if not project.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Project not found")
 
-    query = select(SBOM).where(SBOM.project_id == project_id).order_by(SBOM.created_at.desc())
+    query = (
+        select(SBOM)
+        .options(joinedload(SBOM.service), defer(SBOM.raw_sbom))
+        .where(SBOM.project_id == project_id)
+        .order_by(SBOM.created_at.desc())
+    )
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
     return PageResponse[ProjectSBOMHistoryItem](
         items=[ProjectSBOMHistoryItem.model_validate(sbom) for sbom in pg.items],
