@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import select
 
 from models.project import Project
 from models.sbom import SBOM, Dependency, SBOMFormat
@@ -221,3 +222,90 @@ async def test_vulnerabilities_page_service_label_excludes_fixed(client, db_sess
     vuln_row = next(row for row in resp.text.split("<tr") if "CVE-2026-4002" in row)
     assert "svc-a" in vuln_row
     assert "svc-b" not in vuln_row
+
+
+# ── Acceptances (status filter) ──
+
+
+async def _accept(client, pid: str, vuln: Vulnerability, **extra) -> None:
+    payload = {"project_id": pid, "vulnerability_id": str(vuln.id), "reason": "accepted risk"}
+    payload.update(extra)
+    resp = await client.post("/api/v1/vulnerabilities/acceptances", json=payload)
+    assert resp.status_code == 201, resp.text
+
+
+@pytest.mark.asyncio
+async def test_vulnerabilities_accepted_view(client, db_session):
+    proj = await client.post("/api/v1/projects", json={"name": "accepted-view"})
+    pid = proj.json()["id"]
+    sbom_id = await _upload(client, pid, "a", "1.0", service_name="svc")
+    await _add_vuln(db_session, sbom_id, "CVE-2026-5001")
+    vuln = (
+        await db_session.execute(
+            select(Vulnerability).where(Vulnerability.cve_id == "CVE-2026-5001")
+        )
+    ).scalar_one()
+
+    active = await client.get("/vulnerabilities")
+    assert "CVE-2026-5001" in active.text
+    accepted = await client.get("/vulnerabilities?status=accepted")
+    assert "CVE-2026-5001" not in accepted.text
+    assert "No accepted vulnerabilities" in accepted.text
+
+    await _accept(client, pid, vuln, reason="wont fix now")
+
+    active = await client.get("/vulnerabilities")
+    assert "CVE-2026-5001" not in active.text
+    accepted = await client.get("/vulnerabilities?status=accepted")
+    assert "CVE-2026-5001" in accepted.text
+    assert "wont fix now" in accepted.text
+    assert "Whole project" in accepted.text
+
+
+@pytest.mark.asyncio
+async def test_vulnerabilities_accepted_filters_and_pagination(client, db_session):
+    proj = await client.post("/api/v1/projects", json={"name": "accepted-filters"})
+    pid = proj.json()["id"]
+    sbom_id = await _upload(client, pid, "a", "1.0", service_name="svc")
+    await _add_vuln(db_session, sbom_id, "CVE-2026-5002")
+    svc_id = await _service_id(client, pid)
+    vuln = (
+        await db_session.execute(
+            select(Vulnerability).where(Vulnerability.cve_id == "CVE-2026-5002")
+        )
+    ).scalar_one()
+    await _accept(client, pid, vuln, service_id=svc_id)
+
+    for url in (
+        f"/vulnerabilities?status=accepted&project_id={pid}",
+        f"/vulnerabilities?status=accepted&service_id={svc_id}",
+        "/vulnerabilities?status=accepted&severity=high",
+        "/vulnerabilities?status=accepted&cve_id=CVE-2026-5002",
+    ):
+        resp = await client.get(url)
+        assert resp.status_code == 200
+        assert "CVE-2026-5002" in resp.text
+
+    resp = await client.get("/vulnerabilities?status=accepted&severity=critical")
+    assert "CVE-2026-5002" not in resp.text
+
+    resp = await client.get("/vulnerabilities?status=accepted&page=2&per_page=1")
+    assert resp.status_code == 200
+
+    resp = await client.get("/vulnerabilities?status=accepted", headers={"HX-Request": "true"})
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_vulnerabilities_page_accept_scopes(client, db_session):
+    proj = await client.post("/api/v1/projects", json={"name": "accept-scopes"})
+    pid = proj.json()["id"]
+    sbom_id = await _upload(client, pid, "a", "1.0", service_name="svc")
+    await _add_vuln(db_session, sbom_id, "CVE-2026-5003")
+    svc_id = await _service_id(client, pid)
+
+    resp = await client.get("/vulnerabilities")
+    assert resp.status_code == 200
+    # Each active row embeds the valid accept scopes for the modal.
+    assert "project_name" in resp.text
+    assert svc_id in resp.text

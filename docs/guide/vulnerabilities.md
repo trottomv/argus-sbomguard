@@ -29,10 +29,15 @@ every project** is automatically rescanned by Celery Beat on a configurable inte
 
 Filter by:
 
+- **Status**: Active (default) or Accepted
 - **Severity**: Critical, High, Medium, Low
 - **Project**: Scope to a specific project
 - **Service**: Scope to a specific service/component
 - **Sort**: By CVSS score, severity, or publication date
+
+The **Accepted** view lists every recorded risk acceptance (CVE, severity,
+project, service scope, reason and date) and lets you revert a decision with the
+undo button. Accepted findings never appear in the Active view.
 
 ## Vulnerability States
 
@@ -43,7 +48,8 @@ Filter by:
 
 Open findings are **"actionable"** unless a risk acceptance covers them — an
 accepted vulnerability is excluded from the active list, dashboard/summary
-counts, snapshots and alerting, but stays visible through the acceptances API.
+counts, snapshots and alerting, but stays visible in the UI **Accepted** view
+and through the acceptances API.
 
 ## Exploit likelihood (EPSS)
 
@@ -64,6 +70,11 @@ required) for a vulnerability, scoped like the finding itself:
 - **project scope** (`service_id` omitted): covers every finding of the project,
   including those inside its services;
 - **service scope** (`service_id` set): covers the findings of that service only.
+
+**UI**: open the vulnerability detail modal from the Vulnerabilities list or a
+project detail page and click **Accept**. The modal explains the effect and lets
+you pick the scope (whole project or one of the services where the finding is
+open) and enter a reason. Revert from the **Accepted** view.
 
 ```bash
 # Accept a vulnerability at project scope

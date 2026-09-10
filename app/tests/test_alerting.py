@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import select
 
 from config import settings
+from models.acceptance import RiskAcceptance
 from models.alert import (
     AlertRule,
     Notification,
@@ -168,6 +169,108 @@ async def _make_open_vuln_with_alert(
 
 def _slack_webhook() -> str:
     return "https://hooks.slack.com/services/xxx/yyy/zzz"
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_excludes_accepted_vulnerability(db_session):
+    """A risk acceptance must silence alerts and close the open episode."""
+    vuln, alert = await _make_open_vuln_with_alert(db_session)
+    db_session.add(
+        RiskAcceptance(
+            project_id=alert.project_id,
+            vulnerability_id=vuln.id,
+            reason="accepted risk",
+        )
+    )
+    db_session.add(
+        Notification(
+            alert_rule_id=alert.id,
+            vulnerability_id=vuln.id,
+            channel=NotificationChannel.SLACK,
+            status=NotificationStatus.SENT,
+        )
+    )
+    await db_session.commit()
+
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch("services.alerting.send_slack", new_callable=AsyncMock) as mock_send:
+            await do_check_alerts(db_session)
+    finally:
+        settings.slack_webhook_url = original
+
+    mock_send.assert_not_called()
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].status == NotificationStatus.RESOLVED
+
+
+@pytest.mark.asyncio
+async def test_check_alerts_service_acceptance_keeps_other_services_open(db_session):
+    """A service-scoped acceptance only covers that service's SBOMs."""
+    project = Project(name="scoped-accept")
+    db_session.add(project)
+    await db_session.flush()
+
+    svc_a = Service(project_id=project.id, name="api")
+    svc_b = Service(project_id=project.id, name="worker")
+    db_session.add_all([svc_a, svc_b])
+    await db_session.flush()
+
+    sbom_a = SBOM(project_id=project.id, service_id=svc_a.id, raw_sbom={}, sha256=uuid.uuid4().hex)
+    sbom_b = SBOM(project_id=project.id, service_id=svc_b.id, raw_sbom={}, sha256=uuid.uuid4().hex)
+    db_session.add_all([sbom_a, sbom_b])
+    await db_session.flush()
+
+    vuln = Vulnerability(
+        cve_id="CVE-2026-0199", source="grype", severity=VulnerabilitySeverity.CRITICAL
+    )
+    db_session.add(vuln)
+    await db_session.flush()
+    for sbom in (sbom_a, sbom_b):
+        db_session.add(
+            SBOMVulnerability(
+                sbom_id=sbom.id,
+                dependency_purl="pkg:npm/x@1.0.0",
+                vulnerability_id=vuln.id,
+                status=VulnerabilityStatus.OPEN,
+                detected_at=datetime.now(UTC),
+            )
+        )
+
+    alert = AlertRule(
+        project_id=project.id,
+        severity_threshold=SeverityThreshold.HIGH,
+        notification_type=NotificationChannel.SLACK,
+        enabled=True,
+    )
+    db_session.add(alert)
+    await db_session.flush()
+    db_session.add(
+        RiskAcceptance(
+            project_id=project.id,
+            service_id=svc_a.id,
+            vulnerability_id=vuln.id,
+            reason="api only",
+        )
+    )
+    await db_session.commit()
+
+    original = settings.slack_webhook_url
+    settings.slack_webhook_url = _slack_webhook()
+    try:
+        with patch(
+            "services.alerting.send_slack", new_callable=AsyncMock, return_value=True
+        ) as mock_send:
+            await do_check_alerts(db_session)
+    finally:
+        settings.slack_webhook_url = original
+
+    mock_send.assert_called_once()
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].service_ids == [str(svc_b.id)]
 
 
 @pytest.mark.asyncio

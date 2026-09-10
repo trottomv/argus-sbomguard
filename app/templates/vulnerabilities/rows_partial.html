@@ -7,6 +7,7 @@
     {% set cvss_list = ed.get('cvss') or [] %}
     {% set cvss_vec = cvss_list[0].get('vector') if cvss_list else '' %}
     {% set detail_json = {
+        'vulnerability_id': (vuln.id | string),
         'cve_id': vuln.cve_id,
         'severity': vuln.severity,
         'cvss': (vuln.cvss_score or ''),
@@ -18,7 +19,8 @@
         'dependency': (dep_map.get(vuln.id, []) | join(', ')),
         'urls': urls,
         'affected': (vuln.affected_packages or []),
-        'fixed': fix_versions
+        'fixed': fix_versions,
+        'scopes': (scope_map.get(vuln.id, []))
     } | tojson %}
     <tr class="hover:bg-base-200 cursor-pointer"
         data-detail='{{ detail_json }}'

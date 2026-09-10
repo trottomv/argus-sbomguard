@@ -1,0 +1,62 @@
+{% for vuln in items %}
+    {% set detail_json = {
+        'cve_id': vuln.cve_id,
+        'severity': vuln.severity,
+        'cvss': (vuln.cvss_score or ''),
+        'cvss_vector': vuln.cvss_vector,
+        'epss_score': (vuln.epss_score if vuln.epss_score is not none else ''),
+        'epss_percentile': (vuln.epss_percentile if vuln.epss_percentile is not none else ''),
+        'summary': (vuln.summary or ''),
+        'published': (vuln.created_at | format_dt('%Y-%m-%d', '')),
+        'dependency': '',
+        'urls': vuln.urls,
+        'affected': [],
+        'fixed': [],
+        'accepted': true,
+        'reason': vuln.reason
+    } | tojson %}
+    <tr class="hover:bg-base-200 cursor-pointer"
+        data-detail='{{ detail_json }}'
+        x-on:click="openDetail($event)">
+        <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
+        <td>
+            {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}
+            {% if sev == "critical" %}
+                <span class="badge badge-error">{{ vuln.severity }}</span>
+            {% elif sev == "high" %}
+                <span class="badge badge-warning">{{ vuln.severity }}</span>
+            {% elif sev == "medium" %}
+                <span class="badge badge-info">{{ vuln.severity }}</span>
+            {% elif sev == "low" %}
+                <span class="badge"
+                      style="background:#585b70;
+                             color:#cdd6f4;
+                             border-color:#585b70">{{ vuln.severity }}</span>
+            {% else %}
+                <span class="badge badge-ghost">{{ vuln.severity }}</span>
+            {% endif %}
+        </td>
+        <td>
+            <span class="badge badge-outline badge-sm">{{ vuln.project_name }}</span>
+        </td>
+        <td>
+            {% if vuln.service_name %}
+                <span class="badge badge-ghost badge-sm">{{ vuln.service_name }}</span>
+            {% else %}
+                <span class="badge badge-ghost badge-sm">Whole project</span>
+            {% endif %}
+        </td>
+        <td class="max-w-xs truncate text-sm" title="{{ vuln.reason }}">{{ vuln.reason }}</td>
+        <td class="text-sm">{{ vuln.created_at | format_dt("%Y-%m-%d %H:%M") }}</td>
+        <td>
+            <button class="btn btn-ghost btn-sm text-primary"
+                    @click.stop="revertAcceptance('{{ vuln.acceptance_id }}', $event)"
+                    title="Revert acceptance">
+                <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                    <use href="#icon-undo-2"></use>
+                </svg>
+            </button>
+        </td>
+    </tr>
+{% endfor %}
+<div id="load-more-vuln-section" hx-swap-oob="true">{% include "partials/load_more.html" with context %}</div>

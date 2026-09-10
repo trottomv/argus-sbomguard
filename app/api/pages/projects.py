@@ -28,7 +28,10 @@ router = APIRouter(tags=["projects"], include_in_schema=False)
 
 
 async def _get_project_vulns(
-    db: AsyncSession, project_id: uuid.UUID, service_id: str | None = None
+    db: AsyncSession,
+    project_id: uuid.UUID,
+    service_id: str | None = None,
+    project_name: str = "",
 ) -> list[dict]:
     id_q = select(SBOM.id, SBOM.service_id, SBOM.created_at).where(SBOM.project_id == project_id)
     if service_id and service_id != "":
@@ -36,6 +39,7 @@ async def _get_project_vulns(
     all_ids_q = await db.execute(id_q)
     latest_map: dict[str, tuple] = {}
     sbom_to_svc: dict = {}
+    sbom_to_svc_id: dict = {}
     for sbom_id, svc_id, created_at in all_ids_q:
         key = str(svc_id) if svc_id else "__no_service__"
         if key not in latest_map or created_at > latest_map[key][1]:
@@ -46,13 +50,14 @@ async def _get_project_vulns(
         return []
 
     svc_rows = await db.execute(
-        select(SBOM.id, Service.name)
+        select(SBOM.id, Service.name, Service.id)
         .outerjoin(Service, SBOM.service_id == Service.id)
         .where(SBOM.id.in_(latest_sbom_ids))
     )
-    for sbom_id, service_name in svc_rows:
+    for sbom_id, service_name, service_pk in svc_rows:
         if service_name:
             sbom_to_svc[sbom_id] = service_name
+            sbom_to_svc_id[sbom_id] = service_pk
 
     vuln_rows = await db.execute(
         select(
@@ -60,6 +65,7 @@ async def _get_project_vulns(
             SBOMVulnerability.dependency_purl,
             Dependency.name,
             Dependency.version,
+            Vulnerability.id.label("vulnerability_id"),
             Vulnerability.cve_id,
             Vulnerability.severity,
             Vulnerability.cvss_score,
@@ -85,8 +91,30 @@ async def _get_project_vulns(
     )
 
     seen = set()
+    scopes_by_cve: dict[str, dict[str, dict]] = {}
     result: list[dict] = []
     for row in vuln_rows:
+        bucket = scopes_by_cve.setdefault(row.cve_id, {})
+        # A project-level acceptance covers every service, so it is always a
+        # valid scope even when the finding is only present in a service SBOM.
+        bucket.setdefault(
+            "",
+            {
+                "project_id": str(project_id),
+                "project_name": project_name,
+                "service_id": "",
+                "service_name": "",
+            },
+        )
+        svc_id = sbom_to_svc_id.get(row.sbom_id)
+        if svc_id:
+            bucket[str(svc_id)] = {
+                "project_id": str(project_id),
+                "project_name": project_name,
+                "service_id": str(svc_id),
+                "service_name": sbom_to_svc.get(row.sbom_id, ""),
+            }
+
         if row.cve_id in seen:
             continue
         seen.add(row.cve_id)
@@ -100,6 +128,7 @@ async def _get_project_vulns(
 
         result.append(
             {
+                "vulnerability_id": str(row.vulnerability_id),
                 "cve_id": row.cve_id,
                 "severity": row.severity,
                 "cvss_score": row.cvss_score,
@@ -114,6 +143,12 @@ async def _get_project_vulns(
                 "urls": urls,
                 "fix_versions": fix_versions,
             }
+        )
+
+    for entry in result:
+        entry["scopes"] = sorted(
+            scopes_by_cve.get(entry["cve_id"], {}).values(),
+            key=lambda s: (s["service_name"] != "", s["service_name"]),
         )
     return result
 
@@ -275,7 +310,7 @@ async def project_detail_page(
         for sbom_id, count in fixed_rows:
             fixed_by_sbom[sbom_id] = count
 
-    project_vulns_all = await _get_project_vulns(db, project_id, service_id)
+    project_vulns_all = await _get_project_vulns(db, project_id, service_id, project.name)
     project_vuln_per_page = PROJECT_VULN_PER_PAGE
     project_vuln_total = len(project_vulns_all)
     project_vuln_has_more = project_vuln_total > project_vuln_per_page
@@ -400,10 +435,11 @@ async def project_vulns_page(
     service_id: str = Query(None),
 ):
     result = await db.execute(select(Project).where(Project.id == project_id))
-    if not result.scalar_one_or_none():
+    project = result.scalar_one_or_none()
+    if not project:
         return HTMLResponse("", status_code=404)
 
-    all_vulns = await _get_project_vulns(db, project_id, service_id)
+    all_vulns = await _get_project_vulns(db, project_id, service_id, project.name)
     total = len(all_vulns)
     offset = (page - 1) * per_page
     items = all_vulns[offset : offset + per_page]

@@ -287,3 +287,17 @@ async def test_project_vulns_page(client, db_session):
 
     resp = await client.get(f"/projects/{pid}/vulns?page=2&per_page=1")
     assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_project_detail_vuln_accept_scopes(client, db_session):
+    proj = await client.post("/api/v1/projects", json={"name": "detail-scopes"})
+    pid = proj.json()["id"]
+    sbom_id = await _upload(client, pid, "a", "1.0", service_name="svc")
+    await _add_vuln(db_session, sbom_id, "CVE-2026-5004")
+
+    resp = await client.get(f"/projects/{pid}")
+    assert resp.status_code == 200
+    assert "CVE-2026-5004" in resp.text
+    # The row embeds the valid accept scopes for the modal.
+    assert "project_name" in resp.text

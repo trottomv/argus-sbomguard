@@ -4,7 +4,7 @@
     {% set active = active_sort == column %}
     <a href="#"
        class="inline-flex items-center gap-1"
-       hx-get="/vulnerabilities?severity={{ active_severity }}&project_id={{ active_project_id }}&service_id={{ active_service_id }}&cve_id={{ active_cve }}&sort={{ column }}&order={{ new_order }}&page=1&per_page={{ per_page }}"
+       hx-get="/vulnerabilities?severity={{ active_severity }}&project_id={{ active_project_id }}&service_id={{ active_service_id }}&cve_id={{ active_cve }}&status={{ active_status }}&sort={{ column }}&order={{ new_order }}&page=1&per_page={{ per_page }}"
        hx-target="#vuln-page"
        hx-swap="outerHTML">
         <span>{{ label }}</span>
@@ -31,11 +31,12 @@
      data-project="{{ active_project_id }}"
      data-service="{{ active_service_id }}"
      data-cve="{{ active_cve }}"
+     data-status="{{ active_status }}"
      data-reload-params="sort={{ active_sort }}&amp;order={{ active_order }}&amp;page=1&amp;per_page={{ per_page }}">
     <div class="flex flex-col gap-3">
-        <h1 class="text-2xl font-bold">Active Vulnerabilities</h1>
+        <h1 class="text-2xl font-bold">Vulnerabilities</h1>
         <form class="flex w-full max-w-lg"
-              hx-get="/vulnerabilities?severity={{ active_severity }}&project_id={{ active_project_id }}&service_id={{ active_service_id }}&sort={{ active_sort }}&order={{ active_order }}&per_page={{ per_page }}"
+              hx-get="/vulnerabilities?severity={{ active_severity }}&project_id={{ active_project_id }}&service_id={{ active_service_id }}&status={{ active_status }}&sort={{ active_sort }}&order={{ active_order }}&per_page={{ per_page }}"
               hx-target="#vuln-page"
               hx-swap="outerHTML">
             <input class="input input-bordered flex-1 min-w-0 rounded-r-none"
@@ -55,6 +56,13 @@
             </button>
         </form>
         <div class="flex flex-wrap items-center gap-2">
+            <select class="select select-bordered"
+                    x-model="status"
+                    @change="reloadFilters()"
+                    aria-label="Vulnerability status">
+                <option value="active">Active</option>
+                <option value="accepted">Accepted</option>
+            </select>
             <select class="select select-bordered"
                     x-model="severity"
                     @change="reloadFilters()">
@@ -93,98 +101,188 @@
         </div>
     </div>
     {% include "partials/vuln_detail_modal.html" %}
+    {% include "partials/accept_modal.html" %}
     <div class="rounded-xl bg-ctp-mantle border border-ctp-surface0 p-6">
         <div class="p-0">
             <div class="overflow-x-auto">
-                <table class="table table-zebra">
-                    <thead>
-                        <tr>
-                            <th>CVE</th>
-                            <th>{{ sort_link('Severity', 'severity') }}</th>
-                            <th>{{ sort_link('CVSS', 'cvss_score') }}</th>
-                            <th>{{ sort_link('EPSS', 'epss_score') }}</th>
-                            <th>Library</th>
-                            <th>Fixed version</th>
-                            <th>Projects</th>
-                            <th>Service</th>
-                            <th>Source</th>
-                            <th>{{ sort_link('Published at', 'published_at') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody id="vuln-tbody">
-                        {% for vuln in items %}
-                            {% set ed = vuln.extra_data or {} %}
-                            {% set fix_avail = (ed.get('fix') or {}).get('available') or [] %}
-                            {% set fix_versions = (ed.get('fix') or {}).get('versions') or [] %}
-                            {% set urls = ed.get('urls') or [] %}
-                            {% set cvss_list = ed.get('cvss') or [] %}
-                            {% set cvss_vec = cvss_list[0].get('vector') if cvss_list else '' %}
-                            {% set detail_json = {
-                                'cve_id': vuln.cve_id,
-                                'severity': vuln.severity,
-                                'cvss': (vuln.cvss_score or ''),
-                                'cvss_vector': cvss_vec,
-                                'epss_score': (vuln.epss_score if vuln.epss_score is not none else ''),
-                                'epss_percentile': (vuln.epss_percentile if vuln.epss_percentile is not none else ''),
-                                'summary': (vuln.summary or ''),
-                                'published': (vuln.published_at | format_dt('%Y-%m-%d', '')),
-                                'dependency': (dep_map.get(vuln.id, []) | join(', ')),
-                                'urls': urls,
-                                'affected': (vuln.affected_packages or []),
-                                'fixed': fix_versions
-                            } | tojson %}
-                            <tr class="hover:bg-base-200 cursor-pointer"
-                                data-detail='{{ detail_json }}'
-                                x-on:click="openDetail($event)">
-                                <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
-                                <td>
-                                    {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}
-                                    {% if sev == "critical" %}
-                                        <span class="badge badge-error">{{ vuln.severity }}</span>
-                                    {% elif sev == "high" %}
-                                        <span class="badge badge-warning">{{ vuln.severity }}</span>
-                                    {% elif sev == "medium" %}
-                                        <span class="badge badge-info">{{ vuln.severity }}</span>
-                                    {% elif sev == "low" %}
-                                        <span class="badge"
-                                              style="background:#585b70;
-                                                     color:#cdd6f4;
-                                                     border-color:#585b70">{{ vuln.severity }}</span>
-                                    {% else %}
-                                        <span class="badge badge-ghost">{{ vuln.severity }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ vuln.cvss_score or "-" }}</td>
-                                <td>{{ epss.epss_cell(vuln) }}</td>
-                                <td class="max-w-xs truncate font-mono text-xs">{{ dep_map.get(vuln.id, []) | join(', ') or "-" }}</td>
-                                <td class="text-sm">{{ fix_versions | join(", ") or "-" }}</td>
-                                <td>
-                                    <div class="flex flex-wrap gap-1">
-                                        {% for project_name in project_map.get(vuln.id, []) %}
-                                            <span class="badge badge-outline badge-xs">{{ project_name }}</span>
-                                        {% endfor %}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="flex flex-wrap gap-1">
-                                        {% for service_name in service_map.get(vuln.id, []) %}
-                                            <span class="badge badge-ghost badge-xs">{{ service_name }}</span>
-                                        {% endfor %}
-                                    </div>
-                                </td>
-                                <td><span class="badge badge-outline badge-sm">{{ vuln.source or "unknown" }}</span></td>
-                                <td class="text-sm">{{ vuln.published_at | format_dt("%Y-%m-%d") }}</td>
-                            </tr>
-                        {% else %}
+                {% if active_status == "accepted" %}
+                    <table class="table table-zebra">
+                        <thead>
                             <tr>
-                                <td colspan="10" class="text-center opacity-60 py-12">
-                                    <p class="text-lg">No vulnerabilities detected</p>
-                                    <p class="text-sm">Upload an SBOM to start scanning</p>
-                                </td>
+                                <th>CVE</th>
+                                <th>Severity</th>
+                                <th>Project</th>
+                                <th>Service</th>
+                                <th>Reason</th>
+                                <th>Accepted at</th>
+                                <th></th>
                             </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody id="vuln-tbody">
+                            {% for vuln in items %}
+                                {% set detail_json = {
+                                    'cve_id': vuln.cve_id,
+                                    'severity': vuln.severity,
+                                    'cvss': (vuln.cvss_score or ''),
+                                    'cvss_vector': vuln.cvss_vector,
+                                    'epss_score': (vuln.epss_score if vuln.epss_score is not none else ''),
+                                    'epss_percentile': (vuln.epss_percentile if vuln.epss_percentile is not none else ''),
+                                    'summary': (vuln.summary or ''),
+                                    'published': (vuln.created_at | format_dt('%Y-%m-%d', '')),
+                                    'dependency': '',
+                                    'urls': vuln.urls,
+                                    'affected': [],
+                                    'fixed': [],
+                                    'accepted': true,
+                                    'reason': vuln.reason
+                                } | tojson %}
+                                <tr class="hover:bg-base-200 cursor-pointer"
+                                    data-detail='{{ detail_json }}'
+                                    x-on:click="openDetail($event)">
+                                    <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
+                                    <td>
+                                        {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}
+                                        {% if sev == "critical" %}
+                                            <span class="badge badge-error">{{ vuln.severity }}</span>
+                                        {% elif sev == "high" %}
+                                            <span class="badge badge-warning">{{ vuln.severity }}</span>
+                                        {% elif sev == "medium" %}
+                                            <span class="badge badge-info">{{ vuln.severity }}</span>
+                                        {% elif sev == "low" %}
+                                            <span class="badge"
+                                                  style="background:#585b70;
+                                                         color:#cdd6f4;
+                                                         border-color:#585b70">{{ vuln.severity }}</span>
+                                        {% else %}
+                                            <span class="badge badge-ghost">{{ vuln.severity }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-outline badge-sm">{{ vuln.project_name }}</span>
+                                    </td>
+                                    <td>
+                                        {% if vuln.service_name %}
+                                            <span class="badge badge-ghost badge-sm">{{ vuln.service_name }}</span>
+                                        {% else %}
+                                            <span class="badge badge-ghost badge-sm">Whole project</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="max-w-xs truncate text-sm"
+                                        title="{{ vuln.reason }}">{{ vuln.reason }}</td>
+                                    <td class="text-sm">{{ vuln.created_at | format_dt("%Y-%m-%d %H:%M") }}</td>
+                                    <td>
+                                        <button class="btn btn-ghost btn-sm text-primary"
+                                                @click.stop="revertAcceptance('{{ vuln.acceptance_id }}', $event)"
+                                                title="Revert acceptance">
+                                            <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                                                <use href="#icon-undo-2"></use>
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center opacity-60 py-12">
+                                        <p class="text-lg">No accepted vulnerabilities</p>
+                                        <p class="text-sm">Accepted risks will show up here</p>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <table class="table table-zebra">
+                        <thead>
+                            <tr>
+                                <th>CVE</th>
+                                <th>{{ sort_link('Severity', 'severity') }}</th>
+                                <th>{{ sort_link('CVSS', 'cvss_score') }}</th>
+                                <th>{{ sort_link('EPSS', 'epss_score') }}</th>
+                                <th>Library</th>
+                                <th>Fixed version</th>
+                                <th>Projects</th>
+                                <th>Service</th>
+                                <th>Source</th>
+                                <th>{{ sort_link('Published at', 'published_at') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vuln-tbody">
+                            {% for vuln in items %}
+                                {% set ed = vuln.extra_data or {} %}
+                                {% set fix_avail = (ed.get('fix') or {}).get('available') or [] %}
+                                {% set fix_versions = (ed.get('fix') or {}).get('versions') or [] %}
+                                {% set urls = ed.get('urls') or [] %}
+                                {% set cvss_list = ed.get('cvss') or [] %}
+                                {% set cvss_vec = cvss_list[0].get('vector') if cvss_list else '' %}
+                                {% set detail_json = {
+                                    'vulnerability_id': (vuln.id | string),
+                                    'cve_id': vuln.cve_id,
+                                    'severity': vuln.severity,
+                                    'cvss': (vuln.cvss_score or ''),
+                                    'cvss_vector': cvss_vec,
+                                    'epss_score': (vuln.epss_score if vuln.epss_score is not none else ''),
+                                    'epss_percentile': (vuln.epss_percentile if vuln.epss_percentile is not none else ''),
+                                    'summary': (vuln.summary or ''),
+                                    'published': (vuln.published_at | format_dt('%Y-%m-%d', '')),
+                                    'dependency': (dep_map.get(vuln.id, []) | join(', ')),
+                                    'urls': urls,
+                                    'affected': (vuln.affected_packages or []),
+                                    'fixed': fix_versions,
+                                    'scopes': (scope_map.get(vuln.id, []))
+                                } | tojson %}
+                                <tr class="hover:bg-base-200 cursor-pointer"
+                                    data-detail='{{ detail_json }}'
+                                    x-on:click="openDetail($event)">
+                                    <td><code class="text-sm font-mono">{{ vuln.cve_id }}</code></td>
+                                    <td>
+                                        {% set sev = vuln.severity.lower() if vuln.severity else "unknown" %}
+                                        {% if sev == "critical" %}
+                                            <span class="badge badge-error">{{ vuln.severity }}</span>
+                                        {% elif sev == "high" %}
+                                            <span class="badge badge-warning">{{ vuln.severity }}</span>
+                                        {% elif sev == "medium" %}
+                                            <span class="badge badge-info">{{ vuln.severity }}</span>
+                                        {% elif sev == "low" %}
+                                            <span class="badge"
+                                                  style="background:#585b70;
+                                                         color:#cdd6f4;
+                                                         border-color:#585b70">{{ vuln.severity }}</span>
+                                        {% else %}
+                                            <span class="badge badge-ghost">{{ vuln.severity }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ vuln.cvss_score or "-" }}</td>
+                                    <td>{{ epss.epss_cell(vuln) }}</td>
+                                    <td class="max-w-xs truncate font-mono text-xs">{{ dep_map.get(vuln.id, []) | join(', ') or "-" }}</td>
+                                    <td class="text-sm">{{ fix_versions | join(", ") or "-" }}</td>
+                                    <td>
+                                        <div class="flex flex-wrap gap-1">
+                                            {% for project_name in project_map.get(vuln.id, []) %}
+                                                <span class="badge badge-outline badge-xs">{{ project_name }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="flex flex-wrap gap-1">
+                                            {% for service_name in service_map.get(vuln.id, []) %}
+                                                <span class="badge badge-ghost badge-xs">{{ service_name }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td><span class="badge badge-outline badge-sm">{{ vuln.source or "unknown" }}</span></td>
+                                    <td class="text-sm">{{ vuln.published_at | format_dt("%Y-%m-%d") }}</td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="10" class="text-center opacity-60 py-12">
+                                        <p class="text-lg">No vulnerabilities detected</p>
+                                        <p class="text-sm">Upload an SBOM to start scanning</p>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
             </div>
         </div>
         <div id="load-more-vuln-section">{% include "partials/load_more.html" with context %}</div>

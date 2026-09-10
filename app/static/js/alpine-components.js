@@ -8,12 +8,20 @@
                 project: '',
                 service: '',
                 cve: '',
-                detail: { cve_id: '', severity: '', cvss: '', cvss_vector: '', summary: '', published: '', urls: [], affected: [], fixed: [] },
+                status: 'active',
+                acceptVulnId: '',
+                acceptCve: '',
+                acceptScopes: [],
+                acceptScope: '',
+                acceptReason: '',
+                acceptError: '',
+                detail: { vulnerability_id: '', cve_id: '', severity: '', cvss: '', cvss_vector: '', epss_score: '', epss_percentile: '', summary: '', published: '', dependency: '', urls: [], affected: [], fixed: [], scopes: [], accepted: false },
                 init() {
                     this.severity = this.$el.dataset.severity || '';
                     this.project = this.$el.dataset.project || '';
                     this.service = this.$el.dataset.service || '';
                     this.cve = this.$el.dataset.cve || '';
+                    this.status = this.$el.dataset.status || 'active';
                     this.reloadParams = this.$el.dataset.reloadParams || '';
                 },
                 get filtersActive() {
@@ -23,8 +31,51 @@
                     this.detail = JSON.parse(event.currentTarget.getAttribute('data-detail'));
                     document.getElementById('detail_modal').showModal();
                 },
+                openAccept() {
+                    var d = this.detail || {};
+                    if (!d.vulnerability_id || !d.scopes || !d.scopes.length) return;
+                    this.acceptVulnId = d.vulnerability_id;
+                    this.acceptCve = d.cve_id || '';
+                    this.acceptScopes = d.scopes;
+                    this.acceptScope = d.scopes[0].project_id + '::' + (d.scopes[0].service_id || '');
+                    this.acceptReason = '';
+                    this.acceptError = '';
+                    var detailModal = document.getElementById('detail_modal');
+                    if (detailModal && detailModal.open) detailModal.close();
+                    document.getElementById('accept_modal').showModal();
+                },
+                submitAccept() {
+                    var self = this;
+                    this.acceptError = '';
+                    var parts = this.acceptScope.split('::');
+                    var payload = { vulnerability_id: this.acceptVulnId, project_id: parts[0], reason: this.acceptReason };
+                    if (parts[1]) payload.service_id = parts[1];
+                    fetch('/api/v1/vulnerabilities/acceptances', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    }).then(function (r) {
+                        if (r.ok) { window.location.reload(); return; }
+                        return r.json().then(function (j) {
+                            self.acceptError = j.detail || 'Failed to accept vulnerability';
+                        }).catch(function () { self.acceptError = 'Failed to accept vulnerability'; });
+                    }).catch(function () { self.acceptError = 'Network error'; });
+                },
+                revertAcceptance(id, event) {
+                    var row = event && event.currentTarget ? event.currentTarget.closest('tr') : null;
+                    fetch('/api/v1/vulnerabilities/acceptances/' + id, { method: 'DELETE' }).then(function (r) {
+                        if (!r.ok) return;
+                        if (!row) {
+                            window.location.reload();
+                            return;
+                        }
+                        row.remove();
+                        var tbody = document.getElementById('vuln-tbody');
+                        if (tbody && tbody.querySelectorAll('tr').length === 0) window.location.reload();
+                    });
+                },
                 reloadFilters() {
-                    htmx.ajax('GET', '/vulnerabilities?severity=' + encodeURIComponent(this.severity) + '&project_id=' + encodeURIComponent(this.project) + '&service_id=' + encodeURIComponent(this.service) + '&cve_id=' + encodeURIComponent(this.cve) + '&' + this.reloadParams, { target: '#vuln-page', swap: 'outerHTML' });
+                    htmx.ajax('GET', '/vulnerabilities?severity=' + encodeURIComponent(this.severity) + '&project_id=' + encodeURIComponent(this.project) + '&service_id=' + encodeURIComponent(this.service) + '&cve_id=' + encodeURIComponent(this.cve) + '&status=' + encodeURIComponent(this.status) + '&' + this.reloadParams, { target: '#vuln-page', swap: 'outerHTML' });
                 },
                 clearFilters() {
                     this.severity = '';
@@ -138,7 +189,13 @@
                 svcDelName: '',
                 svcError: '',
                 projectId: '',
-                detail: { cve_id: '', severity: '', cvss: '', cvss_vector: '', summary: '', published: '', urls: [], affected: [], fixed: [], dependency: '' },
+                acceptVulnId: '',
+                acceptCve: '',
+                acceptScopes: [],
+                acceptScope: '',
+                acceptReason: '',
+                acceptError: '',
+                detail: { vulnerability_id: '', cve_id: '', severity: '', cvss: '', cvss_vector: '', summary: '', published: '', urls: [], affected: [], fixed: [], dependency: '', scopes: [], accepted: false },
                 init() {
                     this.projectId = this.$el.dataset.projectId || '';
                 },
@@ -151,6 +208,36 @@
                 openDetail(event) {
                     this.detail = JSON.parse(event.currentTarget.getAttribute('data-detail'));
                     document.getElementById('detail_modal').showModal();
+                },
+                openAccept() {
+                    var d = this.detail || {};
+                    if (!d.vulnerability_id || !d.scopes || !d.scopes.length) return;
+                    this.acceptVulnId = d.vulnerability_id;
+                    this.acceptCve = d.cve_id || '';
+                    this.acceptScopes = d.scopes;
+                    this.acceptScope = d.scopes[0].project_id + '::' + (d.scopes[0].service_id || '');
+                    this.acceptReason = '';
+                    this.acceptError = '';
+                    var detailModal = document.getElementById('detail_modal');
+                    if (detailModal && detailModal.open) detailModal.close();
+                    document.getElementById('accept_modal').showModal();
+                },
+                submitAccept() {
+                    var self = this;
+                    this.acceptError = '';
+                    var parts = this.acceptScope.split('::');
+                    var payload = { vulnerability_id: this.acceptVulnId, project_id: parts[0], reason: this.acceptReason };
+                    if (parts[1]) payload.service_id = parts[1];
+                    fetch('/api/v1/vulnerabilities/acceptances', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    }).then(function (r) {
+                        if (r.ok) { window.location.reload(); return; }
+                        return r.json().then(function (j) {
+                            self.acceptError = j.detail || 'Failed to accept vulnerability';
+                        }).catch(function () { self.acceptError = 'Failed to accept vulnerability'; });
+                    }).catch(function () { self.acceptError = 'Network error'; });
                 },
                 openDeleteSbom(id, ver) {
                     this.sbomDelId = id;
