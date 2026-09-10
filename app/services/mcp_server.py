@@ -265,7 +265,9 @@ async def list_sboms(
 async def get_sbom(sbom_id: str) -> SbomDetail:
     """Get SBOM metadata and vulnerability counts (no dependency/vulnerability lists).
 
-    Use ``get_sbom_dependencies`` / ``get_sbom_vulnerabilities`` for the paginated lists.
+    Counts exclude findings covered by a risk acceptance (actionable only; see
+    ``list_risk_acceptances``). Use ``get_sbom_dependencies`` /
+    ``get_sbom_vulnerabilities`` for the paginated lists.
     """
     async with async_session_factory() as db:
         sbom = await _load_sbom(db, sbom_id)
@@ -285,7 +287,9 @@ async def get_sbom(sbom_id: str) -> SbomDetail:
             await db.execute(
                 select(Vulnerability.severity, SBOMVulnerability.status, func.count())
                 .join(SBOMVulnerability, SBOMVulnerability.vulnerability_id == Vulnerability.id)
+                .join(SBOM, SBOM.id == SBOMVulnerability.sbom_id)
                 .where(SBOMVulnerability.sbom_id == sbom.id)
+                .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
                 .group_by(Vulnerability.severity, SBOMVulnerability.status)
             )
         ).all()
@@ -371,7 +375,10 @@ async def get_sbom_vulnerabilities(
     status: str | None = None,
     severity: str | None = None,
 ) -> SbomVulnerabilitiesPage:
-    """List an SBOM's vulnerabilities, paginated, with optional status/severity filters."""
+    """List an SBOM's vulnerabilities, paginated, with optional status/severity filters.
+
+    Findings covered by a risk acceptance are excluded (see ``list_risk_acceptances``).
+    """
     _validate_page(offset, limit)
     async with async_session_factory() as db:
         sbom = await _load_sbom(db, sbom_id)
@@ -379,7 +386,9 @@ async def get_sbom_vulnerabilities(
         base = (
             select(Vulnerability, SBOMVulnerability)
             .join(SBOMVulnerability, SBOMVulnerability.vulnerability_id == Vulnerability.id)
+            .join(SBOM, SBOM.id == SBOMVulnerability.sbom_id)
             .where(SBOMVulnerability.sbom_id == sbom.id)
+            .where(~covered_by_acceptance(SBOMVulnerability, SBOM))
         )
         if status is not None:
             base = base.where(func.lower(SBOMVulnerability.status) == status.lower())
@@ -388,7 +397,11 @@ async def get_sbom_vulnerabilities(
 
         total = await _count(db, base)
         rows = (
-            await db.execute(base.order_by(Vulnerability.cve_id).offset(offset).limit(limit + 1))
+            await db.execute(
+                base.order_by(Vulnerability.cve_id, SBOMVulnerability.dependency_purl)
+                .offset(offset)
+                .limit(limit + 1)
+            )
         ).all()
 
     vulnerabilities = [

@@ -934,6 +934,32 @@ async def test_list_risk_acceptances_empty(db_session, monkeypatch):
     }
 
 
+@pytest.mark.asyncio
+async def test_sbom_tools_exclude_accepted_findings(db_session, monkeypatch):
+    project = await _seed_project(db_session)
+    sbom, service, vuln = await _seed_sbom(db_session, project)
+    db_session.add(
+        RiskAcceptance(
+            project_id=project.id,
+            service_id=service.id,
+            vulnerability_id=vuln.id,
+            reason="accepted",
+        )
+    )
+    await db_session.commit()
+
+    detail = await _call_tool(db_session, monkeypatch, "get_sbom", {"sbom_id": str(sbom.id)})
+    assert detail["vulnerability_counts"]["total"] == 0
+    assert detail["open_count"] == 0
+    assert detail["fixed_count"] == 0
+
+    vulns = await _call_tool(
+        db_session, monkeypatch, "get_sbom_vulnerabilities", {"sbom_id": str(sbom.id)}
+    )
+    assert vulns["total"] == 0
+    assert vulns["vulnerabilities"] == []
+
+
 # --------------------------------------------------------------------------- #
 # MCP auth middleware
 # --------------------------------------------------------------------------- #
