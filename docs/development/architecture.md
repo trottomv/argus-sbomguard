@@ -10,6 +10,7 @@ Software Bill of Materials (SBOMs) and tracking vulnerabilities.
 | Component | Technology |
 |-----------|------------|
 | Web framework | FastAPI (uvicorn) |
+| Reverse proxy | Caddy + Coraza WAF (OWASP CRS v4.4.0) |
 | Database | PostgreSQL 18 |
 | DB driver | asyncpg (async) |
 | ORM | SQLAlchemy 2.0 (async session) |
@@ -17,48 +18,91 @@ Software Bill of Materials (SBOMs) and tracking vulnerabilities.
 | Frontend | HTMX + Jinja2 + Alpine.js + DaisyUI 5 + Tailwind CSS v4 |
 | Auth | Passwordless email login + signed cookies |
 | gRPC | grpcio + protobuf |
+| AI agents | Read-only MCP server (`/api/v1/mcp`) |
 | Vuln scanner | Grype CLI + OSV API |
 | Observability | OpenTelemetry Collector (hostmetrics + OTLP) |
 
 ## Service Architecture
 
-```
-┌──────────────────────────────────────────────────┐
-│                     Caddy (prod)                 │
-│                  Reverse Proxy + WAF             │
-└──────────────┬───────────────────────────────────┘
-               │ :443
-┌──────────────▼───────────────────────────────────┐
-│                 FastAPI App :8000                │
-│  ┌─────────┐  ┌─────────┐  ┌──────────────────┐  │
-│  │ Jinja2  │  │ REST    │  │ gRPC    :50051   │  │
-│  │ Pages   │  │ /api/v1 │  │ sbom.proto       │  │
-│  └─────────┘  └─────────┘  └──────────────────┘  │
-│                     │                            │
-│              AuthMiddleware                      │
-│        (cookie + Bearer token)                   │
-└──────────────┬───────────────────────────────────┘
-               │
-    ┌──────────┼──────────┐
-    ▼          ▼          ▼
-┌───────┐ ┌───────┐ ┌──────────┐
-│Postgre│ │Rabbit │ │ Mailpit  │
-│SQL 18 │ │MQ     │ │ (dev)    │
-└───────┘ └───┬───┘ └──────────┘
-              │
-    ┌─────────┼─────────┐
-    ▼         ▼         ▼
-┌────────┐ ┌──────┐ ┌───────────┐
-│Worker  │ │Worker│ │Scheduler  │
-│(Celery)│ │      │ │(Celery    │
-│        │ │      │ │ Beat)     │
-└────────┘ └──────┘ └───────────┘
+```mermaid
+flowchart TB
+    client(["Client<br/>browser · REST · gRPC · AI agent"])
+
+    proxy["Reverse Proxy<br/>Caddy + Coraza WAF<br/>TLS · rate limiting · OWASP CRS v4.4.0"]
+
+    subgraph observability["Observability"]
+        direction TB
+        otel["OTel Collector<br/>hostmetrics<br/>OTLP :4318 · /metrics :9464"]
+        jaeger["Jaeger (optional) / <br/>external OTLP backend"]
+        otel -->|OTLP| jaeger
+    end
+
+    subgraph smtp["SMTP / Email"]
+        direction TB
+        mail["Mailpit (dev)"]
+    end
+
+    subgraph app["FastAPI App"]
+        direction TB
+        auth["Authentication<br/>session cookie · Bearer API key"]
+        pages["Jinja2 + HTMX web pages"]
+        rest["REST API /api/v1"]
+        mcp["MCP server (read-only)<br/>/api/v1/mcp"]
+        grpc["gRPC - sbom.proto"]
+        auth --> pages
+        auth --> rest
+        auth --> mcp
+        auth --> grpc
+    end
+
+    subgraph messaging["Event task queue"]
+        mq["RabbitMQ"]
+        worker["Celery Worker"]
+        beat["Celery Beat (scheduler)"]
+        mq --> worker
+        mq --> beat
+    end
+
+    subgraph data["Database"]
+        pg[("PostgreSQL 18")]
+    end
+
+    client -->|"HTTPS / gRPC"| proxy
+    proxy --> auth
+
+    rest --> mq
+    grpc --> mq
+    worker --> pg
+    beat --> pg
+    app -.-> pg
+    app -.-> otel
+    app -.-> mail
+    mail ~~~ otel
+
 ```
 
-The OTel Collector sits alongside the stack as the observability hub: it scrapes
-`hostmetrics` from the host filesystem (`/hostfs`), exposes `GET /metrics`
-through Caddy, receives optional OTLP traces from the app, and can forward to an
-arbitrary OTLP backend. See [Observability](../guide/observability.md).
+All inbound traffic is authenticated before reaching a handler, against the same
+two credentials: the signed **session cookie** for the web UI and an
+**`Authorization: Bearer` API key** for programmatic access. HTTP requests pass
+through the Starlette middleware stack (`TrustedHost` → `AuthMiddleware`), which
+enforces the session cookie for the HTML pages (redirecting to `/login` when
+missing) while letting `/api/*` through; REST routes then authenticate per
+request via the `api_key_required` dependency (session cookie or Bearer), and the
+MCP endpoint is wrapped in its own `MCPAuthMiddleware` (Bearer only). The gRPC
+server on `:50051` runs in the same app process (started from the FastAPI
+lifespan) but outside the ASGI middleware stack, enforcing the same Bearer API
+key through its own `AuthInterceptor`.
+
+The proxy terminates TLS and splits the traffic: HTTP requests are inspected by
+rate limiting and the OWASP CRS rules before reaching `app:8000`, while gRPC uses
+a dedicated route (`h2c://app:50051`) that bypasses the WAF and rate limiting.
+Both the REST/gRPC APIs and the read-only MCP endpoint for AI agents are served
+by the same FastAPI process. The OTel Collector sits
+alongside the stack as the observability hub: it scrapes `hostmetrics` from the
+host filesystem (`/hostfs`), exposes `GET /metrics` through Caddy, receives
+optional OTLP traces from the app, and can forward to an arbitrary OTLP backend.
+See [Reverse Proxy + WAF](../guide/proxy.md) and
+[Observability](../guide/observability.md).
 
 ## Request Flow
 
