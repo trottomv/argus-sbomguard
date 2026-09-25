@@ -6,21 +6,20 @@ on the **OpenTelemetry Collector**, which acts as the observability hub.
 
 ## Architecture
 
-```
-                     OTLP/HTTP :4318 (optional traces)
-Application ──────────────────────►  ┌──────────────────────────┐
-  (OTel SDK)                         │      OTel Collector      │
-                                     │  ┌────────────────────┐  │
-                                     │  │ hostmetrics (/hostfs)│ │
-                                     │  │ otlp receiver (4318) │ │
-                                     │  │ prometheus exporter  │ │
-                                     │  │ otlphttp forward     │ │
-                                     │  └────────────────────┘  │
-                                     └───────────┬──────────────┘
-GET /metrics (Caddy :443 → :9464) ◄──┘           │  OTEL_FORWARD_ENDPOINT
-                                                 ▼
-                                       Jaeger (optional, behind profile)
-                                       or any OTLP backend
+```mermaid
+flowchart LR
+    app["Application<br/>(OTel SDK)"] -->|"OTLP/HTTP :4318<br/>(optional traces)"| recv
+
+    subgraph otel["OTel Collector"]
+        direction TB
+        host["hostmetrics (/hostfs)"]
+        recv["otlp receiver :4318"]
+        prom["prometheus exporter :9464"]
+        fwd["otlphttp forward"]
+    end
+
+    prometheus["Prometheus"] -->|"GET /metrics<br/>(Caddy :443 → :9464)"| prom
+    fwd -->|"OTEL_FORWARD_ENDPOINT"| backend["Jaeger (optional)<br/>or any OTLP backend"]
 ```
 
 Key facts:
