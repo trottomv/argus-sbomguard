@@ -139,18 +139,31 @@ sequenceDiagram
 
 ## Data Model
 
-14 tables, organized into these domains:
+The data model spans 14 tables:
 
-```
-users ──► api_keys
-users ──► login_tokens
+```mermaid
+flowchart LR
+    users --> api_keys
+    users --> login_tokens
 
-projects ──► services ──► sboms ──► dependencies
-                          sboms ──► sbom_vulnerabilities ◄── vulnerabilities
-projects ──► vulnerability_snapshots
-projects ──► alert_rules ──► notifications
-projects ──► risk_acceptances ◄── vulnerabilities
-projects ──► pull_requests
+    projects --> services
+    projects --> sboms
+    projects --> alert_rules
+    projects --> pull_requests
+    projects --> vulnerability_snapshots
+    projects --> risk_acceptances
+
+    services --> sboms
+    services --> risk_acceptances
+
+    sboms --> dependencies
+    sboms --> sbom_vulnerabilities
+
+    vulnerabilities --> sbom_vulnerabilities
+    vulnerabilities --> risk_acceptances
+    vulnerabilities --> notifications
+
+    alert_rules --> notifications
 ```
 
 ### Key Tables
