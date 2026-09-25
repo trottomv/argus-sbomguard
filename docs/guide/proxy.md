@@ -4,9 +4,11 @@ The `proxy` service sits in front of the FastAPI application, terminating TLS, r
 
 ## Architecture
 
-```
-Client ──:443──→ proxy ──:8000──→ app (FastAPI)
-                 proxy ──:50051──→ app (gRPC h2c)
+```mermaid
+flowchart TB
+    client(["Client"]) -->|":443"| proxy["Caddy + Coraza WAF"]
+    proxy -->|":8000 - HTTP"| app["FastAPI app"]
+    proxy -->|":50051 - gRPC"| app
 ```
 
 - **TLS termination** at the proxy (Let's Encrypt via `LETSENCRYPT_EMAIL`)
