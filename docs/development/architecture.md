@@ -108,39 +108,33 @@ See [Reverse Proxy + WAF](../guide/proxy.md) and
 
 ### SBOM Upload & Scan
 
-```
-Client ──► POST /api/v1/sboms/upload
-               │
-               ▼
-         parse_cyclonedx() / parse_spdx()
-               │
-               ▼
-         store_sbom()  ──► DB (sboms + dependencies)
-               │
-               ▼
-         scan_sbom.delay()  ──► RabbitMQ ──► Celery Worker
-                                                │
-                                                ▼
-                                          scan_with_grype()
-                                                │
-                                                ▼
-                                    DB (vulnerabilities +
-                                    sbom_vulnerabilities)
-                                                │
-                                                ▼
-                                    reconcile_vulnerabilities()
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as API
+    participant D as PostgreSQL
+    participant R as RabbitMQ
+    participant W as Celery Worker
+
+    C->>A: POST /api/v1/sboms/upload
+    A->>D: parse_sbom(spdx | cyclonedx) + store_sbom()
+    A-->>C: Response 200 OK
+    A->>R: scan_sbom.delay()
+    R->>W: tasks.scan_sbom() <br/> scan_with_grype(scheduled=False) <br/> reconcile_vulnerabilities()
+    W->>D: vulnerabilities + sbom_vulnerabilities M2M
 ```
 
 ### Alert Flow
 
-```
-Celery Beat ──► check_alerts()  (periodic)
-                    │
-                    ▼
-              Query: open vulns >= threshold for each enabled alert
-                    │
-                    ▼
-              send_slack() / send_email()
+```mermaid
+sequenceDiagram
+    participant B as Celery Scheduler check_alerts()
+    participant D as PostgreSQL
+    participant N as Notifications
+
+    B->>D: query open vulns >= threshold for each enabled alert
+    D-->>B: matching vulnerabilities
+    B->>N: send_slack() / send_email()
 ```
 
 ## Data Model
