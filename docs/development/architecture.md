@@ -45,14 +45,16 @@ flowchart TB
     subgraph app["FastAPI App"]
         direction TB
         auth["Authentication<br/>session cookie · Bearer API key"]
-        pages["Jinja2 + HTMX web pages"]
-        rest["REST API /api/v1"]
-        mcp["MCP server (read-only)<br/>/api/v1/mcp"]
-        grpc["gRPC - sbom.proto"]
+        pages["Jinja2 + HTMX"]
+        rest["REST /api/v1"]
+        mcp["MCP (read-only)<br/>/api/v1/mcp"]
+        grpc["gRPC sbom.proto"]
         auth --> pages
         auth --> rest
         auth --> mcp
         auth --> grpc
+        pages ~~~ mcp
+        rest ~~~ grpc
     end
 
     subgraph messaging["Event task queue"]
@@ -109,6 +111,7 @@ See [Reverse Proxy + WAF](../guide/proxy.md) and
 ### SBOM Upload & Scan
 
 ```mermaid
+%%{init: {"themeVariables": {"signalColor": "#c9d1d9"}}}%%
 sequenceDiagram
     participant C as Client
     participant A as API
@@ -117,16 +120,17 @@ sequenceDiagram
     participant W as Celery Worker
 
     C->>A: POST /api/v1/sboms/upload
-    A->>D: parse_sbom(spdx | cyclonedx) + store_sbom()
+    A->>D: parse_sbom() + store_sbom()
     A-->>C: Response 200 OK
     A->>R: scan_sbom.delay()
-    R->>W: tasks.scan_sbom() <br/> scan_with_grype(scheduled=False) <br/> reconcile_vulnerabilities()
-    W->>D: vulnerabilities + sbom_vulnerabilities M2M
+    R->>W: tasks.scan_sbom() <br/> scan_with_grype() <br/> reconcile_vulnerabilities()
+    W->>D: vulnerabilities + sbom_vulnerabilities
 ```
 
 ### Alert Flow
 
 ```mermaid
+%%{init: {"themeVariables": {"signalColor": "#c9d1d9"}}}%%
 sequenceDiagram
     participant B as Celery Scheduler check_alerts()
     participant D as PostgreSQL
@@ -190,7 +194,7 @@ flowchart LR
 app/api/          FastAPI routers (one module per resource)
 app/services/     Business logic + Celery tasks
 app/models/       SQLAlchemy ORM models
-app/middleware/    Auth stack (cookie + API key)
+app/middleware/   Auth stack (cookie + API key)
 app/templates/    Jinja2 templates + partials (HTMX)
 app/static/       CSS, images
 app/migrations/   Alembic migrations
