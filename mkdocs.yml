@@ -5,6 +5,9 @@ repo_url: https://github.com/trottomv/argus-sbomguard
 repo_name: trottomv/argus-sbomguard
 edit_uri: edit/main/docs/
 
+extra_css:
+  - stylesheets/extra.css
+
 theme:
   name: material
   palette:
