@@ -25,5 +25,5 @@ fi
 while IFS= read -r img; do
     echo "  $img"
     name=$(echo "$img" | tr '/:' '_')
-    syft "$img" -o cyclonedx-json > "sboms/${name}_${timestamp}.json"
+    syft "$img" -o "cyclonedx-json=sboms/${name}_${timestamp}.json"
 done <<< "$images"
