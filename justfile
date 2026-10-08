@@ -94,8 +94,8 @@ UV_VERSION := env_var_or_default("UV_VERSION", "~=0.12.0")
 compile-requirements:
     @command -v uv >/dev/null 2>&1 || { echo "uv {{UV_VERSION}} required. Install with: pipx install \"uv{{UV_VERSION}}\""; exit 1; }
     @echo "Compiling with uv $(uv --version | cut -d' ' -f2) (pinned specifier: {{UV_VERSION}})..."
-    uv pip compile app/pyproject.toml --generate-hashes --upgrade --no-header -o app/requirements/remote.txt
-    uv pip compile app/pyproject.toml --extra dev --generate-hashes --upgrade --no-header -o app/requirements/dev.txt
+    uv pip compile app/pyproject.toml --prerelease allow --generate-hashes --upgrade --no-header -o app/requirements/remote.txt
+    uv pip compile app/pyproject.toml --prerelease allow --extra dev --generate-hashes --upgrade --no-header -o app/requirements/dev.txt
 
 # list outdated dependencies (installed in the app container vs latest on PyPI)
 outdated:
