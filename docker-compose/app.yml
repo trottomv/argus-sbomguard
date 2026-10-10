@@ -52,12 +52,8 @@ services:
     depends_on:
       - rabbitmq
     healthcheck:
-      # Beat exposes no HTTP endpoint and does not answer `celery inspect ping`
-      # (that targets workers), so the app image's healthcheck must not be
-      # inherited. This is a process-existence check only: entrypoint.py execs
-      # the command, making beat PID 1, so it passes while beat is alive but
-      # would not catch a wedged scheduler loop. Exec form: the remote image
-      # has no shell.
+      # Beat has no HTTP or `inspect ping` endpoint: check the beat process
+      # (PID 1 after entrypoint exec) is alive. Exec form — no shell in remote.
       test: ["CMD", "python3", "-c", "import sys; sys.exit(0 if b'beat' in open('/proc/1/cmdline','rb').read() else 1)"]
       interval: 30s
       timeout: 10s
