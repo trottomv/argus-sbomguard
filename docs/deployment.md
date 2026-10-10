@@ -26,7 +26,7 @@ for the CPU/RAM spikes Grype hits during vulnerability scans.
 | | Minimum | Recommended |
 |---|---|---|
 | vCPU | 2 | 4 |
-| RAM | 2 GB | 4 GB |
+| RAM | 4 GB | 8 GB |
 | Disk | 20 GB | 50 GB |
 | OS | Ubuntu 22.04+ / Debian 12+ (64-bit) | same |
 
@@ -39,8 +39,9 @@ spikes, backup storage, tuning knobs — see
 [Capacity Planning](operations/capacity-planning.md).
 
 !!! note "Swap"
-    If you use a 2 GB machine, a 2 GB swap file gives Grype and PostgreSQL
-    comfortable headroom during large scans.
+    On the minimum 4 GB machine, a 2 GB swap file gives Grype and PostgreSQL
+    comfortable headroom during large scans. The worker's default memory limit
+    (`WORKER_MEM_LIMIT=1024M`) must leave room for PostgreSQL on the same host.
 
 ## Prerequisites
 

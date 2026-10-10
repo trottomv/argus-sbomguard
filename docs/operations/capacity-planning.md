@@ -3,7 +3,7 @@
 This page helps you size an Argus SBOM Guard deployment that will actually last,
 and tells you what to watch so you can right-size before a bottleneck bites.
 The [Deployment Guide](../deployment.md#hardware-requirements) gives the minimum
-and recommended starting points (2 vCPU / 2 GB RAM minimum, 4 vCPU / 4 GB
+and recommended starting points (2 vCPU / 4 GB RAM minimum, 4 vCPU / 8 GB
 recommended). This page explains **why** those numbers exist and how they scale
 with your workload.
 
@@ -13,7 +13,7 @@ with your workload.
 |----------|----------------|-------|
 | **Disk** | PostgreSQL volume, backup directory, Docker images + container logs | PostgreSQL grows with every SBOM, dependency, vulnerability link and daily snapshot |
 | **RAM** | PostgreSQL, worker (Grype), app | Grype spawns per-SBOM scan processes that spike memory during scans |
-| **CPU** | Worker (Grype), app, PostgreSQL | Grype is CPU-bound; the worker runs `--concurrency=4` by default |
+| **CPU** | Worker (Grype), app, PostgreSQL | Grype is CPU-bound; the worker runs `WORKER_CONCURRENCY=2` scans in parallel by default |
 | **Network** | Grype DB updates, Slack webhook, SMTP | Outbound only, modest. Grype downloads/refreshes its local vulnerability DB on first use; no per-scan external API calls |
 
 RabbitMQ is **transient**: it only holds queued tasks and needs no backup or
@@ -67,29 +67,36 @@ major scan spike.
 
 ## Worker and Grype spikes
 
-The worker runs Celery with `--concurrency=4`
+The worker runs Celery with `WORKER_CONCURRENCY=2` scans in parallel
 ([docker-compose/app.yml](https://github.com/trottomv/argus-sbomguard/blob/main/docker-compose/app.yml))
-and a default memory limit of `WORKER_MEM_LIMIT=512M`. Every SBOM upload
-triggers a Grype scan, and Grype loads the SBOM into memory and may spawn
-sub-processes. A **large** SBOM (huge monorepo, OS image with tens of thousands
-of packages) during a scan burst can push the worker near its 512 MB limit —
-the pod then gets OOM-killed and the task retries.
+and a default memory limit of `WORKER_MEM_LIMIT=1024M`. Every SBOM upload
+triggers a Grype scan, and Grype loads the SBOM **and the vulnerability DB**
+into memory and may spawn sub-processes. A **large** SBOM (huge monorepo, OS
+image with tens of thousands of packages) during a scan burst can push the
+worker near its 1024 MB limit — the worker then gets OOM-killed and the task
+retries.
 
 Signs you are hitting this:
 
 ```bash
-docker compose logs worker | grep -i "memory\|killed\|retry"
+docker compose logs worker | grep -i "grype\|memory\|killed\|retry"
+docker inspect argussbomguard_worker --format '{{.State.OOMKilled}}'
+docker exec worker cat /sys/fs/cgroup/memory.events   # oom_kill count (cgroup v2)
 ```
 
 If the worker is OOM-killed during scans:
 
-- Raise `WORKER_MEM_LIMIT` (e.g. `1024M`) and `WORKER_CPU_LIMIT` in `.env`,
+- Raise `WORKER_MEM_LIMIT` (e.g. `2048M`) and `WORKER_CPU_LIMIT` in `.env`,
   then `docker compose up -d`.
-- Or lower Celery concurrency by overriding the worker command
-  (`--concurrency=2`). Fewer concurrent scans = less memory, slower throughput.
+- Or lower `WORKER_CONCURRENCY` (e.g. `1`). Fewer concurrent scans = less peak
+  memory, slower throughput.
 - Or raise `VULN_RESCAN_INTERVAL_SECONDS` (default 12 h). Every rescan run
   re-scans **all** latest SBOMs in one batch, so a shorter interval means more
   frequent full batches and more Grype load, not less.
+
+The Grype vulnerability DB (~150 MB) is cached in a named volume
+(`grype_cache`, mounted at `GRYPE_DB_CACHE_DIR`) so it is downloaded and
+imported once, not on every worker recreate.
 
 There is no horizontal scaling knob yet — the stack ships a single worker. If
 scans back up, check the queue depth:
@@ -119,7 +126,7 @@ account for the **off-box copy** you keep for disaster recovery — see
 | Service | Default limit (remote) | What drives it | When to raise |
 |---------|------------------------|----------------|---------------|
 | `app` | `APP_MEM_LIMIT=512M`, `APP_CPU_LIMIT=1.0` | Web requests, rendering, JSONB parsing | Concurrent API traffic; large SBOM uploads |
-| `worker` | `WORKER_MEM_LIMIT=512M`, `WORKER_CPU_LIMIT=1.0` | Grype scans | Large SBOMs, scan bursts (see above) |
+| `worker` | `WORKER_MEM_LIMIT=1024M`, `WORKER_CPU_LIMIT=2.0` | Grype scans (`WORKER_CONCURRENCY` parallel) | Large SBOMs, scan bursts (see above) |
 | `scheduler` | `SCHEDULER_MEM_LIMIT=128M`, `SCHEDULER_CPU_LIMIT=0.5` | Celery beat only | Almost never |
 | `proxy` | `PROXY_MEM_LIMIT=128M`, `PROXY_CPU_LIMIT=0.5` | Caddy + Coraza WAF | High request volume; WAF rule cost |
 | PostgreSQL | no explicit limit | Queries, indexes, `VACUUM` | Largest resident footprint on the box |
@@ -132,6 +139,8 @@ account for the **off-box copy** you keep for disaster recovery — see
 | `BACKUP_RETENTION` | `7` | Backups kept; set `0` to keep all (grows disk) |
 | `BACKUP_DIR` | `./backups` | Where backups land; put it outside the repo on a separate disk in production |
 | `VULN_RESCAN_INTERVAL_SECONDS` | `43200` (12 h) | How often the latest SBOM is rescanned; lower = more Grype load |
+| `WORKER_MEM_LIMIT` | `1024M` | Worker memory cap; raise for large SBOMs / scan bursts |
+| `WORKER_CONCURRENCY` | `2` | Parallel Grype scans; higher = more throughput **and** more peak memory |
 | `LOG_MAX_SIZE` / `LOG_MAX_FILE` | `10m` / `3` | Bounds per-container log disk use |
 | `LOGIN_RATE_LIMIT` / `API_RATE_LIMIT` | `10` / `120` | Bounds proxy request load; see [Reverse Proxy + WAF](../guide/proxy.md#configuration) |
 

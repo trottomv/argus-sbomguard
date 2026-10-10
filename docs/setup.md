@@ -81,8 +81,9 @@ Kubernetes Secrets) and how to rotate them, see
 | `LETSENCRYPT_EMAIL` | `admin@argus.local` | Email for Let's Encrypt |
 | `APP_MEM_LIMIT` | `512M` | App memory limit (remote stack) |
 | `APP_CPU_LIMIT` | `1.0` | App CPU limit (remote stack) |
-| `WORKER_MEM_LIMIT` | `512M` | Worker memory limit (remote stack) |
-| `WORKER_CPU_LIMIT` | `1.0` | Worker CPU limit (remote stack) |
+| `WORKER_MEM_LIMIT` | `1024M` | Worker memory limit (remote stack) |
+| `WORKER_CPU_LIMIT` | `2.0` | Worker CPU limit (remote stack) |
+| `WORKER_CONCURRENCY` | `2` | Concurrent Grype scans per worker (lower = less peak memory) |
 | `SCHEDULER_MEM_LIMIT` | `128M` | Scheduler memory limit (remote stack) |
 | `SCHEDULER_CPU_LIMIT` | `0.5` | Scheduler CPU limit (remote stack) |
 | `PROXY_MEM_LIMIT` | `128M` | Proxy memory limit (remote stack) |
