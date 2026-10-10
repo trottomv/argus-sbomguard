@@ -27,10 +27,9 @@ services:
     container_name: argussbomguard_worker
     command: celery -A celery_app worker --loglevel=info --concurrency=${WORKER_CONCURRENCY:-2}
     environment:
-      # Persist the Grype vulnerability DB between restarts (named volume below).
+      # Grype writes its vulnerability DB cache here. The remote stack mounts a
+      # named volume at this path so the DB survives worker recreates.
       GRYPE_DB_CACHE_DIR: /home/appuser/.cache/grype
-    volumes:
-      - grype_cache:/home/appuser/.cache/grype
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,8 +70,3 @@ services:
         max-file: ${LOG_MAX_FILE:-3}
     restart: on-failure
     user: appuser
-
-volumes:
-  # Grype vulnerability DB cache shared across worker restarts; avoids
-  # re-downloading (and re-importing) the ~150 MB DB on every recreate.
-  grype_cache:

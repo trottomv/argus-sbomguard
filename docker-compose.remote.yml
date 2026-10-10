@@ -39,6 +39,8 @@ services:
         limits:
           memory: ${WORKER_MEM_LIMIT:-1024M}
           cpus: ${WORKER_CPU_LIMIT:-2.0}
+    volumes:
+      - grype_cache:/home/appuser/.cache/grype
     env_file:
       - .env
     restart: unless-stopped
@@ -53,3 +55,8 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+
+volumes:
+  # Persist the Grype vulnerability DB (~150 MB) across worker recreates, so it
+  # is downloaded and imported once instead of on every container restart.
+  grype_cache:

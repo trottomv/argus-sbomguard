@@ -64,6 +64,7 @@ major scan spike.
 | Container logs | local driver | `LOG_MAX_SIZE`, `LOG_MAX_FILE` | Defaults: 10 MB × 3 files per container |
 | Docker images | — | prune with `docker image prune` | ~2–3 GB on disk; one per `APP_VERSION` |
 | RabbitMQ volume | `rabbitmq_data` | — | Transient; bounded by queue depth, not growth |
+| Grype DB cache | `grype_cache` (remote) | — | ~150 MB vulnerability DB, reused across worker recreates |
 
 ## Worker and Grype spikes
 
@@ -81,7 +82,7 @@ Signs you are hitting this:
 ```bash
 docker compose logs worker | grep -i "grype\|memory\|killed\|retry"
 docker inspect argussbomguard_worker --format '{{.State.OOMKilled}}'
-docker exec worker cat /sys/fs/cgroup/memory.events   # oom_kill count (cgroup v2)
+docker compose exec worker cat /sys/fs/cgroup/memory.events   # oom_kill count (cgroup v2)
 ```
 
 If the worker is OOM-killed during scans:
