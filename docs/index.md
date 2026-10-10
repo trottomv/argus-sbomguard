@@ -10,9 +10,14 @@ Import CycloneDX/SPDX SBOMs, scan dependencies with Grype and OSV, track vulnera
 
 ```bash
 cp .env.example .env
+docker login dhi.io -u <user>
 docker compose up -d
 docker compose exec app alembic upgrade head
 ```
+
+> The base images are pulled from **Docker Hardened Images** (`dhi.io`), a
+> private registry. Log in once before the first `docker compose up`; otherwise
+> image pulls fail with an authorization error.
 
 Open [http://localhost:8000](http://localhost:8000), log in with `admin@argus.local`,
 and grab the one-time code from [Mailpit](http://localhost:8025) (dev only) — or set

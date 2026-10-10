@@ -11,6 +11,9 @@ the stack **locally for development**.
 
 - [Docker](https://docs.docker.com/engine/install/) and Docker Compose v2
 - Python 3.12+ (for local development only)
+- A `dhi.io` registry login — the base images (PostgreSQL, RabbitMQ, Python,
+  Caddy, bun, Grype) are pulled from **Docker Hardened Images**, a private
+  registry, so you must `docker login dhi.io` before the first build/pull
 
 ## Environment
 
@@ -92,12 +95,19 @@ Kubernetes Secrets) and how to rotate them, see
 ### Start the stack
 
 ```bash
+# Log in to the Docker Hardened Images registry (once, before the first build)
+docker login dhi.io -u <user>
+
 # Build and start all services
 docker compose up -d --build
 
 # Watch app logs
 docker compose logs -f app
 ```
+
+> The base images are pulled from **Docker Hardened Images** (`dhi.io`), a
+> private registry. Log in once before the first `docker compose up`/`build`;
+> otherwise image pulls fail with an authorization error.
 
 Migrations run automatically on first startup via the container entrypoint;
 for manual control you can also run:

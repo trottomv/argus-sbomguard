@@ -192,6 +192,15 @@ sed -i 's|^COMPOSE_FILE=.*|COMPOSE_FILE=docker-compose.remote.yml|' .env
 
 ## Step 5 — Start the stack
 
+Log in to the Docker Hardened Images registry first — the PostgreSQL and
+RabbitMQ images are pulled from `dhi.io`, a private registry:
+
+```bash
+docker login dhi.io -u <user>
+```
+
+Then start the stack:
+
 ```bash
 docker compose up -d
 ```
