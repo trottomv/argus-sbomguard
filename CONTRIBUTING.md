@@ -33,6 +33,9 @@ cd argus-sbomguard
 # Environment
 cp .env.example .env
 
+# Log in to the Docker Hardened Images registry (once, before the first build)
+docker login dhi.io -u <user>
+
 # Start services
 docker compose up -d
 docker compose exec app alembic upgrade head
