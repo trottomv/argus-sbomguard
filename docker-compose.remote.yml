@@ -37,8 +37,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${WORKER_MEM_LIMIT:-512M}
-          cpus: ${WORKER_CPU_LIMIT:-1.0}
+          memory: ${WORKER_MEM_LIMIT:-1024M}
+          cpus: ${WORKER_CPU_LIMIT:-2.0}
     env_file:
       - .env
     restart: unless-stopped

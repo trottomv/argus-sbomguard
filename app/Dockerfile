@@ -62,7 +62,8 @@ RUN mkdir -p /app/protos/generated \
 COPY --from=css-builder /build/static/css/dist.css /app/static/css/dist.css
 COPY --from=grype /usr/bin/grype /usr/local/bin/grype
 
-RUN chown -R ${APP_USER}:${APP_USER} /app
+RUN mkdir -p /home/${APP_USER}/.cache/grype \
+    && chown -R ${APP_USER}:${APP_USER} /app /home/${APP_USER}/.cache
 
 EXPOSE 8000
 ENTRYPOINT ["/app/entrypoint.py"]
