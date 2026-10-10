@@ -9,7 +9,7 @@ export COMPOSE_FILE
 : "${SYFT_VERSION:=v1.54.1}"
 
 command -v jq >/dev/null 2>&1 || { echo >&2 "jq is required but not installed"; exit 1; }
-command -v docker >/dev/null 2>&1 || { echo >&2 "docker is required but not installed"; exit 1; }
+docker compose version >/dev/null 2>&1 || { echo >&2 "docker with the compose plugin is required"; exit 1; }
 
 mkdir -p sboms
 
@@ -28,9 +28,9 @@ while IFS= read -r img; do
     echo "  $img"
     name=$(echo "$img" | tr '/:' '_')
     # Run Syft in a container so no host install is needed. Mounting the Docker
-    # socket lets it read the locally built/pulled images; note this grants
-    # root-equivalent access to the host, so only run it on trusted machines.
-    # Capture stdout and write only on success (avoids empty files on failure).
+    # socket lets it read the locally built/pulled images (root-equivalent host
+    # access — only run on trusted machines). Capture stdout and write only on
+    # success (avoids empty files on failure).
     sbom=$(docker run --rm \
         --volume /var/run/docker.sock:/var/run/docker.sock \
         "anchore/syft:${SYFT_VERSION}" \
