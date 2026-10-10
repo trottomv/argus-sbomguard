@@ -51,6 +51,16 @@ services:
     command: celery -A celery_app beat --loglevel=info
     depends_on:
       - rabbitmq
+    healthcheck:
+      # Beat exposes no HTTP endpoint and does not answer `celery inspect ping`
+      # (that targets workers), so the app image's healthcheck must not be
+      # inherited. entrypoint.py execs the command, making beat PID 1; verify
+      # that. Exec form: the remote image has no shell.
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0 if b'beat' in open('/proc/1/cmdline','rb').read() else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     logging:
       driver: local
       options:
