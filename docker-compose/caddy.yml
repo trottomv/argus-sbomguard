@@ -8,6 +8,7 @@ services:
       - "80:80"
       - "443:443"
     environment:
+      DOMAIN: ${DOMAIN:-localhost}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-admin@argus.local}
       LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-10}
       API_RATE_LIMIT: ${API_RATE_LIMIT:-120}
