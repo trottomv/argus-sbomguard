@@ -18,7 +18,6 @@ Install them from their official docs; don't install Docker via `apt`.
 
 - bun ≥ 1 — `just css`
 - uv ~= 0.12 — `just compile-requirements`
-- syft — `just scan-all`
 - jq — `just scan-all`, `just docs-openapi`
 - cosign — `just verify-image`
 - mkdocs / mike / mkdocstrings — docs (installed in `.docs-venv` by the `just docs-*` recipes that need them)
