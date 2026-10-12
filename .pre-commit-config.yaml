@@ -9,7 +9,7 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.6
+    rev: v0.17.0
     hooks:
       - id: ruff
         args: [--fix]
@@ -18,7 +18,7 @@ repos:
         files: ^(app|backend)/.*\.py$
 
   - repo: https://github.com/Riverside-Healthcare/djLint
-    rev: v1.46.1
+    rev: v1.46.4
     hooks:
       - id: djlint-reformat
         name: djlint (Jinja templates format)
