@@ -90,7 +90,7 @@ format-templates-check:
 
 # compile requirements with hashes, upgrading to latest within pyproject ranges
 # (requires uv on host: pipx install uv)
-UV_VERSION := env_var_or_default("UV_VERSION", "~=0.12.0")
+UV_VERSION := env_var_or_default("UV_VERSION", "~=0.13.0")
 compile-requirements:
     @command -v uv >/dev/null 2>&1 || { echo "uv {{UV_VERSION}} required. Install with: pipx install \"uv{{UV_VERSION}}\""; exit 1; }
     @echo "Compiling with uv $(uv --version | cut -d' ' -f2) (pinned specifier: {{UV_VERSION}})..."

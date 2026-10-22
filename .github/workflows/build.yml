@@ -101,6 +101,10 @@ jobs:
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: 'v3.1.4'
+      - name: Check install!
+        run: cosign version
 
       - name: Sign image with cosign
         env:
