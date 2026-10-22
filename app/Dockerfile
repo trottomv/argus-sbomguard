@@ -19,7 +19,7 @@ FROM dhi.io/grype:0-alpine@sha256:97b20b0ebc1ad84f4b19ade1b5a913bed8d255abd0f14d
 FROM dhi.io/python:${PYTHON_VERSION}-alpine-dev@sha256:6496a70947b87a9ea1a9bf9b6a7f50e9df1872a8e16ee4fbecf6bb3722553dc2 AS base
 
 ARG APP_USER=appuser
-ARG UV_VERSION=~=0.12.0
+ARG UV_VERSION=~=0.13.0
 ARG PIP_VERSION=~=26.2.0
 # Build provenance (repository, commit, environment) baked into the image.
 # CI (build.yml) passes these as build args; local builds fall back to
