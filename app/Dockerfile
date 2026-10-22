@@ -3,7 +3,7 @@
 ARG BUN_VERSION=1
 ARG PYTHON_VERSION=3.13
 
-FROM dhi.io/bun:${BUN_VERSION}-alpine-dev@sha256:da5ac1e96b9e796b1c9f9ee7529de91031e518319349aa218ac21a742fe4cf24 AS css-builder
+FROM dhi.io/bun:${BUN_VERSION}-alpine-dev@sha256:35f2f06160715cdb3855166916b663f87642b816fa121632708f082e866db96e AS css-builder
 
 WORKDIR /build
 COPY package.json bun.lock ./
@@ -13,10 +13,10 @@ COPY templates/ templates/
 RUN bun run build:css
 
 
-FROM dhi.io/grype:0-alpine@sha256:97b20b0ebc1ad84f4b19ade1b5a913bed8d255abd0f14db9c08f246918a99c0d AS grype
+FROM dhi.io/grype:0-alpine@sha256:0b6aaae34ba62a74ca396fbd39105aae8c76663b807b5e697f31de2efdc2c5c0 AS grype
 
 
-FROM dhi.io/python:${PYTHON_VERSION}-alpine-dev@sha256:6496a70947b87a9ea1a9bf9b6a7f50e9df1872a8e16ee4fbecf6bb3722553dc2 AS base
+FROM dhi.io/python:${PYTHON_VERSION}-alpine-dev@sha256:d45bbc7271a4b8553a0591093d8fc19ea320a55cb4dae5412c450d5b36f20822 AS base
 
 ARG APP_USER=appuser
 ARG UV_VERSION=~=0.13.0
