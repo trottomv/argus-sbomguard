@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Argus SBOM Guard",
-    "version": "1.0.5"
+    "version": "1.0.6"
   },
   "paths": {
     "/api/v1/projects": {
