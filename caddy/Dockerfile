@@ -1,8 +1,8 @@
 ARG CRS_VERSION=v4.4.0
 ARG CADDY_VERSION=2.11.4
 ARG XCADDY_VERSION=v0.4.7
-ARG GO_VERSION=1.26.10
-ARG GO_SHA256=ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5
+ARG GO_VERSION=1.27.4
+ARG GO_SHA256=7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840
 
 FROM dhi.io/caddy:2-debian-dev AS builder
 
@@ -12,7 +12,7 @@ ARG CADDY_VERSION
 ARG XCADDY_VERSION
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git curl ca-certificates gzip \
+    && apt-get install -y --no-install-recommends curl ca-certificates gzip \
     && rm -rf /var/lib/apt/lists/* \
     && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o /tmp/go.tgz \
     && echo "${GO_SHA256}  /tmp/go.tgz" | sha256sum -c - \
