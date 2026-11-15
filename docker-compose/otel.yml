@@ -1,6 +1,6 @@
 services:
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.159.0
+    image: otel/opentelemetry-collector-contrib:0.165.0
     container_name: argussbomguard_otel
     command:
       - --config=/etc/otelcol-contrib/config.yaml

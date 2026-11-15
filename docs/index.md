@@ -60,7 +60,7 @@ users → api_keys / login_tokens
 
 | Layer | Technology |
 |-------|------------|
-| Backend | Python 3.12 + FastAPI + Celery + RabbitMQ |
+| Backend | Python 3.15 + FastAPI + Celery + RabbitMQ |
 | Frontend | HTMX + Jinja2 + Alpine.js + DaisyUI 5 + Tailwind CSS v4 |
 | Database | PostgreSQL 18 + asyncpg |
 | Vuln Scanner | Grype + OSV API |

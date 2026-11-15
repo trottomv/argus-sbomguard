@@ -37,12 +37,12 @@ jobs:
           version: "${{ vars.UV_VERSION || '~=0.13.0' }}"
 
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install 3.15
 
       - name: Install docs dependencies
         working-directory: app
         run: |
-          uv venv
+          uv venv --python 3.15
           uv sync --no-default-groups --only-group docs --no-install-project
 
       - name: Configure git

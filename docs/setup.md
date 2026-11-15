@@ -10,7 +10,7 @@ the stack **locally for development**.
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/engine/install/) and Docker Compose v2
-- Python 3.12+ (for local development only)
+- Python 3.15+ (for local development only)
 - A `dhi.io` registry login — the base images (PostgreSQL, RabbitMQ, Python,
   Caddy, bun, Grype) are pulled from **Docker Hardened Images**, a private
   registry, so you must `docker login dhi.io` before the first build/pull
