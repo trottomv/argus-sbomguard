@@ -1,0 +1,5 @@
+/* Give the content column more room: Material defaults the grid to
+   61rem (976px), which squeezes wide Mermaid diagrams down to ~600px. */
+.md-grid {
+  max-width: 70rem;
+}
