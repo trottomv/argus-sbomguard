@@ -7,7 +7,7 @@ from sqlalchemy.orm import defer
 from config import settings
 from database import get_db
 from models.project import Project
-from models.sbom import SBOM
+from models.sbom import SBOM, sbom_newest_first
 from models.service import Service
 from models.vulnerability import (
     SBOMVulnerability,
@@ -68,7 +68,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
         .options(defer(SBOM.raw_sbom))
         .outerjoin(Service, SBOM.service_id == Service.id)
         .join(Project, SBOM.project_id == Project.id)
-        .order_by(SBOM.uploaded_at.desc())
+        .order_by(*sbom_newest_first())
         .limit(5)
     )
     recent_sboms = recent_result.all()

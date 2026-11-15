@@ -49,6 +49,7 @@ class SbomItem(BaseModel):
     format: str | None
     sha256: str
     dependency_count: int | None
+    created_at: datetime | None
     uploaded_at: datetime | None
 
 
@@ -74,6 +75,7 @@ class SbomDetail(BaseModel):
     format: str | None
     sha256: str
     dependency_count: int | None
+    created_at: datetime | None
     uploaded_at: datetime | None
     vulnerability_counts: VulnerabilityCounts
     open_count: int

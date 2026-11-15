@@ -30,6 +30,39 @@ async def test_dashboard_home(client):
 
 
 @pytest.mark.asyncio
+async def test_dashboard_recent_sboms_orders_by_created_at(client, db_session):
+    project = Project(name="dash-recent-order")
+    db_session.add(project)
+    await db_session.flush()
+
+    newer = SBOM(
+        project_id=project.id,
+        version="newer-version",
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="c" * 64,
+        created_at=datetime(2026, 1, 2, tzinfo=UTC),
+        uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    older = SBOM(
+        project_id=project.id,
+        version="older-version",
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="d" * 64,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        uploaded_at=datetime(2026, 1, 2, tzinfo=UTC),
+    )
+    db_session.add_all([newer, older])
+    await db_session.commit()
+
+    resp = await client.get("/")
+
+    assert resp.status_code == 200
+    assert resp.text.index("newer-version") < resp.text.index("older-version")
+
+
+@pytest.mark.asyncio
 async def test_dashboard_critical_count_is_open_anywhere(client, db_session):
     project = Project(name="dash-count")
     db_session.add(project)

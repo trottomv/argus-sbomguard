@@ -32,7 +32,7 @@ from database import async_session_factory
 from models.acceptance import RiskAcceptance
 from models.alert import AlertRule
 from models.project import Project
-from models.sbom import SBOM, Dependency
+from models.sbom import SBOM, Dependency, sbom_newest_first
 from models.service import Service
 from models.vulnerability import (
     SBOMVulnerability,
@@ -234,7 +234,7 @@ async def list_sboms(
         select(SBOM, Project.name, Service.name)
         .join(Project, SBOM.project_id == Project.id)
         .outerjoin(Service, SBOM.service_id == Service.id)
-        .order_by(SBOM.uploaded_at.desc(), SBOM.id)
+        .order_by(*sbom_newest_first())
     )
     if project_uuid is not None:
         query = query.where(SBOM.project_id == project_uuid)
@@ -255,6 +255,7 @@ async def list_sboms(
             format=_enum_text(sbom.format),
             sha256=sbom.sha256,
             dependency_count=sbom.dependency_count,
+            created_at=sbom.created_at,
             uploaded_at=sbom.uploaded_at,
         )
         for sbom, project_name, service_name in rows[:limit]
@@ -307,6 +308,7 @@ async def get_sbom(sbom_id: str) -> SbomDetail:
         format=_enum_text(sbom.format),
         sha256=sbom.sha256,
         dependency_count=sbom.dependency_count,
+        created_at=sbom.created_at,
         uploaded_at=sbom.uploaded_at,
         vulnerability_counts=VulnerabilityCounts(**counts, total=sum(counts.values())),
         open_count=status_counts["open"],

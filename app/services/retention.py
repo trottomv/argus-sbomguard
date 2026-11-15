@@ -4,7 +4,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
-from models.sbom import SBOM, Dependency
+from models.sbom import SBOM, Dependency, sbom_newest_first
 from models.vulnerability import SBOMVulnerability, VulnerabilitySnapshot
 
 
@@ -42,7 +42,7 @@ async def prune_sboms(db: AsyncSession) -> None:
         func.row_number()
         .over(
             partition_by=(SBOM.project_id, SBOM.service_id),
-            order_by=(SBOM.uploaded_at.desc(), SBOM.id.desc()),
+            order_by=sbom_newest_first(),
         )
         .label("rn"),
     ).subquery()

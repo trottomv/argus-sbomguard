@@ -136,6 +136,42 @@ async def test_prune_sboms_removes_dependencies_of_deleted(db_session):
 
 
 @pytest.mark.asyncio
+async def test_prune_sboms_keeps_latest_by_created_at(db_session):
+    project = Project(name="retention-created")
+    db_session.add(project)
+    await db_session.flush()
+    service = Service(project_id=project.id, name="svc")
+    db_session.add(service)
+    await db_session.flush()
+
+    old = datetime.now(UTC) - timedelta(days=settings.sbom_retention_days + 10)
+    recent = datetime.now(UTC)
+
+    old_but_uploaded_late = _sbom(
+        project.id,
+        service_id=service.id,
+        created_at=old,
+        uploaded_at=recent,
+        sha256="h" * 64,
+    )
+    new_but_uploaded_early = _sbom(
+        project.id,
+        service_id=service.id,
+        created_at=recent,
+        uploaded_at=old,
+        sha256="i" * 64,
+    )
+    db_session.add_all([old_but_uploaded_late, new_but_uploaded_early])
+    await db_session.commit()
+
+    await prune_sboms(db_session)
+
+    remaining = (await db_session.execute(select(SBOM.id))).scalars().all()
+    assert old_but_uploaded_late.id not in remaining
+    assert new_but_uploaded_early.id in remaining
+
+
+@pytest.mark.asyncio
 async def test_do_prune_old_data_sbom_retention_disabled(db_session, monkeypatch):
     project = Project(name="retention-disabled")
     db_session.add(project)
