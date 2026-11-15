@@ -230,12 +230,22 @@
                                     </td>
                                     <td>{{ sbom.created_at | format_dt("%Y-%m-%d %H:%M") }}</td>
                                     <td>
-                                        <button class="btn btn-ghost btn-sm text-error"
-                                                @click="openDeleteSbom('{{ sbom.id }}', {{ (sbom.version or 'N/A') | tojson }})">
-                                            <svg class="w-4 h-4" aria-hidden="true" focusable="false">
-                                                <use href="#icon-trash-2"></use>
-                                            </svg>
-                                        </button>
+                                        <div class="flex gap-1">
+                                            <a href="/api/v1/sboms/{{ sbom.id }}/download"
+                                               class="btn btn-ghost btn-sm">
+                                                <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                                                    <use href="#icon-download"></use>
+                                                </svg>
+                                            </a>
+                                            <button class="btn btn-ghost btn-sm text-error"
+                                                    data-id="{{ sbom.id }}"
+                                                    data-version="{{ sbom.version or 'N/A' }}"
+                                                    @click="openDeleteSbom($event)">
+                                                <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                                                    <use href="#icon-trash-2"></use>
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             {% else %}

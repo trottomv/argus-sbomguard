@@ -34,7 +34,9 @@
                     </svg>
                 </a>
                 <button class="btn btn-ghost btn-sm text-error"
-                        @click="openDeleteSbom('{{ sbom.id }}', {{ (sbom.version or 'N/A') | tojson }})">
+                        data-id="{{ sbom.id }}"
+                        data-version="{{ sbom.version or 'N/A' }}"
+                        @click="openDeleteSbom($event)">
                     <svg class="w-4 h-4" aria-hidden="true" focusable="false">
                         <use href="#icon-trash-2"></use>
                     </svg>

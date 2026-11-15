@@ -117,9 +117,9 @@
                     this.service = '';
                     this.reloadFilters();
                 },
-                openDeleteSbom(id, ver) {
-                    this.sbomDelId = id;
-                    this.sbomDelVer = ver;
+                openDeleteSbom(event) {
+                    this.sbomDelId = event.currentTarget.dataset.id;
+                    this.sbomDelVer = event.currentTarget.dataset.version;
                     document.getElementById('delete_sbom_modal').showModal();
                 },
                 confirmDelete() {
@@ -239,9 +239,9 @@
                         }).catch(function () { self.acceptError = 'Failed to accept vulnerability'; });
                     }).catch(function () { self.acceptError = 'Network error'; });
                 },
-                openDeleteSbom(id, ver) {
-                    this.sbomDelId = id;
-                    this.sbomDelVer = ver;
+                openDeleteSbom(event) {
+                    this.sbomDelId = event.currentTarget.dataset.id;
+                    this.sbomDelVer = event.currentTarget.dataset.version;
                     document.getElementById('delete_sbom_modal').showModal();
                 },
                 confirmDeleteSbom() {
