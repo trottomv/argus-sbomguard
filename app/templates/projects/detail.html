@@ -99,6 +99,8 @@
                       hx-post="/api/v1/sboms/upload"
                       hx-target="#sbom-history-tbody"
                       hx-swap="afterbegin"
+                      hx-indicator="#upload-spinner"
+                      hx-disabled-elt="find button[type='submit']"
                       enctype="multipart/form-data"
                       class="space-y-4 mt-4"
                       autocomplete="off">
@@ -131,7 +133,11 @@
                                required />
                     </fieldset>
                     <div class="modal-action">
-                        <button type="submit" class="btn btn-primary">Upload</button>
+                        <button type="submit" class="btn btn-primary">
+                            <span id="upload-spinner"
+                                  class="htmx-indicator loading loading-spinner loading-sm"></span>
+                            Upload
+                        </button>
                         <button type="button" class="btn btn-outline" data-close-modal="upload_modal">Cancel</button>
                     </div>
                 </form>
