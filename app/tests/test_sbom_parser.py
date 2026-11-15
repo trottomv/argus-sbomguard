@@ -157,6 +157,7 @@ def test_extract_service_name_present():
 def test_extract_service_name_missing():
     assert _extract_service_name({}) is None
     assert _extract_service_name({"metadata": {"component": {"name": "  "}}}) is None
+    assert _extract_service_name({"metadata": []}) is None
 
 
 @pytest.mark.asyncio
@@ -185,6 +186,7 @@ def test_extract_timestamp_invalid():
     assert _extract_timestamp({"metadata": {"timestamp": "not-a-date"}}) is None
     assert _extract_timestamp({}) is None
     assert _extract_timestamp({"metadata": {"timestamp": 123}}) is None
+    assert _extract_timestamp({"metadata": [], "creationInfo": ["bad"]}) is None
     assert _extract_timestamp({"metadata": {"timestamp": "2026-01-15T10:00:00Z"}}) is not None
 
 

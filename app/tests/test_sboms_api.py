@@ -3,7 +3,11 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import select
 
+from models.project import Project
+from models.sbom import SBOM, SBOMFormat
+from models.service import Service
 from models.vulnerability import (
     SBOMVulnerability,
     Vulnerability,
@@ -301,3 +305,68 @@ async def test_delete_sbom_reconciles_older_fixed_vulns(client, db_session):
 
     resp = await client.delete(f"/api/v1/sboms/{newest_sid}")
     assert resp.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_delete_sbom_uses_created_at_for_latest_remaining(client, db_session):
+    project = Project(name="delete-created-order")
+    db_session.add(project)
+    await db_session.flush()
+    service = Service(project_id=project.id, name="svc")
+    db_session.add(service)
+    await db_session.flush()
+
+    oldest = SBOM(
+        project_id=project.id,
+        service_id=service.id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="5" * 64,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        uploaded_at=datetime(2026, 1, 3, tzinfo=UTC),
+    )
+    newest = SBOM(
+        project_id=project.id,
+        service_id=service.id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="6" * 64,
+        created_at=datetime(2026, 1, 3, tzinfo=UTC),
+        uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    middle = SBOM(
+        project_id=project.id,
+        service_id=service.id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="7" * 64,
+        created_at=datetime(2026, 1, 2, tzinfo=UTC),
+        uploaded_at=datetime(2026, 1, 2, tzinfo=UTC),
+    )
+    db_session.add_all([oldest, newest, middle])
+    await db_session.flush()
+
+    vuln = Vulnerability(
+        cve_id="CVE-2026-7100", source="grype", severity=VulnerabilitySeverity.HIGH
+    )
+    db_session.add(vuln)
+    await db_session.flush()
+    link = SBOMVulnerability(
+        sbom_id=oldest.id,
+        dependency_purl="pkg:npm/old@1.0.0",
+        vulnerability_id=vuln.id,
+        status=VulnerabilityStatus.OPEN,
+        detected_at=datetime.now(UTC),
+    )
+    db_session.add(link)
+    await db_session.commit()
+
+    resp = await client.delete(f"/api/v1/sboms/{newest.id}")
+    assert resp.status_code == 204
+
+    refreshed = (
+        await db_session.execute(
+            select(SBOMVulnerability).where(SBOMVulnerability.sbom_id == oldest.id)
+        )
+    ).scalar_one()
+    assert refreshed.status == VulnerabilityStatus.FIXED

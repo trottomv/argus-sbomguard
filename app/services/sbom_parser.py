@@ -9,16 +9,20 @@ from models.sbom import SBOM, Dependency, SBOMFormat
 from models.service import Service
 
 
+def _as_dict(value: object) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
 def _extract_service_name(raw: dict) -> str | None:
-    meta = raw.get("metadata") or {}
-    component = meta.get("component") or {}
+    meta = _as_dict(raw.get("metadata"))
+    component = _as_dict(meta.get("component"))
     name = component.get("name")
     return name.strip() if isinstance(name, str) and name.strip() else None
 
 
 def _extract_component_version(raw: dict) -> str | None:
-    meta = raw.get("metadata") or {}
-    component = meta.get("component") or {}
+    meta = _as_dict(raw.get("metadata"))
+    component = _as_dict(meta.get("component"))
     ver = component.get("version")
     return ver.strip() if isinstance(ver, str) and ver.strip() else None
 
@@ -85,9 +89,9 @@ def _extract_license(component: dict) -> str:
 
 
 def _extract_timestamp(raw: dict) -> datetime | None:
-    ts = (raw.get("metadata") or {}).get("timestamp")
+    ts = _as_dict(raw.get("metadata")).get("timestamp")
     if not ts:
-        ts = (raw.get("creationInfo") or {}).get("created")
+        ts = _as_dict(raw.get("creationInfo")).get("created")
     if not isinstance(ts, str) or not ts:
         return None
     try:
