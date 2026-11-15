@@ -19,6 +19,15 @@
         ],
         "parameters": [
           {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Q"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,

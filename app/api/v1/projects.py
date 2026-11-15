@@ -36,10 +36,13 @@ router = APIRouter(
 @router.get("", response_model=PageResponse[ProjectResponse], responses={**UNAUTHORIZED_RESPONSE})
 async def list_projects(
     db: AsyncSession = Depends(get_db),
+    q: str = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(PROJECT_PER_PAGE, ge=1, le=200),
 ):
     query = select(Project).order_by(Project.created_at.desc())
+    if q:
+        query = query.where(Project.name.icontains(q.replace("\x00", "").strip(), autoescape=True))
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
     return PageResponse[ProjectResponse](
         items=[ProjectResponse.model_validate(project) for project in pg.items],

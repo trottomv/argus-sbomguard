@@ -37,7 +37,7 @@
     {% if items and has_more %}
         <div class="text-center col-span-full">
             <button class="btn btn-outline"
-                    hx-get="/projects?page={{ page + 1 }}&per_page={{ per_page }}"
+                    hx-get="/projects?page={{ page + 1 }}&per_page={{ per_page }}&q={{ q | urlencode }}"
                     hx-target="#project-cards"
                     hx-swap="beforeend"
                     hx-trigger="click once">Load more ({{ total - (per_page * page) }} remaining)</button>

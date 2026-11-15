@@ -214,10 +214,13 @@ async def update_project_name(
 async def projects_page(
     request: Request,
     db: AsyncSession = Depends(get_db),
+    q: str = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(PROJECT_PER_PAGE, ge=1, le=200),
 ):
     query = select(Project).order_by(Project.created_at.desc())
+    if q:
+        query = query.where(Project.name.icontains(q.replace("\x00", "").strip(), autoescape=True))
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
 
     ctx = {
@@ -227,8 +230,9 @@ async def projects_page(
         "per_page": pg.per_page,
         "total_pages": pg.total_pages,
         "has_more": pg.has_more,
+        "q": q or "",
         "target": "project-cards",
-        "load_more_url": f"/projects?per_page={per_page}",
+        "load_more_url": f"/projects?per_page={per_page}&q={q or ''}",
         "label": "Load more projects",
     }
 
