@@ -57,6 +57,27 @@ async def test_list_projects_pagination(client):
 
 
 @pytest.mark.asyncio
+async def test_list_projects_search(client):
+    await client.post("/api/v1/projects", json={"name": "Payment Service"})
+    await client.post("/api/v1/projects", json={"name": "Billing API"})
+
+    resp = await client.get("/api/v1/projects?q=PAYMENT")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [item["name"] for item in data["items"]] == ["Payment Service"]
+    assert data["total"] == 1
+
+
+@pytest.mark.asyncio
+async def test_list_projects_search_no_match(client):
+    await client.post("/api/v1/projects", json={"name": "Payment Service"})
+
+    resp = await client.get("/api/v1/projects?q=nomatch")
+    assert resp.status_code == 200
+    assert resp.json()["items"] == []
+
+
+@pytest.mark.asyncio
 async def test_create_duplicate_project(client):
     await client.post("/api/v1/projects", json={"name": "dup"})
     resp = await client.post("/api/v1/projects", json={"name": "dup"})

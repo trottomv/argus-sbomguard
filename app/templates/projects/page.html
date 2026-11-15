@@ -1,13 +1,48 @@
 <div id="projects-page" class="space-y-6" x-data="projectsPage">
-    <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold">Projects</h1>
-        <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
-                @click="openNew()">
-            <svg class="w-4 h-4" aria-hidden="true" focusable="false">
-                <use href="#icon-plus"></use>
-            </svg>
-            Add Project
-        </button>
+    <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+            <h1 class="text-2xl font-bold">Projects</h1>
+            <button class="btn btn-primary bg-gradient-to-r from-indigo-500 to-purple-600 border-0 text-white"
+                    @click="openNew()">
+                <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                    <use href="#icon-plus"></use>
+                </svg>
+                Add Project
+            </button>
+        </div>
+        <div class="flex items-center gap-2 w-full max-w-lg">
+            <form class="flex flex-1 min-w-0"
+                  hx-get="/projects"
+                  hx-target="#projects-page"
+                  hx-swap="outerHTML">
+                <input type="hidden" name="per_page" value="{{ per_page }}">
+                <input class="input input-bordered flex-1 min-w-0 rounded-r-none"
+                       type="search"
+                       name="q"
+                       value="{{ q }}"
+                       placeholder="Search projects..."
+                       autocomplete="off"
+                       aria-label="Search projects">
+                <button class="btn btn-outline shrink-0 rounded-l-none -ml-px"
+                        type="submit"
+                        aria-label="Search projects">
+                    <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                        <use href="#icon-search"></use>
+                    </svg>
+                </button>
+            </form>
+            {% if q %}
+                <button class="btn btn-outline shrink-0"
+                        hx-get="/projects"
+                        hx-target="#projects-page"
+                        hx-swap="outerHTML">
+                    <svg class="w-4 h-4" aria-hidden="true" focusable="false">
+                        <use href="#icon-x"></use>
+                    </svg>
+                    Clear search
+                </button>
+            {% endif %}
+        </div>
     </div>
     <dialog id="my_modal_1" class="modal">
         <div class="modal-box">
@@ -101,15 +136,20 @@
             </div>
         {% else %}
             <div class="col-span-full text-center opacity-60 py-12">
-                <p class="text-lg">No projects yet</p>
-                <p class="text-sm">Add your first project to start tracking SBOMs</p>
+                {% if q %}
+                    <p class="text-lg">No projects match "{{ q }}"</p>
+                    <p class="text-sm">Try a different search term</p>
+                {% else %}
+                    <p class="text-lg">No projects yet</p>
+                    <p class="text-sm">Add your first project to start tracking SBOMs</p>
+                {% endif %}
             </div>
         {% endfor %}
     </div>
     {% if items and has_more %}
         <div id="load-more-projects" class="text-center">
             <button class="btn btn-outline"
-                    hx-get="/projects?page={{ page + 1 }}&per_page={{ per_page }}"
+                    hx-get="/projects?page={{ page + 1 }}&per_page={{ per_page }}&q={{ q | urlencode }}"
                     hx-target="#project-cards"
                     hx-swap="beforeend"
                     hx-trigger="click once">Load more ({{ total - (per_page * page) }} remaining)</button>

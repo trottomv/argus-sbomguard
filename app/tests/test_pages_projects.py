@@ -132,6 +132,54 @@ async def test_projects_page_first_page(client):
     assert "text/html" in resp.headers["content-type"]
 
 
+@pytest.mark.asyncio
+async def test_projects_page_search_filter(client):
+    await client.post("/api/v1/projects", json={"name": "Payment Service"})
+    await client.post("/api/v1/projects", json={"name": "Billing API"})
+
+    resp = await client.get("/projects?q=payment")
+    assert resp.status_code == 200
+    assert "Payment Service" in resp.text
+    assert "Billing API" not in resp.text
+    assert 'value="payment"' in resp.text
+    assert "Clear search" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_projects_page_without_search_hides_clear_button(client):
+    resp = await client.get("/projects")
+    assert resp.status_code == 200
+    assert "Clear search" not in resp.text
+
+
+@pytest.mark.asyncio
+async def test_projects_page_search_no_match(client):
+    await client.post("/api/v1/projects", json={"name": "Payment Service"})
+
+    resp = await client.get("/projects?q=nomatch")
+    assert resp.status_code == 200
+    assert 'No projects match "nomatch"' in resp.text
+
+
+@pytest.mark.asyncio
+async def test_projects_page_search_treats_wildcards_literally(client):
+    await client.post("/api/v1/projects", json={"name": "Payment Service"})
+
+    resp = await client.get("/projects?q=%25")
+    assert resp.status_code == 200
+    assert "Payment Service" not in resp.text
+
+
+@pytest.mark.asyncio
+async def test_projects_page_search_propagates_to_load_more(client):
+    for idx in range(3):
+        await client.post("/api/v1/projects", json={"name": f"payment-{idx}"})
+
+    resp = await client.get("/projects?q=payment&per_page=1")
+    assert resp.status_code == 200
+    assert "/projects?page=2&per_page=1&q=payment" in resp.text
+
+
 # ── Project detail ──
 
 
