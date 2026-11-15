@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 
 ARG BUN_VERSION=1
-ARG PYTHON_VERSION=3.13
+ARG PYTHON_VERSION=3.15
 
-FROM dhi.io/bun:${BUN_VERSION}-alpine-dev@sha256:35f2f06160715cdb3855166916b663f87642b816fa121632708f082e866db96e AS css-builder
+FROM dhi.io/bun:${BUN_VERSION}-alpine-dev@sha256:da31284d76f059bc8d29ba93ba0098e46de8e97f1485aa07a5503d0dda958017 AS css-builder
 
 WORKDIR /build
 COPY package.json bun.lock ./
@@ -13,10 +13,10 @@ COPY templates/ templates/
 RUN bun run build:css
 
 
-FROM dhi.io/grype:0-alpine@sha256:0b6aaae34ba62a74ca396fbd39105aae8c76663b807b5e697f31de2efdc2c5c0 AS grype
+FROM dhi.io/grype:0-alpine@sha256:bda286d1951974e9373cbcb0745a098451ff055adbbb4ffea78d09ba041e583d AS grype
 
 
-FROM dhi.io/python:${PYTHON_VERSION}-alpine-dev@sha256:d45bbc7271a4b8553a0591093d8fc19ea320a55cb4dae5412c450d5b36f20822 AS base
+FROM dhi.io/python:${PYTHON_VERSION}-alpine-dev@sha256:0bb115e0b8c9d3e6856915aa45eb3108245dcc15c3b103e7b19ee703278376f1 AS base
 
 ARG APP_USER=appuser
 ARG UV_VERSION=~=0.13.0
