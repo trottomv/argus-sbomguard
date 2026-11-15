@@ -65,6 +65,11 @@ class SBOM(BaseModel):
         return self.service.name if self.service else None
 
 
+def sbom_newest_first() -> tuple:
+    """Newest-first ordering by SBOM creation time with deterministic tie-breakers."""
+    return (SBOM.created_at.desc(), SBOM.uploaded_at.desc(), SBOM.id.desc())
+
+
 class Dependency(BaseModel):
     __tablename__ = "dependencies"
 

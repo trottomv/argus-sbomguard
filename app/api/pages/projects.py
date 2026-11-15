@@ -10,7 +10,7 @@ from sqlalchemy.orm import defer
 from api.pages.common import dep_name
 from database import get_db
 from models.project import Project
-from models.sbom import SBOM, Dependency
+from models.sbom import SBOM, Dependency, sbom_newest_first
 from models.service import Service
 from models.vulnerability import SBOMVulnerability, Vulnerability, VulnerabilityStatus
 from services.acceptance import covered_by_acceptance
@@ -33,17 +33,20 @@ async def _get_project_vulns(
     service_id: str | None = None,
     project_name: str = "",
 ) -> list[dict]:
-    id_q = select(SBOM.id, SBOM.service_id, SBOM.created_at).where(SBOM.project_id == project_id)
+    id_q = select(SBOM.id, SBOM.service_id, SBOM.created_at, SBOM.uploaded_at).where(
+        SBOM.project_id == project_id
+    )
     if service_id and service_id != "":
         id_q = id_q.where(SBOM.service_id == service_id)
     all_ids_q = await db.execute(id_q)
     latest_map: dict[str, tuple] = {}
     sbom_to_svc: dict = {}
     sbom_to_svc_id: dict = {}
-    for sbom_id, svc_id, created_at in all_ids_q:
+    for sbom_id, svc_id, created_at, uploaded_at in all_ids_q:
         key = str(svc_id) if svc_id else "__no_service__"
-        if key not in latest_map or created_at > latest_map[key][1]:
-            latest_map[key] = (sbom_id, created_at)
+        rank = (created_at, uploaded_at, sbom_id)
+        if key not in latest_map or rank > latest_map[key][1]:
+            latest_map[key] = (sbom_id, rank)
     latest_sbom_ids = {latest[0] for latest in latest_map.values()}
 
     if not latest_sbom_ids:
@@ -282,7 +285,7 @@ async def project_detail_page(
     )
     if service_id and service_id != "":
         sboms_query = sboms_query.where(SBOM.service_id == service_id)
-    sboms_query = sboms_query.order_by(SBOM.created_at.desc()).limit(sbom_history_preview)
+    sboms_query = sboms_query.order_by(*sbom_newest_first()).limit(sbom_history_preview)
 
     sbom_rows = (await db.execute(sboms_query)).all()
     sboms_with_svc = [(row[0], row[1]) for row in sbom_rows]
@@ -375,7 +378,7 @@ async def project_sboms_page(
     )
     if service_id and service_id != "":
         sboms_query = sboms_query.where(SBOM.service_id == service_id)
-    sboms_query = sboms_query.order_by(SBOM.created_at.desc())
+    sboms_query = sboms_query.order_by(*sbom_newest_first())
 
     pg: Page = await paginate(
         db, sboms_query, page=page, per_page=per_page, scalar=False, offset=offset

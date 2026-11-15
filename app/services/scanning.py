@@ -4,7 +4,7 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.sbom import SBOM
+from models.sbom import SBOM, sbom_newest_first
 from services.vulnerability_scanner import (
     reconcile_vulnerabilities,
     retire_stale_vulnerabilities,
@@ -50,7 +50,7 @@ async def latest_sbom_ids(db: AsyncSession) -> list[uuid.UUID]:
             func.row_number()
             .over(
                 partition_by=(SBOM.project_id, SBOM.service_id),
-                order_by=(SBOM.uploaded_at.desc(), SBOM.id.desc()),
+                order_by=sbom_newest_first(),
             )
             .label("rn"),
         )

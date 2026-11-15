@@ -22,7 +22,7 @@ from api.v1.schemas import (
 from database import get_db
 from middleware.api_key import api_key_required
 from models.project import Project
-from models.sbom import SBOM
+from models.sbom import SBOM, sbom_newest_first
 from models.vulnerability import VulnerabilitySnapshot
 from services.pagination import PROJECT_PER_PAGE, PROJECT_SBOM_HISTORY_PER_PAGE, Page, paginate
 
@@ -120,7 +120,7 @@ async def project_history(
         select(SBOM)
         .options(joinedload(SBOM.service), defer(SBOM.raw_sbom))
         .where(SBOM.project_id == project_id)
-        .order_by(SBOM.created_at.desc())
+        .order_by(*sbom_newest_first())
     )
     pg: Page = await paginate(db, query, page=page, per_page=per_page)
     return PageResponse[ProjectSBOMHistoryItem](

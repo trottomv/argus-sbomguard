@@ -46,9 +46,9 @@ async def sboms_page(
     }
     sort_col = sort_map.get(sort, SBOM.created_at)
     if order == "asc":
-        query = query.order_by(sort_col.asc().nullslast())
+        query = query.order_by(sort_col.asc().nullslast(), SBOM.uploaded_at.asc(), SBOM.id.asc())
     else:
-        query = query.order_by(sort_col.desc().nullslast())
+        query = query.order_by(sort_col.desc().nullslast(), SBOM.uploaded_at.desc(), SBOM.id.desc())
 
     pg: Page = await paginate(db, query, page=page, per_page=per_page, scalar=False)
 

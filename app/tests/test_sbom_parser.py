@@ -1,6 +1,7 @@
 import hashlib
 import json
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -183,4 +184,44 @@ async def test_store_sbom_creates_service_from_metadata(db_session):
 def test_extract_timestamp_invalid():
     assert _extract_timestamp({"metadata": {"timestamp": "not-a-date"}}) is None
     assert _extract_timestamp({}) is None
+    assert _extract_timestamp({"metadata": {"timestamp": 123}}) is None
     assert _extract_timestamp({"metadata": {"timestamp": "2026-01-15T10:00:00Z"}}) is not None
+
+
+def test_extract_timestamp_spdx_creation_info():
+    raw = {"spdxVersion": "SPDX-2.3", "creationInfo": {"created": "2026-01-15T10:00:00Z"}}
+    assert _extract_timestamp(raw) == datetime(2026, 1, 15, 10, 0, tzinfo=UTC)
+
+
+def test_extract_timestamp_naive_is_utc():
+    raw = {"metadata": {"timestamp": "2026-01-15T10:00:00"}}
+    assert _extract_timestamp(raw) == datetime(2026, 1, 15, 10, 0, tzinfo=UTC)
+
+
+def test_extract_timestamp_future_falls_back():
+    future = (datetime.now(UTC) + timedelta(days=1)).isoformat()
+    assert _extract_timestamp({"metadata": {"timestamp": future}}) is None
+
+
+@pytest.mark.asyncio
+async def test_store_sbom_spdx_uses_creation_info(db_session):
+    project_id = uuid.UUID("00000000-0000-0000-0000-000000000006")
+    db_session.add(Project(id=project_id, name="SBOM parser 6"))
+    await db_session.flush()
+
+    raw = {**SPDX_SAMPLE, "creationInfo": {"created": "2026-01-15T10:00:00Z"}}
+    sbom = await store_sbom(db_session, project_id, raw)
+    assert sbom.created_at == datetime(2026, 1, 15, 10, 0, tzinfo=UTC)
+
+
+@pytest.mark.asyncio
+async def test_store_sbom_future_timestamp_uses_upload_time(db_session):
+    project_id = uuid.UUID("00000000-0000-0000-0000-000000000007")
+    db_session.add(Project(id=project_id, name="SBOM parser 7"))
+    await db_session.flush()
+
+    before = datetime.now(UTC)
+    future = (datetime.now(UTC) + timedelta(days=1)).isoformat()
+    raw = {**CYCLONEDX_SAMPLE, "metadata": {"timestamp": future}}
+    sbom = await store_sbom(db_session, project_id, raw)
+    assert sbom.created_at >= before

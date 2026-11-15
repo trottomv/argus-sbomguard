@@ -41,7 +41,8 @@ async def test_latest_sbom_ids_picks_latest_per_scope(db_session):
             format=SBOMFormat.CYCLONEDX,
             raw_sbom={"v": "1"},
             sha256="a" * 64,
-            uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            uploaded_at=datetime(2026, 1, 2, tzinfo=UTC),
         ),
         SBOM(
             project_id=p1,
@@ -49,7 +50,8 @@ async def test_latest_sbom_ids_picks_latest_per_scope(db_session):
             format=SBOMFormat.CYCLONEDX,
             raw_sbom={"v": "2"},
             sha256="b" * 64,
-            uploaded_at=datetime(2026, 1, 2, tzinfo=UTC),
+            created_at=datetime(2026, 1, 2, tzinfo=UTC),
+            uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
         ),
         SBOM(
             project_id=p1,
@@ -57,13 +59,15 @@ async def test_latest_sbom_ids_picks_latest_per_scope(db_session):
             format=SBOMFormat.CYCLONEDX,
             raw_sbom={"v": "1"},
             sha256="c" * 64,
-            uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            uploaded_at=datetime(2026, 1, 5, tzinfo=UTC),
         ),
         SBOM(
             project_id=p1,
             format=SBOMFormat.CYCLONEDX,
             raw_sbom={"v": "1"},
             sha256="d" * 64,
+            created_at=datetime(2026, 1, 3, tzinfo=UTC),
             uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
         ),
         SBOM(
@@ -71,14 +75,16 @@ async def test_latest_sbom_ids_picks_latest_per_scope(db_session):
             format=SBOMFormat.CYCLONEDX,
             raw_sbom={"v": "1"},
             sha256="e" * 64,
-            uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            uploaded_at=datetime(2026, 1, 5, tzinfo=UTC),
         ),
         SBOM(
             project_id=p2,
             format=SBOMFormat.CYCLONEDX,
             raw_sbom={"v": "2"},
             sha256="f" * 64,
-            uploaded_at=datetime(2026, 1, 3, tzinfo=UTC),
+            created_at=datetime(2026, 1, 2, tzinfo=UTC),
+            uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
         ),
     ]
     db_session.add_all(sboms)
@@ -87,25 +93,60 @@ async def test_latest_sbom_ids_picks_latest_per_scope(db_session):
     result = await latest_sbom_ids(db_session)
 
     assert set(result) == {sboms[1].id, sboms[2].id, sboms[3].id, sboms[5].id}
-    assert sboms[0].id not in result  # superseded by a newer SBOM for service s1
-    assert sboms[4].id not in result  # superseded by a newer project-level SBOM for p2
+    assert sboms[0].id not in result  # superseded by a newer-created SBOM for service s1
+    assert sboms[4].id not in result  # superseded by a newer-created project-level SBOM for p2
 
 
-async def _make_scope(db_session, project_id, older_uploaded, latest_uploaded):
+@pytest.mark.asyncio
+async def test_latest_sbom_ids_tie_breaks_on_uploaded_at(db_session):
+    project_id = uuid.uuid4()
+    db_session.add(Project(id=project_id, name="Tasks tie project"))
+    first = SBOM(
+        project_id=project_id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"v": "1"},
+        sha256="1" * 64,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    second = SBOM(
+        project_id=project_id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"v": "2"},
+        sha256="2" * 64,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        uploaded_at=datetime(2026, 1, 2, tzinfo=UTC),
+    )
+    db_session.add_all([first, second])
+    await db_session.commit()
+
+    assert await latest_sbom_ids(db_session) == [second.id]
+
+
+async def _make_scope(
+    db_session,
+    project_id,
+    older_created,
+    latest_created,
+    older_uploaded=None,
+    latest_uploaded=None,
+):
     db_session.add(Project(id=project_id, name=f"Tasks project {project_id}"))
     older = SBOM(
         project_id=project_id,
         format=SBOMFormat.CYCLONEDX,
         raw_sbom={"v": "1"},
         sha256=uuid.uuid4().hex,
-        uploaded_at=older_uploaded,
+        created_at=older_created,
+        uploaded_at=older_uploaded or older_created,
     )
     latest = SBOM(
         project_id=project_id,
         format=SBOMFormat.CYCLONEDX,
         raw_sbom={"v": "2"},
         sha256=uuid.uuid4().hex,
-        uploaded_at=latest_uploaded,
+        created_at=latest_created,
+        uploaded_at=latest_uploaded or latest_created,
     )
     db_session.add_all([older, latest])
     await db_session.flush()
@@ -157,6 +198,29 @@ async def test_do_scan_sbom_reconciles_on_success(db_session):
         project_id,
         datetime(2026, 1, 1, tzinfo=UTC),
         datetime(2026, 1, 2, tzinfo=UTC),
+    )
+
+    with patch("services.scanning.scan_with_grype", new_callable=AsyncMock, return_value=[]):
+        await do_scan_sbom(db_session, str(latest.id))
+
+    fresh = (
+        await db_session.execute(
+            select(SBOMVulnerability).where(SBOMVulnerability.sbom_id == older.id)
+        )
+    ).scalar_one()
+    assert fresh.status == VulnerabilityStatus.FIXED
+
+
+@pytest.mark.asyncio
+async def test_do_scan_sbom_reconciles_by_created_at_not_uploaded_at(db_session):
+    project_id = uuid.uuid4()
+    older, latest, _, _ = await _make_scope(
+        db_session,
+        project_id,
+        datetime(2026, 1, 1, tzinfo=UTC),
+        datetime(2026, 1, 2, tzinfo=UTC),
+        older_uploaded=datetime(2026, 1, 5, tzinfo=UTC),
+        latest_uploaded=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
     with patch("services.scanning.scan_with_grype", new_callable=AsyncMock, return_value=[]):

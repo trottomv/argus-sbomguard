@@ -351,6 +351,7 @@ async def test_tools_against_seeded_data(db_session, monkeypatch):
         assert sboms["items"][0]["format"] == "cyclonedx"
         assert sboms["items"][0]["dependency_count"] == 1
         assert sboms["items"][0]["id"] == str(sbom.id)
+        assert sboms["items"][0]["created_at"]
         assert sboms["items"][0]["uploaded_at"]
 
         detail = json.loads(
@@ -370,6 +371,7 @@ async def test_tools_against_seeded_data(db_session, monkeypatch):
         }
         assert detail["open_count"] == 1
         assert detail["fixed_count"] == 0
+        assert detail["created_at"]
 
         deps = json.loads(
             (await client.call_tool("get_sbom_dependencies", {"sbom_id": str(sbom.id)}))
@@ -486,6 +488,22 @@ async def test_list_sboms_filters(db_session, monkeypatch):
     assert "service_id must be a valid UUID" in await _call_tool_error(
         db_session, monkeypatch, "list_sboms", {"service_id": "not-a-uuid"}
     )
+
+
+@pytest.mark.asyncio
+async def test_list_sboms_orders_by_created_at(db_session, monkeypatch):
+    project = await _seed_project(db_session)
+    older, _, _ = await _seed_sbom(db_session, project, with_service=False)
+    newer, _, _ = await _seed_sbom(db_session, project, with_service=False)
+    older.created_at = datetime(2026, 1, 1, tzinfo=UTC)
+    older.uploaded_at = datetime(2026, 1, 2, tzinfo=UTC)
+    newer.created_at = datetime(2026, 1, 2, tzinfo=UTC)
+    newer.uploaded_at = datetime(2026, 1, 1, tzinfo=UTC)
+    await db_session.commit()
+
+    listed = await _call_tool(db_session, monkeypatch, "list_sboms", {})
+
+    assert [item["id"] for item in listed["items"]] == [str(newer.id), str(older.id)]
 
 
 @pytest.mark.asyncio

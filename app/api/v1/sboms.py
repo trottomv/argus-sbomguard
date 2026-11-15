@@ -25,7 +25,7 @@ from api.v1.schemas import (
 from database import get_db
 from middleware.api_key import api_key_required
 from models.project import Project
-from models.sbom import SBOM, Dependency
+from models.sbom import SBOM, Dependency, sbom_newest_first
 from models.vulnerability import SBOMVulnerability, Vulnerability, VulnerabilityStatus
 from services.sbom_parser import store_sbom
 from services.tasks import scan_sbom
@@ -235,7 +235,7 @@ async def delete_sbom(sbom_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
             SBOM.service_id == sbom.service_id if sbom.service_id else SBOM.service_id.is_(None),
             SBOM.project_id == sbom.project_id,
         )
-        .order_by(SBOM.uploaded_at.desc())
+        .order_by(*sbom_newest_first())
         .limit(1)
     )
     latest_result = await db.execute(latest_query)

@@ -293,6 +293,36 @@ async def test_project_history_with_sboms(client):
 
 
 @pytest.mark.asyncio
+async def test_project_history_orders_by_created_at(client):
+    proj = await client.post("/api/v1/projects", json={"name": "history-created-order"})
+    pid = proj.json()["id"]
+
+    def sbom_payload(version: str, timestamp: str) -> dict:
+        return {
+            "bomFormat": "CycloneDX",
+            "metadata": {
+                "timestamp": timestamp,
+                "component": {"name": "svc", "version": version},
+            },
+            "components": [],
+        }
+
+    newer = sbom_payload("newer", "2026-01-02T00:00:00Z")
+    older = sbom_payload("older", "2026-01-01T00:00:00Z")
+    for payload in (newer, older):
+        resp = await client.post(
+            "/api/v1/sboms/upload",
+            data={"project_id": pid},
+            files={"file": ("sbom.json", json.dumps(payload), "application/json")},
+        )
+        assert resp.status_code == 201
+
+    resp = await client.get(f"/api/v1/projects/{pid}/history")
+    assert resp.status_code == 200
+    assert [item["version"] for item in resp.json()["items"]] == ["newer", "older"]
+
+
+@pytest.mark.asyncio
 async def test_project_history_without_service(client):
     proj = await client.post("/api/v1/projects", json={"name": "history-no-service"})
     pid = proj.json()["id"]

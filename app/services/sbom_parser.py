@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -87,11 +87,19 @@ def _extract_license(component: dict) -> str:
 def _extract_timestamp(raw: dict) -> datetime | None:
     ts = (raw.get("metadata") or {}).get("timestamp")
     if not ts:
+        ts = (raw.get("creationInfo") or {}).get("created")
+    if not isinstance(ts, str) or not ts:
         return None
     try:
-        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(ts.replace("Z", "+00:00"))
     except (ValueError, TypeError):
         return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    parsed = parsed.astimezone(UTC)
+    if parsed > datetime.now(UTC):
+        return None
+    return parsed
 
 
 async def store_sbom(
@@ -127,7 +135,7 @@ async def store_sbom(
     else:
         service = None
 
-    created_at = _extract_timestamp(raw)
+    created_at = _extract_timestamp(raw) or datetime.now(UTC)
 
     sbom = SBOM(
         project_id=project_id,
