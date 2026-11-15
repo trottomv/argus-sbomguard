@@ -4,6 +4,10 @@ from datetime import UTC, datetime
 
 import pytest
 
+from api.pages.projects import _get_project_vulns
+from models.project import Project
+from models.sbom import SBOM, SBOMFormat
+from models.service import Service
 from models.vulnerability import (
     SBOMVulnerability,
     Vulnerability,
@@ -349,3 +353,97 @@ async def test_project_detail_vuln_accept_scopes(client, db_session):
     assert "CVE-2026-5004" in resp.text
     # The row embeds the valid accept scopes for the modal.
     assert "project_name" in resp.text
+
+
+async def _add_open_vuln(db_session, sbom: SBOM, cve_id: str) -> None:
+    vuln = Vulnerability(cve_id=cve_id, source="grype", severity=VulnerabilitySeverity.HIGH)
+    db_session.add(vuln)
+    await db_session.flush()
+    db_session.add(
+        SBOMVulnerability(
+            sbom_id=sbom.id,
+            dependency_purl=f"pkg:npm/{cve_id}@1.0.0",
+            vulnerability_id=vuln.id,
+            status=VulnerabilityStatus.OPEN,
+            detected_at=datetime.now(UTC),
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_project_vulns_use_latest_by_created_at(db_session):
+    project = Project(name="latest-by-created")
+    db_session.add(project)
+    await db_session.flush()
+    service = Service(project_id=project.id, name="svc")
+    db_session.add(service)
+    await db_session.flush()
+
+    older = SBOM(
+        project_id=project.id,
+        service_id=service.id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="1" * 64,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        uploaded_at=datetime(2026, 1, 2, tzinfo=UTC),
+    )
+    newer = SBOM(
+        project_id=project.id,
+        service_id=service.id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="2" * 64,
+        created_at=datetime(2026, 1, 2, tzinfo=UTC),
+        uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    db_session.add_all([older, newer])
+    await db_session.flush()
+    await _add_open_vuln(db_session, older, "CVE-2026-7001")
+    await _add_open_vuln(db_session, newer, "CVE-2026-7002")
+    await db_session.commit()
+
+    result = await _get_project_vulns(db_session, project.id, project_name=project.name)
+
+    assert [item["cve_id"] for item in result] == ["CVE-2026-7002"]
+
+
+@pytest.mark.asyncio
+async def test_project_vulns_tie_break_on_newest_id(db_session):
+    project = Project(name="latest-tie")
+    db_session.add(project)
+    await db_session.flush()
+    service = Service(project_id=project.id, name="svc")
+    db_session.add(service)
+    await db_session.flush()
+
+    same_time = datetime(2026, 1, 1, tzinfo=UTC)
+    lower = SBOM(
+        id=uuid.UUID(int=1),
+        project_id=project.id,
+        service_id=service.id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="3" * 64,
+        created_at=same_time,
+        uploaded_at=same_time,
+    )
+    higher = SBOM(
+        id=uuid.UUID(int=2),
+        project_id=project.id,
+        service_id=service.id,
+        format=SBOMFormat.CYCLONEDX,
+        raw_sbom={"bomFormat": "CycloneDX"},
+        sha256="4" * 64,
+        created_at=same_time,
+        uploaded_at=same_time,
+    )
+    db_session.add_all([lower, higher])
+    await db_session.flush()
+    await _add_open_vuln(db_session, lower, "CVE-2026-7003")
+    await _add_open_vuln(db_session, higher, "CVE-2026-7004")
+    await db_session.commit()
+
+    result = await _get_project_vulns(db_session, project.id, project_name=project.name)
+
+    assert [item["cve_id"] for item in result] == ["CVE-2026-7004"]
